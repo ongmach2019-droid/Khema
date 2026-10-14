@@ -108,26 +108,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               className="flex-1 h-14 bg-secondary text-on-secondary rounded-xl font-headline-sm text-[16px] font-semibold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all hover:bg-secondary/90"
               type="button"
             >
-              <span className="material-symbols-outlined text-[24px]">photo_camera</span>
-              <span>ចាប់ផ្តើមស្កេន</span>
+              <span className="material-symbols-outlined text-[24px]">document_scanner</span>
+              <span>ចាប់ផ្តើមស្កេន AI</span>
             </button>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Upload document file"
-              className="w-14 h-14 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface flex items-center justify-center shrink-0 border border-surface-container-high active:scale-95 transition-all shadow-sm"
-              type="button"
+            <label
+              htmlFor="dashboard-quick-camera"
+              title="ថតរូបភាពផ្ទាល់ពីកាមេរ៉ាទូរសព្ទ"
+              className="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container hover:bg-secondary-container/80 flex items-center justify-center shrink-0 border border-secondary/20 active:scale-95 transition-all shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[24px]">photo_camera</span>
+              <input
+                id="dashboard-quick-camera"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleQuickUpload}
+                className="sr-only"
+              />
+            </label>
+
+            <label
+              htmlFor="dashboard-quick-gallery"
+              title="ជ្រើសរើសរូបពីបណ្ណាល័យទូរសព្ទ"
+              className="w-14 h-14 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface flex items-center justify-center shrink-0 border border-surface-container-high active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               <span className="material-symbols-outlined text-[24px] text-on-surface-variant">upload_file</span>
-            </button>
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleQuickUpload}
-              accept="image/*,application/pdf"
-              className="hidden"
-            />
+              <input
+                id="dashboard-quick-gallery"
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleQuickUpload}
+                className="sr-only"
+              />
+            </label>
           </div>
         </div>
       </div>

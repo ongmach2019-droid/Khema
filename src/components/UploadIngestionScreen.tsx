@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Transaction, AppSettings } from '../types.ts';
 import { PRESET_RECEIPTS, SAMPLE_RECEIPT_IMG } from '../data/mockData.ts';
+import { compressAndPrepareImage } from '../utils/imageUtils.ts';
 
 interface UploadIngestionScreenProps {
   settings: AppSettings;
@@ -63,6 +64,14 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
+  // Sync camera stream to video element whenever modal opens or stream updates
+  useEffect(() => {
+    if (showCameraModal && videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch((err) => console.warn('Camera video play error:', err));
+    }
+  }, [showCameraModal, cameraStream]);
+
   // If initialFile is passed from dashboard
   useEffect(() => {
     if (initialFile) {
@@ -109,20 +118,36 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
     }
   };
 
-  // Handle file upload
-  const processFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      setReceiptImage(base64);
-      analyzeWithAI(base64, file.type, file.name);
-    };
-    reader.readAsDataURL(file);
+  // Handle file upload with client-side compression for smooth mobile experience
+  const processFile = async (file: File) => {
+    setIsAnalyzing(true);
+    setAnalysisProgress(15);
+    try {
+      const { dataUrl, mimeType } = await compressAndPrepareImage(file);
+      if (!dataUrl) {
+        alert('មិនអាចបើករូបភាពបានទេ។ សូមសាកល្បងម្ដងទៀត!');
+        setIsAnalyzing(false);
+        return;
+      }
+      setReceiptImage(dataUrl);
+      analyzeWithAI(dataUrl, mimeType, file.name);
+    } catch (err) {
+      console.warn('Compression fallback to standard file reader:', err);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        setReceiptImage(base64);
+        analyzeWithAI(base64, file.type, file.name);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0]);
+      // Reset input value so re-selecting same file triggers onChange
+      e.target.value = '';
     }
   };
 
@@ -184,9 +209,12 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
             items: d.items,
           });
         }
+      } else {
+        setAnalysisNotice('⚠️ ការតភ្ជាប់មានការរអាក់រអួលបន្តិចបន្តួច សូមចុចប៊ូតុង «សាកល្បង AI» ឡើងវិញ');
       }
     } catch (err) {
       console.warn('Analysis network issue, fallback applied:', err);
+      setAnalysisNotice('⚠️ ជួបបញ្ហាបណ្ដាញទូរសព្ទ សូមពិនិត្យអ៊ីនធឺណិត ហើយសាកល្បងម្ដងទៀត');
     } finally {
       clearInterval(progressTimer);
       setIsAnalyzing(false);
@@ -220,19 +248,21 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
     }
   };
 
-  // Live Camera
+  // Live In-Browser Camera
   const startCamera = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        cameraInputRef.current?.click();
+        return;
+      }
       setShowCameraModal(true);
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
       });
       setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
     } catch (err) {
-      console.warn('Camera permission denied or unavailable, opening file selector');
+      console.warn('Camera permission denied or unavailable, opening native camera selector:', err);
       setShowCameraModal(false);
       cameraInputRef.current?.click();
     }
@@ -240,13 +270,15 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 
   const capturePhoto = () => {
     if (videoRef.current) {
+      const width = videoRef.current.videoWidth || 1280;
+      const height = videoRef.current.videoHeight || 720;
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth || 640;
-      canvas.height = videoRef.current.videoHeight || 480;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
+        ctx.drawImage(videoRef.current, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
         setReceiptImage(dataUrl);
         stopCamera();
         analyzeWithAI(dataUrl, 'image/jpeg', 'Captured Receipt');
@@ -379,44 +411,70 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
             ដាក់វិក្កយបត្រក្រដាស ឬ បង្កាន់ដៃបង់ប្រាក់ KHQR ដើម្បីបម្លែងទិន្នន័យ
           </span>
 
-          <div className="flex flex-col items-center gap-space-sm w-full max-w-xs justify-center">
+          <div className="flex flex-col items-center gap-space-sm w-full max-w-sm justify-center">
+            {/* Direct Native Camera & Gallery Labels (100% reliable on iOS & Android) */}
             <div className="flex items-center gap-space-sm w-full justify-center">
-              <button
-                onClick={startCamera}
-                className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-semibold shadow-sm hover:bg-secondary/90 transition-transform active:scale-95 flex-1 min-w-[130px]"
-                type="button"
+              <label
+                htmlFor="upload-native-camera"
+                className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-semibold shadow-sm hover:bg-secondary/90 transition-transform active:scale-95 flex-1 min-w-[130px] cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                 <span>ថតរូបភាព</span>
-              </button>
+                <input
+                  id="upload-native-camera"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileChange}
+                  className="sr-only"
+                />
+              </label>
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-surface-container-highest text-on-surface rounded-xl font-label-lg text-label-lg font-semibold hover:bg-surface-container-high transition-transform active:scale-95 flex-1 min-w-[130px]"
-                type="button"
+              <label
+                htmlFor="upload-native-gallery"
+                className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-surface-container-highest text-on-surface rounded-xl font-label-lg text-label-lg font-semibold hover:bg-surface-container-high transition-transform active:scale-95 flex-1 min-w-[130px] cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">collections</span>
                 <span>ជ្រើសរើសរូប</span>
-              </button>
+                <input
+                  id="upload-native-gallery"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleFileChange}
+                  className="sr-only"
+                />
+              </label>
             </div>
 
-            <button
-              onClick={handleClipboardPasteClick}
-              className="flex items-center justify-center gap-2 h-11 px-space-md bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-label-lg text-label-lg font-semibold shadow-sm transition-transform active:scale-95 w-full cursor-pointer"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[20px]">content_paste</span>
-              <span>📋 Paste ពី Telegram (Ctrl+V)</span>
-            </button>
+            {/* In-Browser Live Viewfinder Option & Telegram Paste */}
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <button
+                onClick={startCamera}
+                className="flex items-center justify-center gap-1.5 h-10 px-2 rounded-xl bg-surface-container-lowest hover:bg-surface-container-high border border-surface-container-high text-on-surface font-label-sm text-[12px] font-semibold transition-all active:scale-95"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[17px] text-secondary">videocam</span>
+                <span>កាមេរ៉ាស្កេនផ្ទាល់</span>
+              </button>
+
+              <button
+                onClick={handleClipboardPasteClick}
+                className="flex items-center justify-center gap-1.5 h-10 px-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/30 text-emerald-800 font-label-sm text-[12px] font-semibold transition-all active:scale-95"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[17px] text-emerald-600">content_paste</span>
+                <span>Paste Telegram</span>
+              </button>
+            </div>
           </div>
 
           <div className="mt-space-md flex items-center gap-1 text-on-surface-variant text-[12px]">
             <span className="material-symbols-outlined text-[15px]">info</span>
-            <span>គាំទ្រ JPG, PNG, PDF (រហូតដល់ 15MB)</span>
+            <span>គាំទ្រ JPG, PNG, PDF (កាត់បន្ថយទំហំស្វ័យប្រវត្តិ)</span>
           </div>
         </div>
 
-        {/* Hidden inputs */}
+        {/* Fallback hidden inputs */}
         <input
           type="file"
           ref={fileInputRef}
@@ -538,8 +596,8 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
               </div>
             </div>
           ) : (
-            <div
-              onClick={() => fileInputRef.current?.click()}
+            <label
+              htmlFor="receipt-dashed-box-input"
               className="relative w-full sm:w-28 h-40 rounded-xl overflow-hidden shrink-0 bg-surface-container-low border-2 border-dashed border-surface-container-highest hover:border-secondary flex flex-col items-center justify-center p-2 text-center cursor-pointer transition-all active:scale-95 group shadow-inner"
               title="ចុចដើម្បីជ្រើសរើស ឬថតរូបភាពវិក្កយបត្រ"
             >
@@ -552,7 +610,14 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
               <span className="text-[10px] text-secondary font-semibold mt-1 underline">
                 ចុចដាក់រូបភាព
               </span>
-            </div>
+              <input
+                id="receipt-dashed-box-input"
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleFileChange}
+                className="sr-only"
+              />
+            </label>
           )}
 
           <div className="flex-1 flex flex-col justify-center gap-2">
@@ -745,29 +810,41 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 
       {/* Primary CTA Action Group */}
       <div className="flex flex-col gap-space-sm w-full">
-        <button
-          onClick={receiptImage ? handleConfirmAndSave : () => fileInputRef.current?.click()}
-          disabled={savedSuccess}
-          className={`w-full h-13 rounded-xl font-headline-sm text-[16px] font-semibold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] ${
-            savedSuccess
-              ? 'bg-primary-container text-on-primary'
-              : receiptImage
-              ? 'bg-secondary text-on-secondary hover:bg-secondary/90'
-              : 'bg-surface-container-highest text-on-surface hover:bg-surface-container-high border border-surface-container-high'
-          }`}
-          type="button"
-        >
-          <span className="material-symbols-outlined text-[22px]">
-            {savedSuccess ? 'check_circle' : receiptImage ? 'save' : 'photo_camera'}
-          </span>
-          <span>
-            {savedSuccess
-              ? 'បានកត់ត្រាជោគជ័យ!'
-              : receiptImage
-              ? 'បញ្ជាក់ & កត់ត្រាចូលបញ្ជី'
-              : 'សូមដាក់រូបភាពជាមុនសិន'}
-          </span>
-        </button>
+        {receiptImage ? (
+          <button
+            onClick={handleConfirmAndSave}
+            disabled={savedSuccess}
+            className={`w-full h-13 rounded-xl font-headline-sm text-[16px] font-semibold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] ${
+              savedSuccess
+                ? 'bg-primary-container text-on-primary'
+                : 'bg-secondary text-on-secondary hover:bg-secondary/90'
+            }`}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[22px]">
+              {savedSuccess ? 'check_circle' : 'save'}
+            </span>
+            <span>
+              {savedSuccess ? 'បានកត់ត្រាជោគជ័យ!' : 'បញ្ជាក់ & កត់ត្រាចូលបញ្ជី'}
+            </span>
+          </button>
+        ) : (
+          <label
+            htmlFor="bottom-primary-camera-input"
+            className="w-full h-13 rounded-xl font-headline-sm text-[16px] font-semibold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] bg-surface-container-highest text-on-surface hover:bg-surface-container-high border border-surface-container-high cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[22px]">photo_camera</span>
+            <span>សូមដាក់រូបភាពជាមុនសិន</span>
+            <input
+              id="bottom-primary-camera-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileChange}
+              className="sr-only"
+            />
+          </label>
+        )}
 
         <button
           onClick={resetForm}
@@ -797,6 +874,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
               ref={videoRef}
               autoPlay
               playsInline
+              muted
               className="w-full h-full object-cover"
             />
             {/* Viewfinder guides */}

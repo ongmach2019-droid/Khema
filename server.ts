@@ -25,9 +25,9 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Support large image payloads (e.g., camera photos up to 20MB)
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+// Support large image payloads (e.g., camera photos up to 35MB)
+app.use(express.json({ limit: '35mb' }));
+app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 
 // Helper to get Google GenAI client
 function getAiClient(customKey?: string): GoogleGenAI | null {
@@ -190,7 +190,7 @@ app.post('/api/analyze-receipt', async (req, res) => {
               console.warn('Could not fetch image URL directly, will analyze with prompt:', fetchErr);
             }
           } else {
-            cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+            cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
           }
         }
 
