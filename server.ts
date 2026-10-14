@@ -30,16 +30,11 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Helper to get Google GenAI client
-function getAiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+function getAiClient(customKey?: string): GoogleGenAI | null {
+  const apiKey = (customKey || process.env.GEMINI_API_KEY || '').trim();
   if (!apiKey) return null;
   return new GoogleGenAI({
     apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
   });
 }
 
@@ -54,10 +49,36 @@ app.get('/api/exchange-rate', (_req, res) => {
   });
 });
 
+// Update or save Gemini API Key
+app.post('/api/update-api-key', (req, res) => {
+  const { apiKey } = req.body;
+  if (!apiKey || typeof apiKey !== 'string') {
+    return res.status(400).json({ error: 'Missing apiKey' });
+  }
+  const cleanKey = apiKey.trim();
+  process.env.GEMINI_API_KEY = cleanKey;
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf-8');
+    }
+    if (envContent.includes('GEMINI_API_KEY=')) {
+      envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${cleanKey}`);
+    } else {
+      envContent += `\nGEMINI_API_KEY=${cleanKey}\n`;
+    }
+    fs.writeFileSync(envPath, envContent, 'utf-8');
+  } catch (e) {
+    console.warn('Could not write to .env:', e);
+  }
+  return res.json({ success: true, message: 'API Key updated successfully' });
+});
+
 // Helper function to call Gemini with model failover and retries
 async function callGeminiWithFailover(ai: GoogleGenAI, parts: any[], systemInstruction: string) {
-  // Ordered model candidate list: primary reliable models
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+  // Ordered model candidate list: real working Google Gemini models
+  const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   let lastError: any = null;
 
   for (const model of candidateModels) {
@@ -137,14 +158,18 @@ async function callGeminiWithFailover(ai: GoogleGenAI, parts: any[], systemInstr
 // AI Receipt Analysis Endpoint
 app.post('/api/analyze-receipt', async (req, res) => {
   try {
-    const { imageBase64, mimeType = 'image/jpeg', vendorHint } = req.body;
+    const { imageBase64, mimeType = 'image/jpeg', vendorHint, apiKey: userKey } = req.body;
+    const headerKey = req.headers['x-gemini-api-key'] as string;
+    const resolvedKey = (userKey || headerKey || process.env.GEMINI_API_KEY || '').trim();
 
     if (!imageBase64 && !vendorHint) {
       return res.status(400).json({ error: 'Missing image or vendor data' });
     }
 
-    const ai = getAiClient();
-    // If Gemini API is available
+    const ai = getAiClient(resolvedKey);
+    let geminiErrorMsg = '';
+
+    // If Gemini client can be initialized
     if (ai) {
       try {
         const parts: any[] = [];
@@ -225,15 +250,25 @@ ${memoryContext}`;
         });
       } catch (geminiError: any) {
         console.warn('Gemini API call failed, falling back to smart receipt engine:', geminiError?.message);
+        geminiErrorMsg = geminiError?.message || 'Gemini API call failed';
       }
+    } else {
+      geminiErrorMsg = 'Missing or invalid GEMINI_API_KEY';
     }
 
-    // High quality intelligent Cambodian receipt parser fallback
+    const isAuthError = geminiErrorMsg.includes('UNAUTHENTICATED') || geminiErrorMsg.includes('401') || resolvedKey.startsWith('AQ.');
+
+    // Fallback data
     const fallbackData = generateFallbackReceiptData(vendorHint);
     return res.json({
       success: true,
       data: fallbackData,
       source: 'smart-engine',
+      needsApiKey: !resolvedKey || isAuthError,
+      geminiError: geminiErrorMsg,
+      notice: isAuthError
+        ? '⚠️ Gemini API Key មិនត្រឹមត្រូវ (401 Unauthenticated)។ សូមបញ្ចូល API Key ពី Google AI Studio (ផ្តើមដោយ AIzaSy...)'
+        : (!resolvedKey ? '⚠️ មិនទាន់បានកំណត់ Gemini API Key (Google AI Studio)' : '⚠️ ដំណើរការ Offline Mode'),
     });
   } catch (error: any) {
     console.error('Receipt analysis error:', error);
