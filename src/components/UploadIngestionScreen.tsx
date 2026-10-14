@@ -30,9 +30,22 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const [receiptImage, setReceiptImage] = useState<string>(SAMPLE_RECEIPT_IMG);
+  const EMPTY_EXTRACTED_DATA: ExtractedData = {
+    vendor: '---',
+    date: '---',
+    amountUSD: 0,
+    amountKHR: 0,
+    vatUSD: 0,
+    coaCode: '---',
+    coaCategory: '---',
+    status: 'paid',
+    aiExplanation: 'សូមបញ្ចូលរូបភាព ឬថតរូបវិក្កយបត្រ ដើម្បីឱ្យ AI វិភាគទិន្នន័យ។',
+    ocrConfidence: 0,
+  };
+
+  const [receiptImage, setReceiptImage] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analysisProgress, setAnalysisProgress] = useState<number>(95);
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const [analysisSource, setAnalysisSource] = useState<string>('gemini');
   const [analysisNotice, setAnalysisNotice] = useState<string>('');
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -43,19 +56,8 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   const [isSavingKey, setIsSavingKey] = useState<boolean>(false);
   const [needsApiKey, setNeedsApiKey] = useState<boolean>(false);
 
-  // Editable extracted data
-  const [data, setData] = useState<ExtractedData>({
-    vendor: 'ផ្សារទំនើប ឡាក់គី (Lucky)',
-    date: '2024-10-24',
-    amountUSD: 84.20,
-    amountKHR: 345220,
-    vatUSD: 7.65,
-    coaCode: '6010',
-    coaCategory: '6010 - សម្ភារៈប្រើប្រាស់',
-    status: 'paid',
-    aiExplanation: 'ការទិញនេះត្រូវបានចាត់ថ្នាក់ជាចំណាយប្រតិបត្តិការទូទៅ ស្របតាមប្រកាសស្តីពីគណនេយ្យសហគ្រាសធុនតូច។',
-    ocrConfidence: 95,
-  });
+  // Editable extracted data (Defaults to 0 until image is uploaded)
+  const [data, setData] = useState<ExtractedData>(EMPTY_EXTRACTED_DATA);
 
   // Camera video ref
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -262,6 +264,12 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 
   // Save to Ledger
   const handleConfirmAndSave = () => {
+    if (!receiptImage || data.amountUSD === 0) {
+      alert('សូមបញ្ចូល ឬថតរូបភាពវិក្កយបត្រជាមុនសិន!');
+      fileInputRef.current?.click();
+      return;
+    }
+
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       ref: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -298,19 +306,9 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   };
 
   const resetForm = () => {
-    setReceiptImage(SAMPLE_RECEIPT_IMG);
-    setData({
-      vendor: 'ផ្សារទំនើប ឡាក់គី (Lucky)',
-      date: '2024-10-24',
-      amountUSD: 84.20,
-      amountKHR: 345220,
-      vatUSD: 7.65,
-      coaCode: '6010',
-      coaCategory: '6010 - សម្ភារៈប្រើប្រាស់',
-      status: 'paid',
-      aiExplanation: 'ការទិញនេះត្រូវបានចាត់ថ្នាក់ជាចំណាយប្រតិបត្តិការទូទៅ ស្របតាមប្រកាសស្តីពីគណនេយ្យសហគ្រាសធុនតូច។',
-      ocrConfidence: 95,
-    });
+    setReceiptImage('');
+    setData(EMPTY_EXTRACTED_DATA);
+    setAnalysisProgress(0);
     setSavedSuccess(false);
   };
 
@@ -473,13 +471,17 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
               </button>
             )}
             <span className="font-label-sm text-[11px] bg-secondary-fixed text-on-secondary-fixed px-2.5 py-1 rounded-full font-bold">
-              {isAnalyzing ? `កំពុងវិភាគ (${analysisProgress}%)` : '95% រួចរាល់'}
+              {isAnalyzing
+                ? `កំពុងវិភាគ (${analysisProgress}%)`
+                : receiptImage
+                ? `${data.ocrConfidence || 95}% រួចរាល់`
+                : 'រង់ចាំរូបភាព (០%)'}
             </span>
           </div>
         </div>
 
-        {/* API Key Alert Banner if Gemini is not working / offline */}
-        {(needsApiKey || analysisSource === 'smart-engine') && (
+        {/* API Key Alert Banner if Gemini is not working / offline (only show if image is uploaded) */}
+        {receiptImage && (needsApiKey || analysisSource === 'smart-engine') && (
           <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start justify-between gap-2.5 animate-in fade-in">
             <div className="flex items-start gap-2">
               <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0 mt-0.5">
@@ -517,48 +519,78 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 
         {/* Live Receipt & Processing Progress */}
         <div className="flex flex-col sm:flex-row gap-space-md mb-space-md">
-          <div className="relative w-full sm:w-28 h-40 rounded-xl overflow-hidden shrink-0 bg-surface-container-high shadow-inner flex items-center justify-center group border border-surface-container-highest">
-            <img
-              className="w-full h-full object-cover"
-              alt="Receipt preview"
-              src={receiptImage}
-            />
-            {isAnalyzing && (
-              <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center backdrop-blur-xs">
-                <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+          {receiptImage ? (
+            <div className="relative w-full sm:w-28 h-40 rounded-xl overflow-hidden shrink-0 bg-surface-container-high shadow-inner flex items-center justify-center group border border-surface-container-highest">
+              <img
+                className="w-full h-full object-cover"
+                alt="Receipt preview"
+                src={receiptImage}
+              />
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center backdrop-blur-xs">
+                  <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent flex items-end p-2 pointer-events-none">
+                <span className="font-label-sm text-[11px] text-on-primary truncate font-semibold">
+                  {data.vendor}
+                </span>
               </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent flex items-end p-2 pointer-events-none">
-              <span className="font-label-sm text-[11px] text-on-primary truncate font-semibold">
-                {data.vendor}
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="relative w-full sm:w-28 h-40 rounded-xl overflow-hidden shrink-0 bg-surface-container-low border-2 border-dashed border-surface-container-highest hover:border-secondary flex flex-col items-center justify-center p-2 text-center cursor-pointer transition-all active:scale-95 group shadow-inner"
+              title="ចុចដើម្បីជ្រើសរើស ឬថតរូបភាពវិក្កយបត្រ"
+            >
+              <div className="w-10 h-10 rounded-full bg-surface-container-high group-hover:bg-secondary/15 flex items-center justify-center text-on-surface-variant group-hover:text-secondary mb-1 transition-colors">
+                <span className="material-symbols-outlined text-[24px]">add_photo_alternate</span>
+              </div>
+              <span className="font-label-sm text-[11px] font-bold text-on-surface-variant leading-tight">
+                មិនទាន់មានរូបភាព
+              </span>
+              <span className="text-[10px] text-secondary font-semibold mt-1 underline">
+                ចុចដាក់រូបភាព
               </span>
             </div>
-          </div>
+          )}
 
           <div className="flex-1 flex flex-col justify-center gap-2">
             {/* Checklist */}
             <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-surface-container-low text-[12px]">
               <div className="flex items-center gap-1.5 text-on-surface">
-                <span className="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+                <span className={`material-symbols-outlined text-[16px] ${receiptImage ? 'text-secondary' : 'text-on-surface-variant/40'}`}>
+                  {receiptImage ? 'check_circle' : 'pending'}
+                </span>
                 <span>ស្កេនអក្សរ & តួលេខ (OCR Extracted)</span>
               </div>
-              <span className="text-secondary font-bold">ជោគជ័យ</span>
+              <span className={receiptImage ? 'text-secondary font-bold' : 'text-on-surface-variant/70 text-[11px] font-medium'}>
+                {receiptImage ? (isAnalyzing ? `${analysisProgress}%` : 'ជោគជ័យ') : 'រង់ចាំរូបភាព (០%)'}
+              </span>
             </div>
 
             <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-surface-container-low text-[12px]">
               <div className="flex items-center gap-1.5 text-on-surface">
-                <span className="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+                <span className={`material-symbols-outlined text-[16px] ${receiptImage ? 'text-secondary' : 'text-on-surface-variant/40'}`}>
+                  {receiptImage ? 'check_circle' : 'pending'}
+                </span>
                 <span>ផ្ទៀងផ្ទាត់ពន្ធអាករ VAT 10%</span>
               </div>
-              <span className="text-secondary font-bold">ជោគជ័យ</span>
+              <span className={receiptImage ? 'text-secondary font-bold' : 'text-on-surface-variant/70 text-[11px] font-medium'}>
+                {receiptImage ? (isAnalyzing ? '...' : (settings.vatEnabled ? 'ជោគជ័យ' : 'បិទ')) : '០%'}
+              </span>
             </div>
 
             <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-surface-container-low text-[12px]">
               <div className="flex items-center gap-1.5 text-on-surface">
-                <span className="material-symbols-outlined text-[16px] text-secondary">sync</span>
+                <span className={`material-symbols-outlined text-[16px] ${receiptImage ? 'text-secondary' : 'text-on-surface-variant/40'}`}>
+                  {receiptImage ? 'sync' : 'hourglass_empty'}
+                </span>
                 <span>កំណត់កូដគណនេយ្យ (Mapping)</span>
               </div>
-              <span className="text-secondary font-bold">៩៥%</span>
+              <span className={receiptImage ? 'text-secondary font-bold' : 'text-on-surface-variant/70 text-[11px] font-medium'}>
+                {receiptImage ? (data.ocrConfidence ? `${data.ocrConfidence}%` : '៩៥%') : '០%'}
+              </span>
             </div>
           </div>
         </div>
@@ -714,19 +746,27 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
       {/* Primary CTA Action Group */}
       <div className="flex flex-col gap-space-sm w-full">
         <button
-          onClick={handleConfirmAndSave}
+          onClick={receiptImage ? handleConfirmAndSave : () => fileInputRef.current?.click()}
           disabled={savedSuccess}
           className={`w-full h-13 rounded-xl font-headline-sm text-[16px] font-semibold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] ${
             savedSuccess
               ? 'bg-primary-container text-on-primary'
-              : 'bg-secondary text-on-secondary hover:bg-secondary/90'
+              : receiptImage
+              ? 'bg-secondary text-on-secondary hover:bg-secondary/90'
+              : 'bg-surface-container-highest text-on-surface hover:bg-surface-container-high border border-surface-container-high'
           }`}
           type="button"
         >
           <span className="material-symbols-outlined text-[22px]">
-            {savedSuccess ? 'check_circle' : 'save'}
+            {savedSuccess ? 'check_circle' : receiptImage ? 'save' : 'photo_camera'}
           </span>
-          <span>{savedSuccess ? 'បានកត់ត្រាជោគជ័យ!' : 'បញ្ជាក់ & កត់ត្រាចូលបញ្ជី'}</span>
+          <span>
+            {savedSuccess
+              ? 'បានកត់ត្រាជោគជ័យ!'
+              : receiptImage
+              ? 'បញ្ជាក់ & កត់ត្រាចូលបញ្ជី'
+              : 'សូមដាក់រូបភាពជាមុនសិន'}
+          </span>
         </button>
 
         <button

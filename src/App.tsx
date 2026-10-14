@@ -69,7 +69,7 @@ export default function App() {
     }
   };
 
-  // Manual refresh transactions from backend if user explicitly wants to sync
+  // Sync transactions from server (shared across all devices)
   const fetchTransactions = async () => {
     try {
       const res = await fetch('/api/transactions');
@@ -77,12 +77,24 @@ export default function App() {
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           setTransactions(data.data);
+          try {
+            localStorage.setItem('khema_user_transactions', JSON.stringify(data.data));
+          } catch (e) {}
         }
       }
     } catch (e) {
-      console.warn('Could not load Excel transactions:', e);
+      console.warn('Could not load server transactions:', e);
     }
   };
+
+  // Auto-refresh every 10 seconds so mobile phone & desktop stay in sync with the exact same data
+  useEffect(() => {
+    fetchTransactions();
+    const interval = setInterval(() => {
+      fetchTransactions();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Unread notifications count
   const unreadNotifsCount = notifications.filter((n) => !n.read).length;

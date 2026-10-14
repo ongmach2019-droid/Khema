@@ -276,24 +276,56 @@ ${memoryContext}`;
   }
 });
 
-// GET /api/transactions - fetch real transactions from ABA_Transactions_Latest.xlsx
+const TRANSACTIONS_FILE = path.resolve(process.cwd(), 'khema_transactions.json');
+
+function getStoredTransactions(): any[] {
+  try {
+    if (fs.existsSync(TRANSACTIONS_FILE)) {
+      const raw = fs.readFileSync(TRANSACTIONS_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data)) return data;
+    }
+  } catch (e) {
+    console.warn('Error reading khema_transactions.json:', e);
+  }
+  return [];
+}
+
+function saveStoredTransactions(txs: any[]) {
+  try {
+    fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify(txs, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing khema_transactions.json:', e);
+  }
+}
+
+// GET /api/transactions - fetch shared transactions (accessible from all devices)
 app.get('/api/transactions', (_req, res) => {
   try {
-    const output = runPythonCommand('excel_bridge.py get_transactions');
-    const parsed = JSON.parse(output.trim());
-    return res.json({ success: true, data: parsed });
+    const txs = getStoredTransactions();
+    return res.json({ success: true, data: txs });
   } catch (err: any) {
-    console.error('Failed to get transactions from Excel:', err);
-    return res.status(500).json({ error: 'Could not read Excel file' });
+    console.error('Failed to get transactions:', err);
+    return res.json({ success: true, data: [] });
   }
 });
 
-// POST /api/save-transaction - append transaction to Excel and sync memory
+// POST /api/save-transaction - append transaction to shared JSON store, Excel, and Google Sheets
 app.post('/api/save-transaction', (req, res) => {
   try {
-    const payload = JSON.stringify(req.body);
-    const output = runPythonCommand('excel_bridge.py save_transaction -', payload);
-    const parsed = JSON.parse(output.trim());
+    const newTx = req.body;
+    const current = getStoredTransactions();
+    const filtered = current.filter((t: any) => t.id !== newTx.id);
+    const updated = [newTx, ...filtered];
+    saveStoredTransactions(updated);
+
+    // Best-effort Python Excel bridge
+    try {
+      const payload = JSON.stringify(newTx);
+      runPythonCommand('excel_bridge.py save_transaction -', payload);
+    } catch (e) {
+      // Non-fatal if Python is unavailable
+    }
 
     // Also forward to Google Sheets Webhook if configured
     const webhookUrl = req.body.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
@@ -309,10 +341,10 @@ app.post('/api/save-transaction', (req, res) => {
       }).catch((e) => console.warn('Google Sheets background sync error:', e));
     }
 
-    return res.json(parsed);
+    return res.json({ success: true, data: newTx });
   } catch (err: any) {
-    console.error('Failed to save transaction to Excel:', err);
-    return res.status(500).json({ error: 'Could not save to Excel file' });
+    console.error('Failed to save transaction:', err);
+    return res.status(500).json({ error: 'Could not save transaction' });
   }
 });
 
@@ -341,40 +373,59 @@ app.post('/api/save-excel-table', (req, res) => {
   }
 });
 
-// POST /api/update-transaction - update a specific transaction in Excel
+// POST /api/update-transaction - update a specific transaction
 app.post('/api/update-transaction', (req, res) => {
   try {
-    const payload = JSON.stringify(req.body);
-    const output = runPythonCommand('excel_bridge.py update_transaction -', payload);
-    const parsed = JSON.parse(output.trim());
-    return res.json(parsed);
+    const updatedTx = req.body;
+    const current = getStoredTransactions();
+    const next = current.map((t: any) => (t.id === updatedTx.id ? { ...t, ...updatedTx } : t));
+    saveStoredTransactions(next);
+
+    try {
+      const payload = JSON.stringify(req.body);
+      runPythonCommand('excel_bridge.py update_transaction -', payload);
+    } catch (e) {}
+
+    return res.json({ success: true, data: updatedTx });
   } catch (err: any) {
-    console.error('Failed to update transaction in Excel:', err);
+    console.error('Failed to update transaction:', err);
     return res.status(500).json({ error: 'Could not update transaction' });
   }
 });
 
-// POST /api/delete-transaction - delete a specific transaction from Excel
+// POST /api/delete-transaction - delete a specific transaction
 app.post('/api/delete-transaction', (req, res) => {
   try {
-    const payload = JSON.stringify(req.body);
-    const output = runPythonCommand('excel_bridge.py delete_transaction -', payload);
-    const parsed = JSON.parse(output.trim());
-    return res.json(parsed);
+    const { id } = req.body;
+    const current = getStoredTransactions();
+    const next = current.filter((t: any) => t.id !== id);
+    saveStoredTransactions(next);
+
+    try {
+      const payload = JSON.stringify(req.body);
+      runPythonCommand('excel_bridge.py delete_transaction -', payload);
+    } catch (e) {}
+
+    return res.json({ success: true, remaining: next.length });
   } catch (err: any) {
-    console.error('Failed to delete transaction from Excel:', err);
+    console.error('Failed to delete transaction:', err);
     return res.status(500).json({ error: 'Could not delete transaction' });
   }
 });
 
-// POST /api/clear-all-transactions - clear all rows from Excel and sync memory
+// POST /api/clear-all-transactions - clear all transactions
 app.post('/api/clear-all-transactions', (_req, res) => {
   try {
-    const output = runPythonCommand('excel_bridge.py clear_all_transactions');
-    return res.json(JSON.parse(output.trim()));
+    saveStoredTransactions([]);
+
+    try {
+      runPythonCommand('excel_bridge.py clear_all_transactions');
+    } catch (e) {}
+
+    return res.json({ success: true, remainingRows: 0 });
   } catch (err: any) {
-    console.error('Failed to clear Excel transactions:', err);
-    return res.status(500).json({ error: 'Could not clear Excel transactions' });
+    console.error('Failed to clear transactions:', err);
+    return res.status(500).json({ error: 'Could not clear transactions' });
   }
 });
 
