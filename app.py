@@ -19,7 +19,16 @@ paste_zone_component = components.declare_component("paste_zone", path=PASTE_COM
 # ==========================================
 # ការកំណត់ប្រព័ន្ធ & API KEY
 # ==========================================
-GEMINI_API_KEY = "AQ.Ab8RN6IHYsl_bTZo43C1UwoBw7uXH3rMvfcQFUbuOhqNGLOgIw"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+if not GEMINI_API_KEY and os.path.exists(".env"):
+    try:
+        with open(".env", "r") as f:
+            for line in f:
+                if line.startswith("GEMINI_API_KEY="):
+                    GEMINI_API_KEY = line.split("=", 1)[1].strip()
+                    break
+    except Exception:
+        pass
 EXCEL_FILE = "ABA_Transactions_Latest.xlsx"
 SHEET_NAME = "ABA Transactions KHR"
 LOGO_PATH = "logo.jpg"

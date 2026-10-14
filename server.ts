@@ -77,8 +77,8 @@ app.post('/api/update-api-key', (req, res) => {
 
 // Helper function to call Gemini with model failover and retries
 async function callGeminiWithFailover(ai: GoogleGenAI, parts: any[], systemInstruction: string) {
-  // Ordered model candidate list: real working Google Gemini models
-  const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  // Candidate models: gemini-flash-lite-latest and gemini-3.1-flash-lite are fast, accurate, and active
+  const candidateModels = ['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   let lastError: any = null;
 
   for (const model of candidateModels) {
