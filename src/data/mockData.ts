@@ -1,6 +1,7 @@
 import { Transaction, AppSettings, AppNotification } from '../types.ts';
 
-export const APP_LOGO = 'https://lh3.googleusercontent.com/aida/AEtjO1VYtfDBPGWje__XfJ6CLhAnc_KDyKwW_Val36Q9BPCwaFMchtwmD5wqalDHxqWkEyZVajo-Hy08SVtFdrB8AQjqrXR5eE8kUCNfN8JPkHVcwpNPbFmF22PYkuagLA9JUuo6565b2Ctj434NjCyT2g5A8shqrkNrjMpvBbipa21GpGkd68fbL_jBRTzwRX5TwkeP5ElfsbZVgd0mIhakiERktQmgmfAIVkNKwaMB7TyKyg';
+export const APP_LOGO = '/khema-logo.jpg';
+export const APP_ICON = '/khema-icon.jpg';
 export const USER_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuB1QFqUwJU7mQymf9O-wcOeYMuL8tIJ9phc11ip7Z0mSaPYv-BK6oacErrdgdQibC2GjS0HG1iLCLpECWCP4dV9lIzfxAUeYjfceRqvkdPr-nD7uGdp5gUgxwJuPwiGngC3Ky2gUyRmajCgmVPpG-eV6QKjOXcLxyTdXTPyz002cD9val8WzCZf3xanSuy5od1-w_BFeiT-3xxOX8CypfmYOcsgLtZ0BlQkogCGnsR9';
 export const SAMPLE_RECEIPT_IMG = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBcOQ4qCKXwPwUNMzKlRiNyzKOGUC_95YlxP8lEmH0BbBBPvC-abgWHpJAZ_3jEZAYYIcjlIQ2AoP4FLt_0uwYZ-m4vB0DULGF0-xRn8LUvIk-2-GQUou5Fuj2g08j4IBpeItnw_vZ_NxkfvBEDAhM-O_UPSoTdVU5oP7D2rmr-oqeDTEiLIbZev70gKcxgaOJTNsV5_e4fobNwA1xHn6ZL_VxOPfvNA28JDvbrw7xp';
 

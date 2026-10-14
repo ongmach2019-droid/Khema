@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Paste Button</title>
+  <script src="./streamlit-component-lib.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Battambang', -apple-system, sans-serif;
+      background: transparent;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Fallback container (បង្ហាញតែពេលមិនអាចដាក់ក្នុង Dropzone បាន) */
+    .fallback-container {
+      display: none;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 4px 0;
+    }
+
+    .fallback-btn {
+      background: linear-gradient(135deg, #0098DA 0%, #0284c7 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Battambang', sans-serif;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(0, 152, 218, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="fallback-container" id="fallbackContainer">
+    <button type="button" class="fallback-btn" id="fallbackBtn">
+      <span>📋</span>
+      <span>Paste ពី Telegram (Ctrl+V)</span>
+    </button>
+  </div>
+
+  <script>
+    let attachedToDropzone = false;
+
+    function sendImageData(base64Data, filename) {
+      Streamlit.setComponentValue({
+        data: base64Data,
+        filename: filename || `telegram_paste_${Date.now()}.png`,
+        timestamp: Date.now()
+      });
+    }
+
+    function processBlob(blob, filename) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        sendImageData(e.target.result, filename);
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    async function readClipboardAndSend(targetBtn) {
+      const originalText = targetBtn ? targetBtn.innerHTML : '';
+      if (targetBtn) targetBtn.innerHTML = '<span>⏳</span> <span>កំពុង Paste...</span>';
+
+      try {
+        const nav = (window.parent && window.parent.navigator) ? window.parent.navigator : navigator;
+        if (!nav.clipboard || !nav.clipboard.read) {
+          if (targetBtn) {
+            targetBtn.innerHTML = '<span>⚠️</span> <span>សូមចុច Ctrl + V</span>';
+            setTimeout(() => { targetBtn.innerHTML = originalText; }, 2500);
+          }
+          return;
+        }
+
+        const items = await nav.clipboard.read();
+        let foundImage = false;
+
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              const ext = type.split('/')[1] || 'png';
+              processBlob(blob, `telegram_paste_${Date.now()}.${ext}`);
+              foundImage = true;
+              break;
+            }
+          }
+          if (foundImage) break;
+        }
+
+        if (foundImage) {
+          if (targetBtn) {
+            targetBtn.innerHTML = '<span>✅</span> <span>បាន Paste!</span>';
+            setTimeout(() => { targetBtn.innerHTML = originalText; }, 2000);
+          }
+        } else {
+          if (targetBtn) {
+            targetBtn.innerHTML = '<span>⚠️</span> <span>គ្មានរូបក្នុង Clipboard</span>';
+            setTimeout(() => { targetBtn.innerHTML = originalText; }, 2500);
+          }
+        }
+      } catch (err) {
+        console.warn('Clipboard read error:', err);
+        if (targetBtn) {
+          targetBtn.innerHTML = '<span>⚠️</span> <span>សូមចុច Ctrl + V</span>';
+          setTimeout(() => { targetBtn.innerHTML = originalText; }, 2500);
+        }
+      }
+    }
+
+    function handlePasteEvent(e) {
+      const cd = e.clipboardData || (window.parent && window.parent.clipboardData);
+      if (!cd || !cd.items) return;
+
+      const items = cd.items;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const ext = blob.type.split('/')[1] || 'png';
+            processBlob(blob, `telegram_paste_${Date.now()}.${ext}`);
+            const btn = (window.parent && window.parent.document) ? window.parent.document.getElementById('telegramDropzoneBtn') : null;
+            if (btn) {
+              const orig = btn.innerHTML;
+              btn.innerHTML = '<span>✅</span> <span>បាន Paste!</span>';
+              setTimeout(() => { btn.innerHTML = orig; }, 2000);
+            }
+            e.preventDefault();
+            break;
+          }
+        }
+      }
+    }
+
+    // ភ្ជាប់ទៅ Dropzone របស់ Streamlit stFileUploader ផ្ទាល់
+    function tryAttachToStreamlitDropzone() {
+      try {
+        if (!window.parent || !window.parent.document) return false;
+        const parentDoc = window.parent.document;
+        
+        // ស្វែងរក Dropzone របស់ Streamlit
+        const dropzone = parentDoc.querySelector('[data-testid="stFileUploaderDropzone"]');
+        if (!dropzone) return false;
+
+        // ពិនិត្យមើលថាតើមានប៊ូតុងរួចហើយឬនៅ
+        let btn = dropzone.querySelector('#telegramDropzoneBtn');
+        if (!btn) {
+          btn = parentDoc.createElement('button');
+          btn.id = 'telegramDropzoneBtn';
+          btn.type = 'button';
+          btn.innerHTML = '<span>📋</span> <span>Paste ពី Telegram (Ctrl+V)</span>';
+          btn.title = 'ចុចទីនេះដើម្បី Paste រូបភាពដែល Copy ពី Telegram (ឬចុច Ctrl + V)';
+          btn.style.cssText = `
+            background: linear-gradient(135deg, #0098DA 0%, #0284c7 100%) !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 7px 14px !important;
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            font-family: 'Battambang', -apple-system, sans-serif !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            box-shadow: 0 2px 6px rgba(0, 152, 218, 0.25) !important;
+            transition: all 0.2s ease !important;
+            margin-left: auto !important;
+            white-space: nowrap !important;
+            z-index: 10 !important;
+            user-select: none !important;
+          `;
+
+          btn.onmouseover = () => {
+            btn.style.transform = 'translateY(-1px)';
+            btn.style.boxShadow = '0 4px 10px rgba(0, 152, 218, 0.35)';
+          };
+          btn.onmouseout = () => {
+            btn.style.transform = 'translateY(0)';
+            btn.style.boxShadow = '0 2px 6px rgba(0, 152, 218, 0.25)';
+          };
+
+          btn.onclick = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await readClipboardAndSend(btn);
+          };
+
+          // រៀបចំ Style លើ Dropzone ដើម្បីឱ្យ Button នៅខាងស្ដាំ (Right side)
+          dropzone.style.display = 'flex';
+          dropzone.style.alignItems = 'center';
+          dropzone.style.justifyContent = 'space-between';
+          dropzone.style.flexWrap = 'wrap';
+          dropzone.style.gap = '10px';
+
+          dropzone.appendChild(btn);
+        }
+
+        attachedToDropzone = true;
+        // នៅពេលដាក់ក្នុង Dropzone បានសម្រេច កំណត់កម្ពស់ Frame = 0 ដើម្បីកុំឱ្យខាតទំហំ!
+        Streamlit.setFrameHeight(0);
+        return true;
+      } catch (err) {
+        console.warn('Could not inject into dropzone:', err);
+        return false;
+      }
+    }
+
+    // Listener សម្រាប់ Ctrl + V
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.addEventListener('paste', handlePasteEvent);
+      }
+    } catch (e) {}
+    window.addEventListener('paste', handlePasteEvent);
+    document.addEventListener('paste', handlePasteEvent);
+
+    // Fallback button click
+    const fallbackBtn = document.getElementById('fallbackBtn');
+    if (fallbackBtn) {
+      fallbackBtn.onclick = () => readClipboardAndSend(fallbackBtn);
+    }
+
+    // Loop ពិនិត្យដើម្បីធានាថាប៊ូតុងនៅតែមាន បើទោះជា Streamlit rerun ក៏ដោយ
+    function maintainButton() {
+      const success = tryAttachToStreamlitDropzone();
+      if (!success) {
+        // បើមិនទាន់រកឃើញ Dropzone បង្ហាញ Fallback
+        const fallback = document.getElementById('fallbackContainer');
+        if (fallback) fallback.style.display = 'flex';
+        Streamlit.setFrameHeight(40);
+      } else {
+        const fallback = document.getElementById('fallbackContainer');
+        if (fallback) fallback.style.display = 'none';
+        Streamlit.setFrameHeight(0);
+      }
+    }
+
+    Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, maintainButton);
+    Streamlit.setComponentReady();
+    
+    maintainButton();
+    setInterval(maintainButton, 500);
+  </script>
+</body>
+</html>

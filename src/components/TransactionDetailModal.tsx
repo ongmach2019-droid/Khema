@@ -6,6 +6,7 @@ interface TransactionDetailModalProps {
   onClose: () => void;
   onToggleStatus: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (transaction: Transaction) => void;
 }
 
 export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
@@ -13,6 +14,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   onClose,
   onToggleStatus,
   onDelete,
+  onEdit,
 }) => {
   if (!transaction) return null;
 
@@ -39,12 +41,27 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"
-          >
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onEdit(transaction);
+                  onClose();
+                }}
+                className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-secondary font-semibold text-xs flex items-center gap-1 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[15px]">edit</span>
+                <span>កែប្រែ</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
         </div>
 
         <div className="p-5 flex flex-col gap-4">
@@ -154,17 +171,33 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-2 border-t border-surface-container-low">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onEdit(transaction);
+                  onClose();
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 font-semibold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[16px]">edit</span>
+                <span>កែប្រែ</span>
+              </button>
+            )}
+
             <button
+              type="button"
               onClick={() => onToggleStatus(transaction.id)}
               className="flex-1 py-2.5 rounded-xl bg-surface-container text-on-surface font-semibold text-xs flex items-center justify-center gap-1.5 hover:bg-surface-container-high active:scale-95 transition-all"
             >
               <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
               <span>
-                ប្តូរជា {transaction.status === 'paid' ? 'ជំពាក់ (Pending)' : 'បានបង់ (Paid)'}
+                ប្តូរជា {transaction.status === 'paid' ? 'ជំពាក់' : 'បានបង់'}
               </span>
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 if (confirm('តើអ្នកពិតជាចង់លុបវិក្កយបត្រនេះមែនទេ?')) {
                   onDelete(transaction.id);

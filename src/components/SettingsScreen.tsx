@@ -1,23 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppSettings } from '../types.ts';
 
 interface SettingsScreenProps {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
+  onLogout?: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   settings,
   onUpdateSettings,
+  onLogout,
 }) => {
   const [isUpdatingRate, setIsUpdatingRate] = useState<boolean>(false);
   const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
   const [profileName, setProfileName] = useState<string>(settings.userName);
   const [profileRole, setProfileRole] = useState<string>(settings.userRole);
+  const [profileAvatar, setProfileAvatar] = useState<string>(settings.userAvatar);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showRateModal, setShowRateModal] = useState<boolean>(false);
   const [showLanguageModal, setShowLanguageModal] = useState<boolean>(false);
+
+  // Open edit profile modal with current settings
+  const handleOpenEditProfile = () => {
+    setProfileName(settings.userName);
+    setProfileRole(settings.userRole);
+    setProfileAvatar(settings.userAvatar);
+    setShowEditProfile(true);
+  };
+
+  // Handle image upload and instant preview via FileReader
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('សូមជ្រើសរើសឯកសាររូបភាព (PNG, JPG, JPEG)');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setProfileAvatar(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Live Exchange Rate refresh
   const handleRefreshRate = async () => {
@@ -42,8 +72,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const handleSaveProfile = () => {
     onUpdateSettings({
-      userName: profileName,
-      userRole: profileRole,
+      userName: profileName.trim() || settings.userName,
+      userRole: profileRole.trim() || settings.userRole,
+      userAvatar: profileAvatar || settings.userAvatar,
     });
     setShowEditProfile(false);
   };
@@ -86,7 +117,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
 
           <button
-            onClick={() => setShowEditProfile(true)}
+            onClick={handleOpenEditProfile}
             aria-label="Edit Profile"
             className="w-9 h-9 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center shrink-0 active:scale-95 transition-transform hover:bg-surface-container-high"
             type="button"
@@ -308,63 +339,138 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
       {/* App Version Footer Card */}
       <div className="flex flex-col items-center justify-center text-center p-space-md bg-surface-container-low/50 rounded-2xl border border-surface-container-high/40">
-        <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant mb-1.5">
-          <span className="material-symbols-outlined text-[18px]">verified_user</span>
-        </div>
+        <img
+          src="/khema-logo.jpg"
+          alt="Khema Digital Dental Solution"
+          className="h-12 w-auto max-w-[150px] object-contain rounded-lg bg-white p-1 shadow-sm border border-surface-container-high/60 mb-2"
+        />
         <span className="font-label-md text-label-md text-on-surface font-bold">
-          សៀវភៅកត់ត្រា AI កំណែ 2.4.0
+          ខេមា Digital Dental Solution • សៀវភៅកត់ត្រា AI
         </span>
         <span className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 max-w-[280px]">
-          បង្កើតឡើងជាពិសេសសម្រាប់សហគ្រាស និងអាជីវកម្មនៅកម្ពុជា
+          ប្រព័ន្ធកត់ត្រាគណនេយ្យ និងវិក្កយបត្រស្វ័យប្រវត្តិកម្រិតខ្ពស់
         </span>
         <span className="font-label-sm text-[10px] text-on-surface-variant/70 mt-2 font-mono">
-          រក្សាសិទ្ធិគ្រប់យ៉ាង © 2025 Phsar Ledger
+          រក្សាសិទ្ធិគ្រប់យ៉ាង © 2026 Khema Digital Dental Solution
         </span>
       </div>
 
       {/* Profile Edit Modal */}
       {showEditProfile && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-surface-container-lowest rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-surface-container-high">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface mb-4">
-              កែប្រែព័ត៌មានគណនី
-            </h3>
-            <div className="flex flex-col gap-3 mb-5">
-              <div>
-                <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-                  ឈ្មោះ
-                </label>
-                <input
-                  type="text"
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm font-semibold outline-none focus:border-secondary"
-                />
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-surface-container-high relative">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+                  <span className="material-symbols-outlined text-[18px]">account_circle</span>
+                </div>
+                <h3 className="font-headline-sm text-[17px] font-bold text-on-surface">
+                  កែប្រែព័ត៌មានគណនី (Edit Profile)
+                </h3>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-on-surface-variant mb-1">
-                  តួនាទី
-                </label>
-                <input
-                  type="text"
-                  value={profileRole}
-                  onChange={(e) => setProfileRole(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm font-semibold outline-none focus:border-secondary"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowEditProfile(false)}
-                className="flex-1 py-2.5 rounded-xl bg-surface-container-high text-on-surface font-semibold text-sm"
+                className="w-8 h-8 rounded-full bg-surface-container-low text-on-surface-variant flex items-center justify-center hover:bg-surface-container-high transition-colors"
+                type="button"
               >
-                បោះបង់
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            {/* Avatar Preview & Upload */}
+            <div className="flex flex-col items-center justify-center mb-5 pb-4 border-b border-surface-container-high/60">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png, image/jpeg, image/jpg, image/webp"
+                onChange={handleAvatarFileChange}
+                className="hidden"
+              />
+
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="relative cursor-pointer group mb-3"
+                title="ចុចដើម្បីប្តូររូបថត (Click to change photo)"
+              >
+                <img
+                  src={profileAvatar || settings.userAvatar}
+                  alt={profileName || settings.userName}
+                  className="w-20 h-20 rounded-full object-cover ring-4 ring-secondary/20 shadow-md group-hover:opacity-85 transition-opacity"
+                />
+                <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="material-symbols-outlined text-white text-2xl">photo_camera</span>
+                </div>
+                <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-white ring-2 ring-white shadow-sm">
+                  <span className="material-symbols-outlined text-[15px]">edit</span>
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary text-xs font-semibold border border-surface-container-high/70 transition-colors shadow-xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">upload</span>
+                <span>ជ្រើសរើសរូបភាពថ្មី (PNG, JPG)</span>
+              </button>
+            </div>
+
+            {/* Name and Role Inputs */}
+            <div className="flex flex-col gap-3.5 mb-6">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
+                  ឈ្មោះបង្ហាញ (Display Name)
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">
+                    person
+                  </span>
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="បញ្ចូលឈ្មោះរបស់អ្នក..."
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm font-semibold outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
+                  តួនាទី / ផ្នែក (Role / Department)
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">
+                    badge
+                  </span>
+                  <input
+                    type="text"
+                    value={profileRole}
+                    onChange={(e) => setProfileRole(e.target.value)}
+                    placeholder="បញ្ចូលតួនាទី..."
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm font-semibold outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setShowEditProfile(false)}
+                className="flex-1 py-2.5 rounded-xl bg-surface-container-high text-on-surface font-semibold text-sm hover:bg-surface-container-high/80 transition-colors"
+                type="button"
+              >
+                បោះបង់ (Cancel)
               </button>
               <button
                 onClick={handleSaveProfile}
-                className="flex-1 py-2.5 rounded-xl bg-secondary text-white font-semibold text-sm shadow-sm"
+                className="flex-1 py-2.5 rounded-xl bg-secondary text-white font-semibold text-sm shadow-md hover:bg-secondary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
+                type="button"
               >
-                រក្សាទុក
+                <span className="material-symbols-outlined text-[17px]">check</span>
+                <span>រក្សាទុក (Save)</span>
               </button>
             </div>
           </div>
@@ -483,6 +589,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <button
                 onClick={() => {
                   setShowLogoutConfirm(false);
+                  if (onLogout) onLogout();
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-error text-white font-semibold text-sm shadow-sm"
               >

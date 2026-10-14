@@ -11,6 +11,8 @@ export type PaymentStatus = 'paid' | 'pending';
 export interface Transaction {
   id: string;
   ref: string;
+  entryNo?: number;
+  jvNo?: string;
   vendor: string;
   vendorKh: string;
   category: string;
@@ -28,6 +30,21 @@ export interface Transaction {
   items?: ReceiptLineItem[];
   aiExplanation?: string;
   ocrConfidence?: number;
+}
+
+export interface ExcelRow {
+  no: number;
+  date: string;
+  source: string;
+  entryNo: number;
+  jvNo: string;
+  reference?: string;
+  class?: string;
+  vendor: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance?: string | null;
 }
 
 export interface AppSettings {

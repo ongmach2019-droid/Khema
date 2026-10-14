@@ -4,6 +4,7 @@ import { APP_LOGO, USER_AVATAR } from '../data/mockData.ts';
 interface HeaderProps {
   currentTab: string;
   unreadNotifsCount: number;
+  userAvatar?: string;
   onOpenNotifications: () => void;
   onGoToSettings: () => void;
 }
@@ -11,6 +12,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   unreadNotifsCount,
+  userAvatar,
   onOpenNotifications,
   onGoToSettings,
 }) => {
@@ -34,13 +36,13 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-md mx-auto h-16 px-margin flex items-center justify-between gap-space-sm">
         <div className="flex items-center gap-space-sm min-w-0 flex-1">
           <img
-            alt="Phsar Ledger Logo"
-            className="h-8 w-auto object-contain shrink-0 drop-shadow-sm"
+            alt="Khema Digital Dental Solution Logo"
+            className="h-9 w-auto max-w-[110px] object-contain shrink-0 rounded-lg p-0.5 bg-white border border-surface-container-high/60 shadow-xs"
             src={APP_LOGO}
           />
           <div className="flex flex-col min-w-0">
             <span className="font-headline-sm text-headline-sm text-on-surface truncate tracking-tight font-bold">
-              សៀវភៅកត់ត្រា AI
+              ខេមា Dental AI
             </span>
             <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
               {getSubTitle()}
@@ -69,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
             <img
               alt="Profile"
               className="w-8 h-8 rounded-full object-cover shadow-sm ring-1 ring-surface-container-high"
-              src={USER_AVATAR}
+              src={userAvatar || USER_AVATAR}
             />
           </button>
         </div>

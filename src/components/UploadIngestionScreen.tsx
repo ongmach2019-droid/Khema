@@ -64,6 +64,45 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
     }
   }, [initialFile]);
 
+  // Window paste listener (Ctrl+V) from Telegram or Clipboard
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (e.clipboardData && e.clipboardData.items) {
+        for (const item of Array.from(e.clipboardData.items)) {
+          if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) {
+              processFile(file);
+              break;
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
+
+  const handleClipboardPasteClick = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          const imgType = item.types.find((t) => t.startsWith('image/'));
+          if (imgType) {
+            const blob = await item.getType(imgType);
+            const file = new File([blob], 'telegram_paste.png', { type: imgType });
+            processFile(file);
+            return;
+          }
+        }
+      }
+      alert('សូមចុច Ctrl+V លើក្ដារចុចដើម្បី Paste រូបភាពពី Telegram ផ្ទាល់!');
+    } catch (err) {
+      alert('សូមចុច Ctrl+V ដើម្បី Paste រូបភាពពី Telegram ដោយផ្ទាល់!');
+    }
+  };
+
   // Handle file upload
   const processFile = (file: File) => {
     const reader = new FileReader();
@@ -303,23 +342,34 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
             ដាក់វិក្កយបត្រក្រដាស ឬ បង្កាន់ដៃបង់ប្រាក់ KHQR ដើម្បីបម្លែងទិន្នន័យ
           </span>
 
-          <div className="flex items-center gap-space-sm w-full max-w-xs justify-center flex-wrap">
-            <button
-              onClick={startCamera}
-              className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-semibold shadow-sm hover:bg-secondary/90 transition-transform active:scale-95 flex-1 min-w-[130px]"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-              <span>ថតរូបភាព</span>
-            </button>
+          <div className="flex flex-col items-center gap-space-sm w-full max-w-xs justify-center">
+            <div className="flex items-center gap-space-sm w-full justify-center">
+              <button
+                onClick={startCamera}
+                className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-semibold shadow-sm hover:bg-secondary/90 transition-transform active:scale-95 flex-1 min-w-[130px]"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                <span>ថតរូបភាព</span>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-surface-container-highest text-on-surface rounded-xl font-label-lg text-label-lg font-semibold hover:bg-surface-container-high transition-transform active:scale-95 flex-1 min-w-[130px]"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[20px]">collections</span>
+                <span>ជ្រើសរើសរូប</span>
+              </button>
+            </div>
 
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center justify-center gap-1.5 h-12 px-space-md bg-surface-container-highest text-on-surface rounded-xl font-label-lg text-label-lg font-semibold hover:bg-surface-container-high transition-transform active:scale-95 flex-1 min-w-[130px]"
+              onClick={handleClipboardPasteClick}
+              className="flex items-center justify-center gap-2 h-11 px-space-md bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-label-lg text-label-lg font-semibold shadow-sm transition-transform active:scale-95 w-full cursor-pointer"
               type="button"
             >
-              <span className="material-symbols-outlined text-[20px]">collections</span>
-              <span>ជ្រើសរើសរូប</span>
+              <span className="material-symbols-outlined text-[20px]">content_paste</span>
+              <span>📋 Paste ពី Telegram (Ctrl+V)</span>
             </button>
           </div>
 

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Transaction, AppSettings } from '../types.ts';
+import { ExcelEditorPanel } from './ExcelEditorPanel.tsx';
 
 interface LedgerListScreenProps {
   transactions: Transaction[];
   settings: AppSettings;
   onSelectTransaction: (tx: Transaction) => void;
+  onEditTransaction?: (tx: Transaction) => void;
+  onDeleteTransaction?: (id: string, entryNo?: number, jvNo?: string) => void;
   onRefresh: () => void;
 }
 
@@ -12,6 +15,8 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   transactions,
   settings,
   onSelectTransaction,
+  onEditTransaction,
+  onDeleteTransaction,
   onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -51,34 +56,16 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amountUSD, 0);
 
-  // Trigger export
+  // Trigger export real Excel
   const handleExport = () => {
-    // Generate CSV content
-    const headers = ['Ref', 'Vendor', 'Category', 'Date', 'Amount_USD', 'Amount_KHR', 'VAT_USD', 'Status'];
-    const rows = transactions.map((t) => [
-      t.ref,
-      `"${t.vendor}"`,
-      `"${t.categoryCode}"`,
-      t.date,
-      t.amountUSD.toFixed(2),
-      t.amountKHR,
-      t.vatUSD.toFixed(2),
-      t.status,
-    ]);
-
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Phsar_Ledger_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = '/api/download-excel';
+    link.download = 'ABA_Transactions_Latest.xlsx';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    setToastMessage('របាយការណ៍សៀវភៅធំត្រូវបានរក្សាទុក');
+    setToastMessage('បានទាញយកឯកសារ Excel (ABA Transactions KHR) ជោគជ័យ!');
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
@@ -236,6 +223,12 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
         </div>
       </div>
 
+      {/* ផ្ទាំងកែប្រែទិន្នន័យ Excel ពេញលេញ (Placed directly above 'ប្រតិបត្តិការថ្មីៗ') */}
+      <ExcelEditorPanel
+        onDataSaved={onRefresh}
+        onRefreshParent={onRefresh}
+      />
+
       {/* General Ledger Entries Header */}
       <div className="flex items-center justify-between mb-space-sm">
         <div className="flex items-center gap-2">
@@ -279,31 +272,44 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
             </p>
           </div>
         ) : (
-          sorted.map((tx) => (
+          sorted.map((tx, idx) => (
             <div
               key={tx.id}
               onClick={() => onSelectTransaction(tx)}
-              className="ledger-card w-full rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-surface-container-high/60 hover:border-secondary/40 transition-all duration-200 cursor-pointer active:scale-[0.99]"
+              className="ledger-card w-full rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-surface-container-high/60 hover:border-secondary/40 transition-all duration-200 cursor-pointer active:scale-[0.99] group relative"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0 text-on-surface shadow-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="w-11 h-11 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0 text-on-surface shadow-xs mt-0.5">
                     <span className="material-symbols-outlined text-[22px]">
                       {tx.iconName || 'receipt'}
                     </span>
                   </div>
 
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-label-lg text-[14px] text-on-surface font-bold truncate">
-                      {tx.vendorKh || tx.vendor}
-                    </span>
-                    <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-label-lg text-[14px] text-on-surface font-bold truncate">
+                        {tx.vendorKh || tx.vendor}
+                      </span>
+                      {idx === 0 && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                          ✨ ថ្មី
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-[11px] font-medium">
                         {tx.category}
                       </span>
                       <span className="text-on-surface-variant font-body-sm text-[12px]">
                         {tx.date}
                       </span>
+                      {tx.ref && (
+                        <span className="text-on-surface-variant/70 font-mono text-[10px]">
+                          {tx.ref}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -326,6 +332,45 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
                     </span>
                     <span>{tx.statusTextKh || (tx.status === 'paid' ? 'បានបង់' : 'ជំពាក់')}</span>
                   </span>
+                </div>
+              </div>
+
+              {/* Quick Action Buttons on Card (Edit & Delete) */}
+              <div className="mt-2.5 pt-2 border-t border-surface-container-high/40 flex items-center justify-between text-xs">
+                <span className="text-on-surface-variant/70 font-mono text-[11px]">
+                  {tx.amountKHR ? `${tx.amountKHR.toLocaleString()} ៛` : ''}
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  {onEditTransaction && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditTransaction(tx);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-secondary/10 hover:text-secondary text-on-surface font-semibold text-[11px] flex items-center gap-1 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">edit</span>
+                      <span>កែប្រែ</span>
+                    </button>
+                  )}
+
+                  {onDeleteTransaction && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`តើអ្នកពិតជាចង់លុប "${tx.vendorKh || tx.vendor}" មែនទេ?`)) {
+                          onDeleteTransaction(tx.id, tx.entryNo, tx.jvNo || tx.ref);
+                        }
+                      }}
+                      className="px-2 py-1 rounded-lg bg-surface-container hover:bg-error-container/40 hover:text-error text-on-surface-variant font-semibold text-[11px] flex items-center gap-1 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                      <span>លុប</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

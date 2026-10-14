@@ -4,11 +4,22 @@ import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 
 // Load .env.local first (local development / secrets), then .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config();
+
+function runPythonCommand(args: string, inputData?: string): string {
+  const pyCmd = fs.existsSync('C:\\Python314\\python.exe') ? 'C:\\Python314\\python.exe' : 'python';
+  return execSync(`"${pyCmd}" ${args}`, {
+    input: inputData,
+    encoding: 'utf-8',
+    cwd: process.cwd(),
+    timeout: 30000,
+  });
+}
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -46,7 +57,7 @@ app.get('/api/exchange-rate', (_req, res) => {
 // Helper function to call Gemini with model failover and retries
 async function callGeminiWithFailover(ai: GoogleGenAI, parts: any[], systemInstruction: string) {
   // Ordered model candidate list: primary reliable models
-  const candidateModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
   let lastError: any = null;
 
   for (const model of candidateModels) {
@@ -167,18 +178,36 @@ app.post('/api/analyze-receipt', async (req, res) => {
           });
         }
 
-        const systemInstruction = `You are an expert Cambodian accountant and OCR specialist for "សៀវភៅកត់ត្រា AI" (Phsar Ledger).
-You extract data from receipt images, supermarket thermal receipts, utility invoices (EDC, PPWSA), restaurant receipts (Brown Coffee, etc.), and KHQR payment slips.
-You must return clean structured JSON with amounts converted to both USD and KHR (exchange rate 1 USD = 4,100 KHR).
-Categorize the transaction according to standard Cambodian SME Chart of Accounts (COA):
-- 6010: សម្ភារៈប្រើប្រាស់ (Office & Store Supplies)
-- 6020: ទំនិញស្តុក (Inventory & Stock Purchases)
-- 6060: ថ្លៃភ្លើង & ទឹក (Utilities - Electricity / Water)
-- 6070: ថ្លៃធ្វើដំណើរ និងម្ហូបអាហារ (Meals, Cafe & Entertainment)
-- 6080: ថ្លៃសេវាកម្មទូទៅ (General Services & Operations)
-- 7010: ចំណូលពីការលក់ (Sales & Revenue)
+        let memoryContext = '';
+        try {
+          memoryContext = runPythonCommand('excel_bridge.py get_memory_context');
+        } catch (memErr) {
+          console.warn('Could not load memory context:', memErr);
+        }
 
-Explain the accounting rationale in natural Khmer language for 'aiExplanation'.`;
+        const systemInstruction = `You are an expert Cambodian accountant and OCR specialist for "សៀវភៅកត់ត្រា AI" (Smart Ledger AI).
+You extract data from receipt images, supermarket receipts, delivery slips (Khmer Express, Virak Buntham), dental clinic invoices, and KHQR payment slips.
+You must return clean structured JSON with amounts converted to both USD and KHR (exchange rate 1 USD = 4,000 KHR).
+
+ការណែនាំពិសេសសម្រាប់ការអានវិក្កយបត្រខ្មែរ (Khmer Receipt Rules)៖
+1. ត្រង់ជួរ «អ្នកស្នើសុំ / អ្នកទទួល / Consignee»៖ សូមអានឈ្មោះមនុស្សដែលបានសរសេរដៃ ដាក់ចូល vendor
+2. ត្រង់ជួរ «បរិយាយ / Description»៖ សូមអានខ្លឹមសារទំនិញ ឬសេវាកម្មដែលបានសរសេរដៃ (ដូចជា ផ្ញើពុម្ភអេលីហ្វុង, 012994704, សម្ភារៈ...)
+3. ត្រង់ជួរ «ចំនួនទឹកប្រាក់ / TOTAL PRICE / ថ្លៃសេវា»៖
+   - សូមអានលេខសរសេរដៃឱ្យបានច្បាស់លាស់បំផុត (រាប់ចំនួនខ្ទង់លេខឱ្យត្រឹមត្រូវ ដូចជា 6000, 5000, 8000, 10000...)
+   - ប្រយ័ត្នរវាងលេខ 6 និងលេខ 5 (លេខ 6 មានក្បាលកោងចុះមកក្រោមក្លាយជារង្វង់មូលបាតក្រោម, លេខ 5 មានបន្ទាត់ផ្តេកនៅផ្នែកលើ)
+   - កន្ទុយសញ្ញារៀល «៛» ឬអក្សរ «k» ឬសញ្ញាធីក (✓) នៅខាងលើ ឬខាងក្រោយលេខ មិនមែនជាលេខសូន្យទេ (ឧទាហរណ៍ 6000៛ គឺ 6000 មិនមែន 60,000 ទេ; 5000៛ គឺ 5000 មិនមែន 50,000 ទេ)
+
+Categorize the transaction according to standard Cambodian Chart of Accounts (COA):
+- 6010: សម្ភារៈប្រើប្រាស់ (Office & Dental Supplies)
+- 6020: ទំនិញស្តុក (Inventory & Stock Purchases)
+- 6060: ថ្លៃភ្លើង & ទឹក (Utilities)
+- 6070: ថ្លៃធ្វើដំណើរ និងម្ហូបអាហារ (Meals & Entertainment)
+- 6080: ថ្លៃសេវាកម្មទូទៅ (Delivery & Courier - ថ្លៃផ្ញើអីវ៉ាន់)
+- 7010: ចំណូលពីការលក់ (Revenue)
+
+Explain the accounting rationale in natural Khmer language for 'aiExplanation'.
+
+${memoryContext}`;
 
         let prompt = `Please analyze this receipt photo accurately. Extract the vendor name in Khmer and English, receipt date, total amount in USD and KHR, VAT (10% if applicable), line items, COA category, payment status, and provide an accounting explanation in Khmer.`;
         if (vendorHint) {
@@ -209,6 +238,116 @@ Explain the accounting rationale in natural Khmer language for 'aiExplanation'.`
   } catch (error: any) {
     console.error('Receipt analysis error:', error);
     return res.status(500).json({ error: error.message || 'Internal analysis error' });
+  }
+});
+
+// GET /api/transactions - fetch real transactions from ABA_Transactions_Latest.xlsx
+app.get('/api/transactions', (_req, res) => {
+  try {
+    const output = runPythonCommand('excel_bridge.py get_transactions');
+    const parsed = JSON.parse(output.trim());
+    return res.json({ success: true, data: parsed });
+  } catch (err: any) {
+    console.error('Failed to get transactions from Excel:', err);
+    return res.status(500).json({ error: 'Could not read Excel file' });
+  }
+});
+
+// POST /api/save-transaction - append transaction to Excel and sync memory
+app.post('/api/save-transaction', (req, res) => {
+  try {
+    const payload = JSON.stringify(req.body);
+    const output = runPythonCommand('excel_bridge.py save_transaction -', payload);
+    const parsed = JSON.parse(output.trim());
+    return res.json(parsed);
+  } catch (err: any) {
+    console.error('Failed to save transaction to Excel:', err);
+    return res.status(500).json({ error: 'Could not save to Excel file' });
+  }
+});
+
+// GET /api/excel-rows - fetch raw spreadsheet rows for table editing
+app.get('/api/excel-rows', (_req, res) => {
+  try {
+    const output = runPythonCommand('excel_bridge.py get_excel_rows');
+    const parsed = JSON.parse(output.trim());
+    return res.json({ success: true, data: parsed });
+  } catch (err: any) {
+    console.error('Failed to get Excel rows:', err);
+    return res.status(500).json({ error: 'Could not read Excel rows' });
+  }
+});
+
+// POST /api/save-excel-table - bulk save edited spreadsheet rows
+app.post('/api/save-excel-table', (req, res) => {
+  try {
+    const payload = JSON.stringify(req.body);
+    const output = runPythonCommand('excel_bridge.py save_all_excel_rows -', payload);
+    const parsed = JSON.parse(output.trim());
+    return res.json(parsed);
+  } catch (err: any) {
+    console.error('Failed to save Excel table:', err);
+    return res.status(500).json({ error: 'Could not save Excel table' });
+  }
+});
+
+// POST /api/update-transaction - update a specific transaction in Excel
+app.post('/api/update-transaction', (req, res) => {
+  try {
+    const payload = JSON.stringify(req.body);
+    const output = runPythonCommand('excel_bridge.py update_transaction -', payload);
+    const parsed = JSON.parse(output.trim());
+    return res.json(parsed);
+  } catch (err: any) {
+    console.error('Failed to update transaction in Excel:', err);
+    return res.status(500).json({ error: 'Could not update transaction' });
+  }
+});
+
+// POST /api/delete-transaction - delete a specific transaction from Excel
+app.post('/api/delete-transaction', (req, res) => {
+  try {
+    const payload = JSON.stringify(req.body);
+    const output = runPythonCommand('excel_bridge.py delete_transaction -', payload);
+    const parsed = JSON.parse(output.trim());
+    return res.json(parsed);
+  } catch (err: any) {
+    console.error('Failed to delete transaction from Excel:', err);
+    return res.status(500).json({ error: 'Could not delete transaction' });
+  }
+});
+
+// GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx
+app.get('/api/download-excel', (_req, res) => {
+  const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, 'ABA_Transactions_Latest.xlsx');
+  } else {
+    res.status(404).json({ error: 'Excel file not found' });
+  }
+});
+
+// GET /api/memory - fetch AI memory stats
+app.get('/api/memory', (_req, res) => {
+  const memPath = path.resolve(process.cwd(), 'ai_memory.json');
+  if (fs.existsSync(memPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(memPath, 'utf-8'));
+      return res.json(data);
+    } catch (e) {
+      return res.status(500).json({ error: 'Could not read memory' });
+    }
+  }
+  return res.json({});
+});
+
+// POST /api/sync-memory - sync vendors/descriptions from Excel
+app.post('/api/sync-memory', (_req, res) => {
+  try {
+    const output = runPythonCommand('excel_bridge.py sync_memory');
+    return res.json(JSON.parse(output.trim()));
+  } catch (e) {
+    return res.status(500).json({ error: 'Sync failed' });
   }
 });
 
@@ -310,7 +449,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = path.resolve(process.cwd(), 'dist');
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
       app.get('*', (_req, res) => {

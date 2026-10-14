@@ -46,24 +46,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     <div className="flex flex-col w-full px-margin gap-space-md pb-28 pt-2">
       {/* Welcome Banner with Ambient Delight */}
       <div className="relative overflow-hidden rounded-2xl bg-primary-container text-on-primary p-space-md shadow-lg border border-primary-container/80">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-space-xs">
-              <h1 className="font-headline-md text-headline-md text-on-primary font-bold">
-                សួស្ដី, លោក {settings.userName.split(' ')[0] || 'សុខា'}
+              <h1 className="font-headline-md text-headline-md text-on-primary font-bold truncate">
+                ខេមា Dental Solution
               </h1>
-              <span className="text-xl animate-bounce">👋</span>
+              <span className="text-xl shrink-0">🦷</span>
             </div>
-            <p className="font-body-sm text-body-sm text-on-primary-container mt-0.5">
-              ទិដ្ឋភាពទូទៅនៃអាជីវកម្មថ្ងៃនេះ • ភ្នំពេញ
+            <p className="font-body-sm text-body-sm text-on-primary-container mt-0.5 truncate">
+              ទិដ្ឋភាពទូទៅនៃចំណាយ និងវិក្កយបត្រថ្ងៃនេះ
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-1">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-highest/20 text-tertiary-fixed text-[11px] font-semibold border border-tertiary-fixed/30 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-tertiary-fixed animate-ping"></span>
-              LIVE
-            </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <img
+              src="/khema-logo.jpg"
+              alt="Khema Logo"
+              className="h-10 w-auto max-w-[100px] object-contain rounded-lg bg-white p-1 shadow-sm border border-white/20"
+            />
           </div>
         </div>
 
