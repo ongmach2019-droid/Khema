@@ -58,6 +58,9 @@ export interface AppSettings {
   aiConfidenceThreshold: number; // 90 to 99
   vatEnabled: boolean;
   vatRate: number; // 10
+  googleSheetUrl?: string;
+  googleSheetWebhookUrl?: string;
+  googleSheetAutoSync?: boolean;
 }
 
 export interface AppNotification {

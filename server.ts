@@ -294,6 +294,21 @@ app.post('/api/save-transaction', (req, res) => {
     const payload = JSON.stringify(req.body);
     const output = runPythonCommand('excel_bridge.py save_transaction -', payload);
     const parsed = JSON.parse(output.trim());
+
+    // Also forward to Google Sheets Webhook if configured
+    const webhookUrl = req.body.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    if (webhookUrl) {
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_transaction',
+          transaction: req.body,
+        }),
+        redirect: 'follow',
+      }).catch((e) => console.warn('Google Sheets background sync error:', e));
+    }
+
     return res.json(parsed);
   } catch (err: any) {
     console.error('Failed to save transaction to Excel:', err);
@@ -360,6 +375,71 @@ app.post('/api/clear-all-transactions', (_req, res) => {
   } catch (err: any) {
     console.error('Failed to clear Excel transactions:', err);
     return res.status(500).json({ error: 'Could not clear Excel transactions' });
+  }
+});
+
+// POST /api/google-sheet-sync - proxy request to Google Apps Script Webhook
+app.post('/api/google-sheet-sync', async (req, res) => {
+  try {
+    const { webhookUrl, action, transaction, transactions } = req.body;
+    const targetUrl = webhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    if (!targetUrl) {
+      return res.status(400).json({ success: false, error: 'Google Sheet Webhook URL មិនទាន់បានកំណត់' });
+    }
+
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action || 'add_transaction',
+        transaction,
+        transactions,
+      }),
+      redirect: 'follow',
+    });
+
+    const responseText = await response.text();
+    let parsedData: any = {};
+    try {
+      parsedData = JSON.parse(responseText);
+    } catch {
+      parsedData = { raw: responseText };
+    }
+
+    return res.json({ success: true, data: parsedData });
+  } catch (err: any) {
+    console.error('Google Sheet Sync Error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to sync with Google Sheet' });
+  }
+});
+
+// POST /api/update-google-sheet-config - persist Webhook URL in .env
+app.post('/api/update-google-sheet-config', (req, res) => {
+  const { webhookUrl, sheetUrl } = req.body;
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf-8');
+    }
+    if (webhookUrl) {
+      if (envContent.includes('GOOGLE_SHEET_WEBHOOK_URL=')) {
+        envContent = envContent.replace(/GOOGLE_SHEET_WEBHOOK_URL=.*/g, `GOOGLE_SHEET_WEBHOOK_URL=${webhookUrl.trim()}`);
+      } else {
+        envContent += `\nGOOGLE_SHEET_WEBHOOK_URL=${webhookUrl.trim()}\n`;
+      }
+    }
+    if (sheetUrl) {
+      if (envContent.includes('GOOGLE_SHEET_URL=')) {
+        envContent = envContent.replace(/GOOGLE_SHEET_URL=.*/g, `GOOGLE_SHEET_URL=${sheetUrl.trim()}`);
+      } else {
+        envContent += `\nGOOGLE_SHEET_URL=${sheetUrl.trim()}\n`;
+      }
+    }
+    fs.writeFileSync(envPath, envContent, 'utf-8');
+    return res.json({ success: true, message: 'Google Sheet configuration saved successfully' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

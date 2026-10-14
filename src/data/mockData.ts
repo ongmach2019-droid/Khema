@@ -18,6 +18,8 @@ export const INITIAL_SETTINGS: AppSettings = {
   aiConfidenceThreshold: 95,
   vatEnabled: true,
   vatRate: 10,
+  googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1yo4JVj4G-YrDqtu5s4EdSCwQn0UGTF4m/edit?usp=sharing',
+  googleSheetAutoSync: true,
 };
 
 export const INITIAL_NOTIFICATIONS: AppNotification[] = [

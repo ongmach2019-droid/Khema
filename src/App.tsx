@@ -92,12 +92,15 @@ export default function App() {
     // Put at index 0 immediately so it is easily examined on top
     setTransactions((prev) => [newTx, ...prev]);
 
-    // Save to real Excel backend
+    // Save to real Excel backend and Google Sheets
     try {
       await fetch('/api/save-transaction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTx),
+        body: JSON.stringify({
+          ...newTx,
+          googleSheetWebhookUrl: settings.googleSheetAutoSync !== false ? settings.googleSheetWebhookUrl : undefined,
+        }),
       });
       fetchTransactions();
     } catch (err) {
@@ -278,6 +281,7 @@ export default function App() {
           {currentTab === 'settings' && (
             <SettingsScreen
               settings={settings}
+              transactions={transactions}
               onUpdateSettings={handleUpdateSettings}
               onClearAll={handleClearAllTransactions}
               onLogout={logout}
