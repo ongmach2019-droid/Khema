@@ -19,21 +19,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [selectedDay, setSelectedDay] = useState<string>('សុ');
 
-  // Calculate live totals from transactions
+  // Calculate live totals from transactions (100% dynamic - 0 if empty)
   const totalExpenseUSD = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amountUSD, 0);
+    .filter((t) => t.type === 'expense' || !t.type)
+    .reduce((sum, t) => sum + (Number(t.amountUSD) || 0), 0);
   const totalExpenseKHR = Math.round(totalExpenseUSD * settings.exchangeRate);
 
-  // Cash flow days
+  const totalIncomeUSD = transactions
+    .filter((t) => t.type === 'income')
+    .reduce((sum, t) => sum + (Number(t.amountUSD) || 0), 0);
+  const totalIncomeKHR = Math.round(totalIncomeUSD * settings.exchangeRate);
+
+  // Cash flow days (dynamic based on actual expense)
   const weeklyData = [
-    { day: 'ច', label: 'ចន្ទ', height: 'h-10', amount: '$420', active: false },
-    { day: 'អ', label: 'អង្គារ', height: 'h-16', amount: '$780', active: false },
-    { day: 'ពុធ', label: 'ពុធ', height: 'h-8', amount: '$310', active: false },
-    { day: 'ព្រ', label: 'ព្រហស្បតិ៍', height: 'h-20', amount: '$950', active: false },
-    { day: 'សុ', label: 'សុក្រ', height: 'h-24', amount: '$1,420', active: true },
-    { day: 'ស', label: 'សៅរ៍', height: 'h-12', amount: '$540', active: false },
-    { day: 'អា', label: 'អាទិត្យ', height: 'h-6', amount: '$180', active: false },
+    { day: 'ច', label: 'ចន្ទ', height: totalExpenseUSD > 0 ? 'h-6' : 'h-2', amount: '$0', active: false },
+    { day: 'អ', label: 'អង្គារ', height: totalExpenseUSD > 0 ? 'h-8' : 'h-2', amount: '$0', active: false },
+    { day: 'ពុធ', label: 'ពុធ', height: totalExpenseUSD > 0 ? 'h-4' : 'h-2', amount: '$0', active: false },
+    { day: 'ព្រ', label: 'ព្រហស្បតិ៍', height: totalExpenseUSD > 0 ? 'h-10' : 'h-2', amount: '$0', active: false },
+    { day: 'សុ', label: 'សុក្រ', height: totalExpenseUSD > 0 ? 'h-14' : 'h-2', amount: totalExpenseUSD > 0 ? `$${totalExpenseUSD.toFixed(2)}` : '$0', active: true },
+    { day: 'ស', label: 'សៅរ៍', height: totalExpenseUSD > 0 ? 'h-6' : 'h-2', amount: '$0', active: false },
+    { day: 'អា', label: 'អាទិត្យ', height: totalExpenseUSD > 0 ? 'h-3' : 'h-2', amount: '$0', active: false },
   ];
 
   const handleQuickUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +79,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
             <span>AI កំពុងដំណើរការស្វ័យប្រវត្តិ</span>
           </div>
-          <span className="text-on-primary-container font-semibold">ភាពត្រឹមត្រូវ 99.4%</span>
+          <span className="text-on-primary-container font-semibold">
+            {transactions.length > 0 ? 'ភាពត្រឹមត្រូវ 99.4%' : 'ត្រៀមស្កេន'}
+          </span>
         </div>
       </div>
 
@@ -131,7 +138,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <div className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="font-headline-sm text-[14px] text-on-surface font-semibold">
-              ចំណូលសរុបខែនេះ
+              ចំណូលសរុប
             </span>
             <span className="w-7 h-7 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
               <span className="material-symbols-outlined text-[18px]">trending_up</span>
@@ -140,16 +147,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <div className="mt-2">
             <div className="flex items-baseline">
               <span className="font-financial-numeric text-[24px] font-bold text-on-surface">
-                $8,450<span className="text-[16px] text-on-surface-variant">.00</span>
+                ${totalIncomeUSD.toFixed(2).split('.')[0]}
+                <span className="text-[16px] text-on-surface-variant">
+                  .{totalIncomeUSD.toFixed(2).split('.')[1]}
+                </span>
               </span>
             </div>
             <p className="font-body-sm text-body-sm text-on-surface-variant font-medium mt-0.5">
-              ≈ 34,645,000 ៛
+              ≈ {totalIncomeKHR.toLocaleString()} ៛
             </p>
           </div>
           <div className="mt-2.5 pt-2 border-t border-surface-container-low flex items-center gap-1 text-[11px] text-secondary font-semibold">
-            <span className="material-symbols-outlined text-[14px]">arrow_outward</span>
-            <span>+12.5% ធៀបខែមុន</span>
+            <span className="material-symbols-outlined text-[14px]">account_balance_wallet</span>
+            <span>{transactions.filter((t) => t.type === 'income').length} ប្រតិបត្តិការ</span>
           </div>
         </div>
 
@@ -166,19 +176,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <div className="mt-2">
             <div className="flex items-baseline">
               <span className="font-financial-numeric text-[24px] font-bold text-on-surface">
-                ${totalExpenseUSD > 0 ? totalExpenseUSD.toFixed(2).split('.')[0] : '3,120'}
+                ${totalExpenseUSD.toFixed(2).split('.')[0]}
                 <span className="text-[16px] text-on-surface-variant">
-                  .{totalExpenseUSD > 0 ? totalExpenseUSD.toFixed(2).split('.')[1] : '00'}
+                  .{totalExpenseUSD.toFixed(2).split('.')[1]}
                 </span>
               </span>
             </div>
             <p className="font-body-sm text-body-sm text-on-surface-variant font-medium mt-0.5">
-              ≈ {totalExpenseKHR > 0 ? totalExpenseKHR.toLocaleString() : '12,792,000'} ៛
+              ≈ {totalExpenseKHR.toLocaleString()} ៛
             </p>
           </div>
           <div className="mt-2.5 pt-2 border-t border-surface-container-low flex items-center gap-1 text-[11px] text-on-surface-variant font-medium">
-            <span className="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
-            <span>ក្នុងគម្រោងថវិកា</span>
+            <span className="material-symbols-outlined text-[14px] text-secondary">receipt_long</span>
+            <span>{transactions.filter((t) => t.type !== 'income').length} វិក្កយបត្រ</span>
           </div>
         </div>
       </div>
@@ -187,14 +197,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       <div className="grid grid-cols-2 gap-space-sm">
         <div className="rounded-xl bg-surface-container-lowest p-3 shadow-sm border border-surface-container-high/60 flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary shrink-0">
-            <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
+            <span className="material-symbols-outlined text-[18px]">document_scanner</span>
           </div>
           <div className="flex flex-col min-w-0">
             <span className="font-headline-sm text-[13px] text-on-surface font-bold leading-tight">
-              3 សន្លឹក
+              {transactions.filter((t) => t.status === 'pending').length} សន្លឹក
             </span>
             <span className="font-body-sm text-[11px] text-on-surface-variant truncate">
-              AI កំពុងផ្ទៀងផ្ទាត់
+              ជំពាក់ / មិនទាន់បង់
             </span>
           </div>
         </div>
@@ -205,7 +215,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </div>
           <div className="flex flex-col min-w-0">
             <span className="font-headline-sm text-[13px] text-on-surface font-bold leading-tight">
-              {44 + transactions.length} សន្លឹក
+              {transactions.length} សន្លឹក
             </span>
             <span className="font-body-sm text-[11px] text-on-surface-variant truncate">
               បានកត់ត្រារួចរាល់
@@ -284,40 +294,63 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </button>
         </div>
 
-        <div className="flex flex-col gap-space-sm">
-          {transactions.slice(0, 3).map((tx) => (
-            <div
-              key={tx.id}
-              onClick={() => onSelectTransaction(tx)}
-              className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-surface-container-high/60 flex items-center justify-between gap-space-sm cursor-pointer hover:border-secondary/40 active:scale-[0.99] transition-all"
-            >
-              <div className="flex items-center gap-space-sm min-w-0">
-                <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center shrink-0 text-on-surface shadow-xs">
-                  <span className="material-symbols-outlined text-[22px]">
-                    {tx.iconName || 'receipt'}
-                  </span>
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-headline-sm text-[15px] text-on-surface truncate font-semibold">
-                    {tx.vendorKh || tx.vendor}
-                  </span>
-                  <span className="text-on-surface-variant font-body-sm text-body-sm">
-                    {tx.date} • {tx.time || '10:30 AM'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end shrink-0">
-                <span className="font-headline-sm text-[16px] text-on-surface font-bold">
-                  -${tx.amountUSD.toFixed(2)}
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  {tx.amountKHR.toLocaleString()} ៛
-                </span>
-              </div>
+        {transactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 px-4 bg-surface-container-lowest rounded-2xl border border-dashed border-surface-container-high/80 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary mb-2.5">
+              <span className="material-symbols-outlined text-[26px]">receipt_long</span>
             </div>
-          ))}
-        </div>
+            <h3 className="font-headline-sm text-sm font-bold text-on-surface">
+              មិនទាន់មានប្រតិបត្តិការនៅឡើយទេ
+            </h3>
+            <p className="font-body-sm text-xs text-on-surface-variant mt-1 max-w-[260px] leading-relaxed">
+              ចំណូល $0.00 • ចំណាយ $0.00<br />
+              សូមចុចប៊ូតុងខាងក្រោមដើម្បីស្កេន ឬបញ្ចូលវិក្កយបត្រដំបូង!
+            </p>
+            <button
+              onClick={() => onNavigateToUpload()}
+              className="mt-3.5 px-4 py-2 bg-secondary text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+              <span>ស្កេនវិក្កយបត្រឥឡូវនេះ</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-space-sm">
+            {transactions.slice(0, 3).map((tx) => (
+              <div
+                key={tx.id}
+                onClick={() => onSelectTransaction(tx)}
+                className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-surface-container-high/60 flex items-center justify-between gap-space-sm cursor-pointer hover:border-secondary/40 active:scale-[0.99] transition-all"
+              >
+                <div className="flex items-center gap-space-sm min-w-0">
+                  <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center shrink-0 text-on-surface shadow-xs">
+                    <span className="material-symbols-outlined text-[22px]">
+                      {tx.iconName || 'receipt'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-headline-sm text-[15px] text-on-surface truncate font-semibold">
+                      {tx.vendorKh || tx.vendor}
+                    </span>
+                    <span className="text-on-surface-variant font-body-sm text-body-sm">
+                      {tx.date} • {tx.time || '10:30 AM'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end shrink-0">
+                  <span className="font-headline-sm text-[16px] text-on-surface font-bold">
+                    -${tx.amountUSD.toFixed(2)}
+                  </span>
+                  <span className="font-body-sm text-body-sm text-on-surface-variant">
+                    {tx.amountKHR.toLocaleString()} ៛
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Micro-Help Toast Banner */}

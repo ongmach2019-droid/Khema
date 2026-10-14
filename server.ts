@@ -352,6 +352,17 @@ app.post('/api/delete-transaction', (req, res) => {
   }
 });
 
+// POST /api/clear-all-transactions - clear all rows from Excel and sync memory
+app.post('/api/clear-all-transactions', (_req, res) => {
+  try {
+    const output = runPythonCommand('excel_bridge.py clear_all_transactions');
+    return res.json(JSON.parse(output.trim()));
+  } catch (err: any) {
+    console.error('Failed to clear Excel transactions:', err);
+    return res.status(500).json({ error: 'Could not clear Excel transactions' });
+  }
+});
+
 // GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx
 app.get('/api/download-excel', (_req, res) => {
   const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');

@@ -319,6 +319,20 @@ def delete_transaction(target_json_str):
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
 
+def clear_all_transactions():
+    try:
+        empty_df = pd.DataFrame(columns=[
+            "No.", "Date", "Source", "Entry No", "JV No", "Reference",
+            "Class", "Vendor / Customer / Employee", "Description",
+            "Debit", "Credit", "Balance"
+        ])
+        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
+            empty_df.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+        mm.sync_memory_from_excel(empty_df)
+        print(json.dumps({"success": True, "remainingRows": 0}))
+    except Exception as e:
+        print(json.dumps({"success": False, "error": str(e)}))
+
 def save_all_excel_rows(rows_json_str):
     try:
         rows = json.loads(rows_json_str)
@@ -388,6 +402,8 @@ if __name__ == "__main__":
             update_transaction(read_input_payload())
         elif cmd == "delete_transaction":
             delete_transaction(read_input_payload())
+        elif cmd == "clear_all_transactions":
+            clear_all_transactions()
         elif cmd == "save_all_excel_rows":
             save_all_excel_rows(read_input_payload())
         elif cmd == "get_memory_context":

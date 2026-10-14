@@ -33,7 +33,22 @@ export default function App() {
     } catch (e) {}
   }, [settings]);
 
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    try {
+      const saved = localStorage.getItem('khema_user_transactions');
+      if (saved !== null) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('khema_user_transactions', JSON.stringify(transactions));
+    } catch (e) {}
+  }, [transactions]);
+
   const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -41,22 +56,33 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [incomingUploadFile, setIncomingUploadFile] = useState<File | null>(null);
 
-  // Fetch real Excel transactions on startup
+  // Clear all transactions completely (Reset to 0)
+  const handleClearAllTransactions = async () => {
+    if (window.confirm('តើអ្នកពិតជាចង់សម្អាត និងលុបប្រវត្តិប្រតិបត្តិការទាំងអស់មែនទេ? (ចំណូល និងចំណាយ នឹងក្លាយជា $0.00)')) {
+      setTransactions([]);
+      try {
+        localStorage.setItem('khema_user_transactions', JSON.stringify([]));
+      } catch (e) {}
+      try {
+        await fetch('/api/clear-all-transactions', { method: 'POST' });
+      } catch (e) {}
+    }
+  };
+
+  // Manual refresh transactions from backend if user explicitly wants to sync
   const fetchTransactions = async () => {
     try {
       const res = await fetch('/api/transactions');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-        setTransactions(data.data);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setTransactions(data.data);
+        }
       }
     } catch (e) {
       console.warn('Could not load Excel transactions:', e);
     }
   };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
 
   // Unread notifications count
   const unreadNotifsCount = notifications.filter((n) => !n.read).length;
@@ -142,9 +168,8 @@ export default function App() {
           jvNo,
         }),
       });
-      fetchTransactions();
     } catch (err) {
-      console.error('Failed to delete transaction from Excel:', err);
+      console.warn('Could not sync deletion with Excel backend:', err);
     }
   };
 
@@ -245,6 +270,7 @@ export default function App() {
               onSelectTransaction={(tx) => setSelectedTransaction(tx)}
               onEditTransaction={(tx) => setEditingTransaction(tx)}
               onDeleteTransaction={handleDeleteTransaction}
+              onClearAll={handleClearAllTransactions}
               onRefresh={fetchTransactions}
             />
           )}
@@ -253,6 +279,7 @@ export default function App() {
             <SettingsScreen
               settings={settings}
               onUpdateSettings={handleUpdateSettings}
+              onClearAll={handleClearAllTransactions}
               onLogout={logout}
             />
           )}

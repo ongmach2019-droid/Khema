@@ -8,6 +8,7 @@ interface LedgerListScreenProps {
   onSelectTransaction: (tx: Transaction) => void;
   onEditTransaction?: (tx: Transaction) => void;
   onDeleteTransaction?: (id: string, entryNo?: number, jvNo?: string) => void;
+  onClearAll?: () => void;
   onRefresh: () => void;
 }
 
@@ -17,6 +18,7 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   onSelectTransaction,
   onEditTransaction,
   onDeleteTransaction,
+  onClearAll,
   onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -111,14 +113,27 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
           <h1 className="font-headline-lg text-[20px] text-on-surface tracking-tight font-bold">
             បញ្ជីវិក្កយបត្រ (Receipts & Invoices)
           </h1>
-          <button
-            onClick={onRefresh}
-            aria-label="Refresh Data"
-            className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container-highest"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[18px]">sync</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onClearAll && transactions.length > 0 && (
+              <button
+                onClick={onClearAll}
+                className="px-2.5 py-1.5 rounded-xl bg-error-container/60 text-error hover:bg-error-container text-[12px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-xs"
+                type="button"
+                title="សម្អាតទិន្នន័យទាំងអស់ទៅជា $0.00"
+              >
+                <span className="material-symbols-outlined text-[15px]">delete_sweep</span>
+                <span>សម្អាតទាំងអស់</span>
+              </button>
+            )}
+            <button
+              onClick={onRefresh}
+              aria-label="Refresh Data"
+              className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container-highest"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[18px]">sync</span>
+            </button>
+          </div>
         </div>
         <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
           វិក្កយបត្រ និងបង្កាន់ដៃទាំងអស់ដែលបានស្កេន និងរក្សាទុក
@@ -263,12 +278,17 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       {/* Transaction Cards List */}
       <div className="flex flex-col gap-space-sm mb-space-lg">
         {sorted.length === 0 ? (
-          <div className="p-8 text-center bg-surface-container-lowest rounded-2xl border border-surface-container-high/60">
+          <div className="p-8 text-center bg-surface-container-lowest rounded-2xl border border-surface-container-high/60 flex flex-col items-center">
             <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">
-              search_off
+              {transactions.length === 0 ? 'receipt_long' : 'search_off'}
             </span>
-            <p className="font-label-md text-on-surface-variant">
-              មិនមានវិក្កយបត្រត្រូវនឹងការស្វែងរកនេះទេ
+            <p className="font-label-lg font-bold text-on-surface mb-1">
+              {transactions.length === 0 ? 'មិនទាន់មានវិក្កយបត្រក្នុងប្រព័ន្ធទេ' : 'មិនមានវិក្កយបត្រត្រូវនឹងការស្វែងរកនេះទេ'}
+            </p>
+            <p className="font-label-sm text-on-surface-variant max-w-[280px]">
+              {transactions.length === 0
+                ? 'ចំណូល $0.00 • ចំណាយ $0.00 • សូមស្កេន ឬបញ្ចូលរូបភាពវិក្កយបត្រដើម្បីកត់ត្រា'
+                : 'សូមព្យាយាមស្វែងរកពាក្យគន្លឹះផ្សេងទៀត'}
             </p>
           </div>
         ) : (

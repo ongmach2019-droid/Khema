@@ -4,12 +4,14 @@ import { AppSettings } from '../types.ts';
 interface SettingsScreenProps {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
+  onClearAll?: () => void;
   onLogout?: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   settings,
   onUpdateSettings,
+  onClearAll,
   onLogout,
 }) => {
   const [isUpdatingRate, setIsUpdatingRate] = useState<boolean>(false);
@@ -324,6 +326,32 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Data Management Section */}
+      {onClearAll && (
+        <div className="w-full bg-surface-container-lowest rounded-2xl p-space-md shadow-sm border border-surface-container-high/60 mb-space-md">
+          <div className="flex items-center gap-space-sm mb-3">
+            <span className="material-symbols-outlined text-[20px] text-error">auto_delete</span>
+            <span className="font-headline-sm text-headline-sm font-bold text-on-surface">
+              គ្រប់គ្រងទិន្នន័យ (Data Management)
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body-sm text-[12px] text-on-surface-variant">
+              លុបទិន្នន័យប្រតិបត្តិការទាំងអស់ ដើម្បីកំណត់ឡើងវិញទៅជា ចំណូល $0.00 និង ចំណាយ $0.00។
+            </p>
+            <button
+              onClick={onClearAll}
+              className="mt-1 w-full h-11 bg-surface-container hover:bg-error-container/60 hover:text-error text-on-surface font-label-md text-label-md font-semibold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-surface-container-high"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[18px] text-error">delete_sweep</span>
+              <span>សម្អាតទិន្នន័យទាំងអស់ (Reset All to $0.00)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Logout Button */}
       <div className="flex flex-col items-center gap-space-md mt-space-sm mb-space-lg">
