@@ -216,51 +216,50 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   return (
     <div className="w-full mb-space-md flex flex-col gap-2">
       {/* 1. PERMANENT TOP BAR: Add New Sheet & Download Excel (ALWAYS 100% VISIBLE) */}
-      <div className="w-full rounded-2xl bg-surface-container-lowest p-3.5 shadow-sm border-2 border-secondary/30 flex flex-col gap-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold text-lg shrink-0">
-              📊
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="font-label-lg text-[14px] text-on-surface font-bold">
-                គ្រប់គ្រងសន្លឹកកិច្ចការ Excel (Multi-Sheet)
-              </span>
-              <span className="font-label-sm text-[12px] text-on-surface-variant">
-                Sheet សកម្ម៖ <strong className="text-emerald-700 underline font-bold">{activeSheet}</strong> ({rows.length} ជួរ)
-              </span>
-            </div>
+      <div className="w-full rounded-2xl bg-surface-container-lowest p-3 shadow-sm border-2 border-secondary/30 flex flex-col gap-2.5 overflow-hidden">
+        {/* Row 1: Header Text Across Full Width (ជួរដេកពេញលេញ) */}
+        <div className="flex items-center gap-2 w-full pb-2 border-b border-surface-container-high/60">
+          <div className="w-9 h-9 rounded-xl bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold text-base shrink-0">
+            📊
           </div>
-
-          {/* Action Buttons: Add Sheet & Download Excel */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={openNewSheetDialog}
-              className="flex-1 sm:flex-initial h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-xs font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all ring-2 ring-emerald-500/30 cursor-pointer"
-              title="បង្កើត Sheet ថ្មីសម្រាប់សប្ដាហ៍បន្ទាប់"
-            >
-              <span className="material-symbols-outlined text-[20px]">add_circle</span>
-              <span className="tracking-wide whitespace-nowrap">+ បង្កើត Sheet ថ្មី</span>
-            </button>
-
-            <a
-              href="/api/download-excel"
-              download="ABA_Transactions_Latest.xlsx"
-              className="flex-1 sm:flex-initial h-10 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-emerald-800 border border-emerald-600/30 font-label-md text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 whitespace-nowrap"
-              title="ទាញយកឯកសារ Excel (.xlsx) ប្រចាំសប្ដាហ៍"
-            >
-              <span className="material-symbols-outlined text-[18px] text-emerald-600">download</span>
-              <span>ទាញយក Excel</span>
-            </a>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="font-headline-sm text-[13px] text-on-surface font-bold truncate">
+              គ្រប់គ្រងសន្លឹកកិច្ចការ Excel (Multi-Sheet)
+            </span>
+            <span className="font-label-sm text-[11px] text-on-surface-variant truncate">
+              Sheet សកម្ម៖ <strong className="text-emerald-700 underline font-bold">{activeSheet}</strong> ({rows.length} ជួរ)
+            </span>
           </div>
         </div>
 
-        {/* Sheet Tabs List */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 border-t border-surface-container-high/60">
+        {/* Row 2: Action Buttons (Add Sheet + Compact Download Button that never overflows) */}
+        <div className="flex items-center gap-2 w-full">
+          <button
+            type="button"
+            onClick={openNewSheetDialog}
+            className="flex-1 h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all ring-1 ring-emerald-500/30 cursor-pointer whitespace-nowrap min-w-0 truncate"
+            title="បង្កើត Sheet ថ្មីសម្រាប់សប្ដាហ៍បន្ទាប់"
+          >
+            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+            <span className="truncate">+ បង្កើត Sheet ថ្មី</span>
+          </button>
+
+          <a
+            href="/api/download-excel"
+            download="ABA_Transactions_Latest.xlsx"
+            className="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-emerald-800 border border-emerald-600/30 text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0"
+            title="ទាញយកឯកសារ Excel (.xlsx)"
+          >
+            <span className="material-symbols-outlined text-[16px] text-emerald-600">download</span>
+            <span>Excel</span>
+          </a>
+        </div>
+
+        {/* Row 3: Sheet Tabs List */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
           <span className="text-[11px] text-on-surface-variant font-bold shrink-0 mr-1 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[15px]">tab</span>
-            <span>បញ្ជី Sheets:</span>
+            <span className="material-symbols-outlined text-[14px]">tab</span>
+            <span>Sheets:</span>
           </span>
           {sheets.map((sheet) => {
             const isActive = sheet === activeSheet;
