@@ -12,23 +12,50 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [rows, setRows] = useState<ExcelRow[]>([]);
+  const [sheets, setSheets] = useState<string[]>(['ABA Transactions KHR']);
+  const [activeSheet, setActiveSheet] = useState<string>('ABA Transactions KHR');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  // Fetch Excel rows when opened
-  const fetchExcelRows = async () => {
+  // New Sheet Modal
+  const [showNewSheetModal, setShowNewSheetModal] = useState<boolean>(false);
+  const [newSheetInput, setNewSheetInput] = useState<string>('');
+  const [isCreatingSheet, setIsCreatingSheet] = useState<boolean>(false);
+
+  // Fetch Sheets list
+  const fetchSheets = async () => {
+    try {
+      const res = await fetch('/api/excel-sheets');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.sheets)) {
+        setSheets(data.sheets);
+        if (data.activeSheet) {
+          setActiveSheet(data.activeSheet);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load sheets:', err);
+    }
+  };
+
+  // Fetch Excel rows for a specific sheet
+  const fetchExcelRows = async (targetSheet?: string) => {
+    const sheetToLoad = targetSheet || activeSheet;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/excel-rows');
+      const res = await fetch(`/api/excel-rows?sheet=${encodeURIComponent(sheetToLoad)}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setRows(data.data);
+      } else {
+        setRows([]);
       }
     } catch (err) {
       console.error('Failed to load Excel rows:', err);
+      setRows([]);
     } finally {
       setIsLoading(false);
     }
@@ -36,9 +63,66 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      fetchSheets();
       fetchExcelRows();
     }
   }, [isOpen]);
+
+  // Switch sheet
+  const handleSelectSheet = async (sheetName: string) => {
+    if (sheetName === activeSheet) return;
+    setActiveSheet(sheetName);
+    try {
+      await fetch('/api/excel-sheets/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetName }),
+      });
+    } catch (e) {}
+    fetchExcelRows(sheetName);
+  };
+
+  // Create new sheet
+  const handleCreateSheet = async () => {
+    const cleanName = newSheetInput.trim();
+    if (!cleanName) {
+      alert('សូមបញ្ចូលឈ្មោះ Sheet ថ្មី (ឧទាហរណ៍៖ Week 43 ឬ សប្ដាហ៍ទី៤៣)!');
+      return;
+    }
+    setIsCreatingSheet(true);
+    try {
+      const res = await fetch('/api/excel-sheets/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetName: cleanName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSheets(data.sheets || [...sheets, cleanName]);
+        setActiveSheet(cleanName);
+        setShowNewSheetModal(false);
+        setNewSheetInput('');
+        setRows([]);
+        setSaveSuccessMsg(`បានបង្កើត Sheet «${cleanName}» ជោគជ័យ!`);
+        setTimeout(() => setSaveSuccessMsg(''), 3500);
+      } else {
+        alert('បរាជ័យក្នុងការបង្កើត Sheet៖ ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('មានបញ្ហាក្នុងការតភ្ជាប់បង្កើត Sheet!');
+    } finally {
+      setIsCreatingSheet(false);
+    }
+  };
+
+  // Open Add Sheet modal with smart weekly default name
+  const openNewSheetDialog = () => {
+    const now = new Date();
+    const onejan = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((now.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7);
+    setNewSheetInput(`Week_${weekNum}_${now.getFullYear()}`);
+    setShowNewSheetModal(true);
+  };
 
   // Handle cell edit
   const handleCellChange = (
@@ -98,11 +182,14 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       const res = await fetch('/api/save-excel-table', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rows),
+        body: JSON.stringify({
+          sheet: activeSheet,
+          rows: rows,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        setSaveSuccessMsg(`បានរក្សាទុកទិន្នន័យ Excel ចំនួន ${rows.length} ជួរជោគជ័យ!`);
+        setSaveSuccessMsg(`បានរក្សាទុកទិន្នន័យក្នុង Sheet «${activeSheet}» ចំនួន ${rows.length} ជួរជោគជ័យ!`);
         setTimeout(() => setSaveSuccessMsg(''), 3500);
         if (onDataSaved) onDataSaved();
         if (onRefreshParent) onRefreshParent();
@@ -141,10 +228,10 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
           </div>
           <div className="flex flex-col text-left">
             <span className="font-label-lg text-[14px] text-on-surface font-bold group-hover:text-secondary transition-colors">
-              បើកផ្ទាំងកែប្រែទិន្នន័យ Excel ពេញលេញ
+              ផ្ទាំងគ្រប់គ្រង និងកែប្រែទិន្នន័យ Excel (Multi-Sheet)
             </span>
             <span className="font-label-sm text-[11px] text-on-surface-variant">
-              កែប្រែ, លុប ឬបន្ថែមជួរទិន្នន័យក្នុង Sheet &apos;ABA Transactions KHR&apos;
+              Sheet សកម្ម៖ <strong className="text-secondary">{activeSheet}</strong> • បង្កើត Sheet ថ្មីរៀងរាល់សប្ដាហ៍ & ទាញយក
             </span>
           </div>
         </div>
@@ -174,8 +261,63 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
               : 'p-3 flex flex-col'
           }`}
         >
+          {/* Sheet Selector Strip & Add Sheet / Download Excel Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2 border-b border-surface-container-high/70">
+            {/* Sheet Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+              <span className="text-[11px] text-on-surface-variant font-bold shrink-0 mr-1 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[15px]">tab</span>
+                <span>Sheets:</span>
+              </span>
+              {sheets.map((sheet) => {
+                const isActive = sheet === activeSheet;
+                return (
+                  <button
+                    key={sheet}
+                    type="button"
+                    onClick={() => handleSelectSheet(sheet)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-secondary text-white shadow-xs'
+                        : 'bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-secondary'
+                    }`}
+                  >
+                    <span>{sheet}</span>
+                    {isActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Add New Sheet Button */}
+              <button
+                type="button"
+                onClick={openNewSheetDialog}
+                className="px-2.5 py-1.5 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 text-xs font-bold shrink-0 transition-all flex items-center gap-1 border border-secondary/30"
+                title="បង្កើត Sheet ថ្មីសម្រាប់សប្ដាហ៍បន្ទាប់"
+              >
+                <span className="material-symbols-outlined text-[15px]">add_circle</span>
+                <span>+ បង្កើត Sheet ថ្មី (Add New Sheet)</span>
+              </button>
+            </div>
+
+            {/* Download Excel Button */}
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href="/api/download-excel"
+                download="ABA_Transactions_Latest.xlsx"
+                className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-sm text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+                title="ទាញយកឯកសារ Excel (.xlsx) ទាំងអស់ប្រចាំសប្ដាហ៍"
+              >
+                <span className="material-symbols-outlined text-[16px]">download</span>
+                <span>📥 ទាញយក Excel (.xlsx)</span>
+              </a>
+            </div>
+          </div>
+
           {/* Action Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-surface-container-high/60">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-surface-container-high/60">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
               <div className="relative flex-1">
                 <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">
@@ -183,7 +325,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                 </span>
                 <input
                   type="text"
-                  placeholder="ស្វែងរកក្នុងតារាង Excel..."
+                  placeholder={`ស្វែងរកក្នុង ${activeSheet}...`}
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
                   className="w-full h-8 pl-8 pr-3 rounded-lg bg-surface-container text-xs text-on-surface placeholder:text-on-surface-variant/60 outline-none focus:ring-1 focus:ring-secondary"
@@ -203,7 +345,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={fetchExcelRows}
+                onClick={() => fetchExcelRows()}
                 title="ផ្ទុកឡើងវិញពី Excel"
                 disabled={isLoading}
                 className="w-8 h-8 rounded-lg bg-surface-container text-on-surface flex items-center justify-center hover:bg-surface-container-high active:scale-95 transition-all"
@@ -241,7 +383,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
           {/* Table Container with Horizontal & Vertical Scroll */}
           <div
             className={`w-full overflow-x-auto no-scrollbar my-2 rounded-xl border border-surface-container-high/60 ${
-              isFullscreen ? 'flex-1 max-h-[calc(100vh-160px)]' : 'max-h-[380px]'
+              isFullscreen ? 'flex-1 max-h-[calc(100vh-190px)]' : 'max-h-[380px]'
             }`}
           >
             <table className="w-full text-left border-collapse text-[11px] whitespace-nowrap">
@@ -267,26 +409,34 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                       <span className="material-symbols-outlined animate-spin text-[24px] mb-1">
                         progress_activity
                       </span>
-                      <p>កំពុងទាញទិន្នន័យពី Excel...</p>
+                      <p>កំពុងទាញទិន្នន័យពី Sheet «{activeSheet}»...</p>
                     </td>
                   </tr>
                 ) : filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="py-8 text-center text-on-surface-variant">
-                      មិនមានជួរទិន្នន័យត្រូវបង្ហាញទេ
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className="material-symbols-outlined text-[28px] text-on-surface-variant/50">
+                          table_rows
+                        </span>
+                        <p className="font-semibold">មិនទាន់មានជួរទិន្នន័យក្នុង Sheet &apos;{activeSheet}&apos; នៅឡើយទេ</p>
+                        <p className="text-[10px] text-on-surface-variant/70">
+                          ចុច «បន្ថែមជួរថ្មី» ខាងលើ ឬស្កេនវិក្កយបត្រដើម្បីកត់ត្រាចូល Sheet នេះដោយស្វ័យប្រវត្តិ
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filteredRows.map((row, idx) => {
                     const actualIdx = rows.indexOf(row);
-                    const usdVal = ((row.credit || 0) / 4000).toFixed(2);
+                    const usdVal = ((row.credit || 0) / 4100).toFixed(2);
                     return (
                       <tr
                         key={actualIdx}
                         className="hover:bg-secondary/5 transition-colors group"
                       >
                         <td className="py-1.5 px-2 text-center text-on-surface-variant/60 font-mono text-[10px]">
-                          {actualIdx}
+                          {actualIdx + 1}
                         </td>
                         <td className="py-1.5 px-2 text-center font-mono font-medium">
                           {row.no}
@@ -369,23 +519,92 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
             </table>
           </div>
 
-          {/* Bottom Save Button - Matching media_1791440311731.png */}
-          <div className="pt-2 flex items-center justify-between border-t border-surface-container-high/60">
+          {/* Bottom Save Button */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-surface-container-high/60">
             <span className="text-on-surface-variant font-label-sm text-[11px]">
-              សរុប {rows.length} ជួរ • រាល់ការកែប្រែនឹងត្រូវរក្សាទុកក្នុង Excel ផ្ទាល់
+              Sheet <strong className="text-secondary">{activeSheet}</strong> • សរុប {rows.length} ជួរ
             </span>
 
-            <button
-              type="button"
-              onClick={handleSaveToExcel}
-              disabled={isSaving}
-              className="px-4 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-label-md text-[13px] font-bold flex items-center gap-2 shadow-sm hover:border-secondary hover:text-secondary active:scale-95 transition-all disabled:opacity-50"
-            >
-              <span className="text-[16px]">💾</span>
-              <span>
-                {isSaving ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកការកែប្រែក្នុង Excel'}
-              </span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveToExcel}
+                disabled={isSaving}
+                className="px-4 py-2 rounded-xl bg-secondary text-white font-label-md text-[13px] font-bold flex items-center gap-2 shadow-sm hover:bg-secondary/90 active:scale-95 transition-all disabled:opacity-50"
+              >
+                <span className="text-[16px]">💾</span>
+                <span>
+                  {isSaving ? 'កំពុងរក្សាទុក...' : `រក្សាទុកក្នុង Sheet «${activeSheet}»`}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Sheet Modal */}
+      {showNewSheetModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest rounded-3xl p-5 w-full max-w-sm shadow-2xl border border-surface-container-high relative">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+                  <span className="material-symbols-outlined text-[18px]">post_add</span>
+                </div>
+                <h3 className="font-headline-sm text-[15px] font-bold text-on-surface">
+                  បង្កើត Sheet ថ្មី (Add New Sheet)
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowNewSheetModal(false)}
+                className="w-7 h-7 rounded-full bg-surface-container-low text-on-surface-variant flex items-center justify-center hover:bg-surface-container-high transition-colors"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
+              បង្កើត Sheet ថ្មីសម្រាប់កត់ត្រាទិន្នន័យប្រចាំសប្ដាហ៍នីមួយៗ (ឧទាហរណ៍៖ <code className="bg-surface-container px-1 py-0.5 rounded text-secondary font-mono">Week_42_2026</code> ឬ <code className="bg-surface-container px-1 py-0.5 rounded text-secondary font-mono">Week_43_2026</code>)។
+            </p>
+
+            <div className="flex flex-col gap-1 mb-4">
+              <label className="text-xs font-bold text-on-surface">
+                ឈ្មោះ Sheet ថ្មី:
+              </label>
+              <input
+                type="text"
+                value={newSheetInput}
+                onChange={(e) => setNewSheetInput(e.target.value)}
+                placeholder="Week_43_2026"
+                className="w-full px-3 py-2 rounded-xl bg-surface-container text-on-surface text-sm font-semibold outline-none focus:ring-2 focus:ring-secondary/30 border border-surface-container-high"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNewSheetModal(false)}
+                className="flex-1 py-2 rounded-xl bg-surface-container text-on-surface text-xs font-semibold hover:bg-surface-container-high"
+              >
+                បោះបង់
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateSheet}
+                disabled={isCreatingSheet}
+                className="flex-1 py-2 rounded-xl bg-secondary text-white text-xs font-bold shadow-sm hover:bg-secondary/90 flex items-center justify-center gap-1 disabled:opacity-50"
+              >
+                {isCreatingSheet ? (
+                  <span>កំពុងបង្កើត...</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[15px]">add</span>
+                    <span>បង្កើត Sheet</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

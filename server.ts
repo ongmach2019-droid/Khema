@@ -289,6 +289,60 @@ ${memoryContext}`;
 });
 
 const TRANSACTIONS_FILE = path.resolve(process.cwd(), 'khema_transactions.json');
+const EXCEL_SHEETS_FILE = path.resolve(process.cwd(), 'khema_excel_sheets.json');
+
+interface ExcelStore {
+  activeSheet: string;
+  sheets: string[];
+  sheetRows: Record<string, any[]>;
+}
+
+function getStoredSheets(): ExcelStore {
+  const defaultStore: ExcelStore = {
+    activeSheet: 'ABA Transactions KHR',
+    sheets: ['ABA Transactions KHR'],
+    sheetRows: {
+      'ABA Transactions KHR': [],
+    },
+  };
+  try {
+    if (fs.existsSync(EXCEL_SHEETS_FILE)) {
+      const raw = fs.readFileSync(EXCEL_SHEETS_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.sheets) && data.sheets.length > 0 && data.sheetRows) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading khema_excel_sheets.json:', e);
+  }
+  return defaultStore;
+}
+
+function saveStoredSheets(store: ExcelStore) {
+  try {
+    fs.writeFileSync(EXCEL_SHEETS_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing khema_excel_sheets.json:', e);
+  }
+}
+
+function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: number, jvNoStr: string) {
+  return {
+    no: rowNumber,
+    date: tx.date || new Date().toISOString().split('T')[0],
+    source: 'GL-JE',
+    entryNo: entryNo,
+    jvNo: jvNoStr,
+    reference: tx.ref || tx.invoiceNumber || '',
+    class: 'KHEMA88888',
+    vendor: tx.vendor || tx.vendorKh || '',
+    description: tx.description || tx.category || (tx.items && tx.items.length ? tx.items.map((i: any) => i.name).join(', ') : 'ប្រតិបត្តិការចំណាយ'),
+    debit: tx.type === 'income' ? (tx.amountKHR || Math.round(Number(tx.amountUSD || 0) * 4100)) : 0,
+    credit: tx.type === 'expense' ? (tx.amountKHR || Math.round(Number(tx.amountUSD || 0) * 4100)) : 0,
+    balance: null,
+  };
+}
 
 function getStoredTransactions(): any[] {
   try {
@@ -322,7 +376,72 @@ app.get('/api/transactions', (_req, res) => {
   }
 });
 
-// POST /api/save-transaction - append transaction to shared JSON store, Excel, and Google Sheets
+// GET /api/excel-sheets - list all sheets and the active sheet
+app.get('/api/excel-sheets', (_req, res) => {
+  try {
+    const store = getStoredSheets();
+    try {
+      const output = runPythonCommand('excel_bridge.py get_sheets');
+      const pySheets = JSON.parse(output.trim());
+      if (Array.isArray(pySheets) && pySheets.length > 0) {
+        for (const s of pySheets) {
+          if (!store.sheets.includes(s)) store.sheets.push(s);
+          if (!store.sheetRows[s]) store.sheetRows[s] = [];
+        }
+        saveStoredSheets(store);
+      }
+    } catch {}
+    return res.json({ success: true, activeSheet: store.activeSheet, sheets: store.sheets });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/excel-sheets/add - create a new sheet (e.g. for a new week)
+app.post('/api/excel-sheets/add', (req, res) => {
+  try {
+    const { sheetName } = req.body;
+    const cleanName = String(sheetName || '').trim();
+    if (!cleanName) {
+      return res.status(400).json({ success: false, error: 'Sheet name is required' });
+    }
+    const store = getStoredSheets();
+    if (!store.sheets.includes(cleanName)) {
+      store.sheets.push(cleanName);
+    }
+    if (!store.sheetRows[cleanName]) {
+      store.sheetRows[cleanName] = [];
+    }
+    store.activeSheet = cleanName;
+    saveStoredSheets(store);
+
+    try {
+      runPythonCommand(`excel_bridge.py add_sheet "${cleanName}"`);
+    } catch {}
+
+    return res.json({ success: true, activeSheet: cleanName, sheets: store.sheets });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/excel-sheets/select - switch active sheet
+app.post('/api/excel-sheets/select', (req, res) => {
+  try {
+    const { sheetName } = req.body;
+    const cleanName = String(sheetName || '').trim();
+    const store = getStoredSheets();
+    if (cleanName && store.sheets.includes(cleanName)) {
+      store.activeSheet = cleanName;
+      saveStoredSheets(store);
+    }
+    return res.json({ success: true, activeSheet: store.activeSheet, sheets: store.sheets });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/save-transaction - append transaction to shared JSON store, active Excel sheet, and Google Sheets
 app.post('/api/save-transaction', (req, res) => {
   try {
     const newTx = req.body;
@@ -330,6 +449,24 @@ app.post('/api/save-transaction', (req, res) => {
     const filtered = current.filter((t: any) => t.id !== newTx.id);
     const updated = [newTx, ...filtered];
     saveStoredTransactions(updated);
+
+    // Append to active sheet in khema_excel_sheets.json
+    const store = getStoredSheets();
+    const sheet = store.activeSheet || 'ABA Transactions KHR';
+    const existingRows = store.sheetRows[sheet] || [];
+    const maxEntry = existingRows.reduce((max: number, r: any) => Math.max(max, Number(r.entryNo) || 0), 57558);
+    const maxJv = existingRows.reduce((max: number, r: any) => {
+      const m = String(r.jvNo || '').match(/\d+/g);
+      return m ? Math.max(max, parseInt(m[m.length - 1], 10)) : max;
+    }, 604);
+    const newExcelRow = convertTransactionToExcelRow(
+      newTx,
+      existingRows.length + 1,
+      maxEntry + 1,
+      `JV${String(maxJv + 1).padStart(5, '0')}`
+    );
+    store.sheetRows[sheet] = [newExcelRow, ...existingRows];
+    saveStoredSheets(store);
 
     // Best-effort Python Excel bridge
     try {
@@ -360,25 +497,146 @@ app.post('/api/save-transaction', (req, res) => {
   }
 });
 
-// GET /api/excel-rows - fetch raw spreadsheet rows for table editing
-app.get('/api/excel-rows', (_req, res) => {
+// POST /api/save-batch-transactions - batch save multiple scanned receipts
+app.post('/api/save-batch-transactions', (req, res) => {
   try {
-    const output = runPythonCommand('excel_bridge.py get_excel_rows');
-    const parsed = JSON.parse(output.trim());
-    return res.json({ success: true, data: parsed });
+    const transactions = Array.isArray(req.body.transactions) ? req.body.transactions : [];
+    if (transactions.length === 0) {
+      return res.json({ success: true, savedCount: 0 });
+    }
+
+    const current = getStoredTransactions();
+    const newIds = new Set(transactions.map((t: any) => t.id));
+    const filtered = current.filter((t: any) => !newIds.has(t.id));
+    const updated = [...transactions, ...filtered];
+    saveStoredTransactions(updated);
+
+    // Append to active sheet in khema_excel_sheets.json
+    const store = getStoredSheets();
+    const sheet = store.activeSheet || 'ABA Transactions KHR';
+    const existingRows = store.sheetRows[sheet] || [];
+    let currEntry = existingRows.reduce((max: number, r: any) => Math.max(max, Number(r.entryNo) || 0), 57558);
+    let currJv = existingRows.reduce((max: number, r: any) => {
+      const m = String(r.jvNo || '').match(/\d+/g);
+      return m ? Math.max(max, parseInt(m[m.length - 1], 10)) : max;
+    }, 604);
+
+    const newRows: any[] = [];
+    for (let i = 0; i < transactions.length; i++) {
+      currEntry += 1;
+      currJv += 1;
+      newRows.push(
+        convertTransactionToExcelRow(
+          transactions[i],
+          existingRows.length + newRows.length + 1,
+          currEntry,
+          `JV${String(currJv).padStart(5, '0')}`
+        )
+      );
+    }
+    store.sheetRows[sheet] = [...newRows, ...existingRows];
+    saveStoredSheets(store);
+
+    // Sync with Python Excel bridge
+    try {
+      const payload = JSON.stringify(store.sheetRows[sheet]);
+      runPythonCommand(`excel_bridge.py save_all_excel_rows - "${sheet}"`, payload);
+    } catch (e) {}
+
+    // Forward to Google Sheets Webhook if configured
+    const webhookUrl = req.body.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    if (webhookUrl) {
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_transactions',
+          transactions,
+        }),
+        redirect: 'follow',
+      }).catch((e) => console.warn('Google Sheets background sync error:', e));
+    }
+
+    return res.json({ success: true, savedCount: transactions.length });
+  } catch (err: any) {
+    console.error('Failed to save batch transactions:', err);
+    return res.status(500).json({ error: 'Could not save batch transactions' });
+  }
+});
+
+// GET /api/excel-rows - fetch raw spreadsheet rows for table editing with multi-sheet support
+app.get('/api/excel-rows', (req, res) => {
+  try {
+    const store = getStoredSheets();
+    const targetSheet = (req.query.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
+
+    // 1. Try python bridge first
+    let pyRows: any[] = [];
+    try {
+      const output = runPythonCommand(`excel_bridge.py get_excel_rows "${targetSheet}"`);
+      const parsed = JSON.parse(output.trim());
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        pyRows = parsed;
+      }
+    } catch (e) {}
+
+    if (pyRows.length > 0) {
+      store.sheetRows[targetSheet] = pyRows;
+      saveStoredSheets(store);
+      return res.json({ success: true, sheet: targetSheet, data: pyRows });
+    }
+
+    // 2. Check stored JSON sheetRows
+    const cachedRows = store.sheetRows[targetSheet] || [];
+    if (cachedRows.length > 0) {
+      return res.json({ success: true, sheet: targetSheet, data: cachedRows });
+    }
+
+    // 3. Fallback: If rows are empty, check if khema_transactions.json has transactions
+    const txs = getStoredTransactions();
+    if (txs.length > 0) {
+      const generatedRows = txs.map((tx: any, idx: number) => {
+        return convertTransactionToExcelRow(tx, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`);
+      });
+      store.sheetRows[targetSheet] = generatedRows;
+      saveStoredSheets(store);
+
+      try {
+        const payload = JSON.stringify(generatedRows);
+        runPythonCommand(`excel_bridge.py save_all_excel_rows - "${targetSheet}"`, payload);
+      } catch {}
+
+      return res.json({ success: true, sheet: targetSheet, data: generatedRows });
+    }
+
+    return res.json({ success: true, sheet: targetSheet, data: [] });
   } catch (err: any) {
     console.error('Failed to get Excel rows:', err);
-    return res.status(500).json({ error: 'Could not read Excel rows' });
+    return res.json({ success: true, sheet: 'ABA Transactions KHR', data: [] });
   }
 });
 
 // POST /api/save-excel-table - bulk save edited spreadsheet rows
 app.post('/api/save-excel-table', (req, res) => {
   try {
-    const payload = JSON.stringify(req.body);
-    const output = runPythonCommand('excel_bridge.py save_all_excel_rows -', payload);
-    const parsed = JSON.parse(output.trim());
-    return res.json(parsed);
+    const store = getStoredSheets();
+    const rows = Array.isArray(req.body) ? req.body : (req.body.rows || []);
+    const targetSheet = (req.body.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
+
+    store.sheetRows[targetSheet] = rows;
+    if (!store.sheets.includes(targetSheet)) {
+      store.sheets.push(targetSheet);
+    }
+    saveStoredSheets(store);
+
+    try {
+      const payload = JSON.stringify(rows);
+      runPythonCommand(`excel_bridge.py save_all_excel_rows - "${targetSheet}"`, payload);
+    } catch (e) {
+      console.warn('Python save_all_excel_rows non-fatal error:', e);
+    }
+
+    return res.json({ success: true, savedRows: rows.length, sheet: targetSheet });
   } catch (err: any) {
     console.error('Failed to save Excel table:', err);
     return res.status(500).json({ error: 'Could not save Excel table' });
@@ -429,6 +687,14 @@ app.post('/api/delete-transaction', (req, res) => {
 app.post('/api/clear-all-transactions', (_req, res) => {
   try {
     saveStoredTransactions([]);
+    const resetStore: ExcelStore = {
+      activeSheet: 'ABA Transactions KHR',
+      sheets: ['ABA Transactions KHR'],
+      sheetRows: {
+        'ABA Transactions KHR': [],
+      },
+    };
+    saveStoredSheets(resetStore);
 
     try {
       runPythonCommand('excel_bridge.py clear_all_transactions');
@@ -509,6 +775,19 @@ app.post('/api/update-google-sheet-config', (req, res) => {
 // GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx
 app.get('/api/download-excel', (_req, res) => {
   const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
+  try {
+    const store = getStoredSheets();
+    for (const sheet of store.sheets) {
+      const rows = store.sheetRows[sheet] || [];
+      if (rows.length > 0) {
+        const payload = JSON.stringify(rows);
+        runPythonCommand(`excel_bridge.py save_all_excel_rows - "${sheet}"`, payload);
+      }
+    }
+  } catch (e) {
+    console.warn('Sync before download error:', e);
+  }
+
   if (fs.existsSync(filePath)) {
     res.download(filePath, 'ABA_Transactions_Latest.xlsx');
   } else {

@@ -193,7 +193,7 @@ export default function App() {
     setTransactions((prev) =>
       prev.map((t) => {
         if (t.id === id) {
-          const nextStatus = t.status === 'paid' ? 'pending' : 'paid';
+          const nextStatus: 'paid' | 'pending' = t.status === 'paid' ? 'pending' : 'paid';
           const updated = {
             ...t,
             status: nextStatus,

@@ -4,6 +4,7 @@ import json
 import datetime
 import re
 import pandas as pd
+import openpyxl
 import memory_manager as mm
 
 if hasattr(sys.stdout, 'reconfigure'):
@@ -13,6 +14,12 @@ if hasattr(sys.stdin, 'reconfigure'):
 
 EXCEL_FILE = os.path.join(os.path.dirname(__file__), "ABA_Transactions_Latest.xlsx")
 SHEET_NAME = "ABA Transactions KHR"
+
+STANDARD_COLUMNS = [
+    "No.", "Date", "Source", "Entry No", "JV No", "Reference",
+    "Class", "Vendor / Customer / Employee", "Description",
+    "Debit", "Credit", "Balance"
+]
 
 def read_input_payload():
     if len(sys.argv) > 2:
@@ -76,13 +83,67 @@ def get_transactions():
 
     print(json.dumps(transactions, ensure_ascii=False))
 
-def get_excel_rows():
+def get_sheets():
+    if not os.path.exists(EXCEL_FILE):
+        print(json.dumps(["ABA Transactions KHR"], ensure_ascii=False))
+        return
+    try:
+        wb = openpyxl.load_workbook(EXCEL_FILE, read_only=True)
+        print(json.dumps(wb.sheetnames, ensure_ascii=False))
+    except Exception as e:
+        print(json.dumps(["ABA Transactions KHR"], ensure_ascii=False))
+
+def add_sheet(sheet_name):
+    clean_name = str(sheet_name).strip() if sheet_name else ""
+    if not clean_name:
+        clean_name = f"Week_{datetime.date.today().strftime('%W_%Y')}"
+    try:
+        if not os.path.exists(EXCEL_FILE):
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = clean_name
+            ws.append(STANDARD_COLUMNS)
+            wb.save(EXCEL_FILE)
+            print(json.dumps({"success": True, "sheet": clean_name, "sheets": [clean_name]}))
+            return
+
+        wb = openpyxl.load_workbook(EXCEL_FILE)
+        if clean_name in wb.sheetnames:
+            print(json.dumps({"success": True, "sheet": clean_name, "sheets": wb.sheetnames}))
+            return
+
+        ws = wb.create_sheet(title=clean_name)
+        ws.append(STANDARD_COLUMNS)
+        wb.save(EXCEL_FILE)
+        print(json.dumps({"success": True, "sheet": clean_name, "sheets": wb.sheetnames}))
+    except Exception as e:
+        print(json.dumps({"success": False, "error": str(e)}))
+
+def delete_sheet(sheet_name):
+    clean_name = str(sheet_name).strip() if sheet_name else ""
+    try:
+        if not os.path.exists(EXCEL_FILE):
+            print(json.dumps({"success": False, "error": "File does not exist"}))
+            return
+        wb = openpyxl.load_workbook(EXCEL_FILE)
+        if clean_name in wb.sheetnames and len(wb.sheetnames) > 1:
+            wb.remove(wb[clean_name])
+            wb.save(EXCEL_FILE)
+            print(json.dumps({"success": True, "sheets": wb.sheetnames}))
+        else:
+            print(json.dumps({"success": False, "error": "Cannot delete default sheet"}))
+    except Exception as e:
+        print(json.dumps({"success": False, "error": str(e)}))
+
+def get_excel_rows(sheet_name=None):
     if not os.path.exists(EXCEL_FILE):
         print(json.dumps([]))
         return
 
     try:
-        df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+        xl = pd.ExcelFile(EXCEL_FILE)
+        target_sheet = sheet_name if (sheet_name and sheet_name in xl.sheet_names) else (xl.sheet_names[0] if xl.sheet_names else SHEET_NAME)
+        df = xl.parse(target_sheet)
     except Exception as e:
         print(json.dumps([]))
         return
@@ -333,7 +394,7 @@ def clear_all_transactions():
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
 
-def save_all_excel_rows(rows_json_str):
+def save_all_excel_rows(rows_json_str, sheet_name=None):
     try:
         rows = json.loads(rows_json_str)
         if not isinstance(rows, list):
@@ -344,6 +405,7 @@ def save_all_excel_rows(rows_json_str):
         return
 
     try:
+        target_sheet = str(sheet_name).strip() if (sheet_name and str(sheet_name).strip()) else SHEET_NAME
         formatted_rows = []
         for idx, r in enumerate(rows):
             no_val = r.get("no") or (idx + 1)
@@ -374,14 +436,25 @@ def save_all_excel_rows(rows_json_str):
             })
 
         df = pd.DataFrame(formatted_rows)
-        # Sort or preserve order, renumber No. sequentially 1..N
-        df['No.'] = range(1, len(df) + 1)
+        if len(df) > 0:
+            df['No.'] = range(1, len(df) + 1)
+        else:
+            df = pd.DataFrame(columns=STANDARD_COLUMNS)
 
-        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+        if not os.path.exists(EXCEL_FILE):
+            with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name=target_sheet, index=False)
+        else:
+            wb = openpyxl.load_workbook(EXCEL_FILE)
+            if target_sheet not in wb.sheetnames:
+                wb.create_sheet(title=target_sheet)
+                wb.save(EXCEL_FILE)
+
+            with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                df.to_excel(writer, sheet_name=target_sheet, index=False)
 
         mm.sync_memory_from_excel(df)
-        print(json.dumps({"success": True, "savedRows": len(df)}))
+        print(json.dumps({"success": True, "savedRows": len(df), "sheet": target_sheet}))
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
 
@@ -392,10 +465,18 @@ def get_memory_context():
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
-        if cmd == "get_transactions":
+        target_sheet = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] not in ["-", "stdin"] else None
+
+        if cmd == "get_sheets":
+            get_sheets()
+        elif cmd == "add_sheet":
+            add_sheet(target_sheet)
+        elif cmd == "delete_sheet":
+            delete_sheet(target_sheet)
+        elif cmd == "get_transactions":
             get_transactions()
         elif cmd == "get_excel_rows":
-            get_excel_rows()
+            get_excel_rows(target_sheet)
         elif cmd == "save_transaction":
             save_transaction(read_input_payload())
         elif cmd == "update_transaction":
@@ -405,7 +486,7 @@ if __name__ == "__main__":
         elif cmd == "clear_all_transactions":
             clear_all_transactions()
         elif cmd == "save_all_excel_rows":
-            save_all_excel_rows(read_input_payload())
+            save_all_excel_rows(read_input_payload(), target_sheet)
         elif cmd == "get_memory_context":
             get_memory_context()
         elif cmd == "sync_memory":
