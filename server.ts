@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { execSync } from 'child_process';
+import * as XLSX from 'xlsx';
 
 // Load .env.local first (local development / secrets), then .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -403,17 +404,69 @@ function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: numbe
   };
 }
 
+function excelRowToTransaction(r: any, idx: number): any {
+  const isIncome = Number(r.debit || 0) > 0;
+  const khr = Number(r.credit || r.debit || 0);
+  const usd = khr === 5000 ? 1.22 : parseFloat((khr / 4100).toFixed(2));
+  const entryVal = Number(r.entryNo) || (57559 + idx);
+  const jvVal = r.jvNo || `JV${String(605 + idx).padStart(5, '0')}`;
+
+  return {
+    id: `tx-${entryVal}-${jvVal}`,
+    ref: jvVal,
+    entryNo: entryVal,
+    jvNo: jvVal,
+    vendor: cleanKhmerString(r.vendor, 'ខេមា គ្លីនិក & ដេនថល'),
+    vendorKh: cleanKhmerString(r.vendor, 'ខេមា គ្លីនិក & ដេនថល'),
+    category: cleanKhmerString(r.description, 'សម្ភារៈប្រើប្រាស់'),
+    categoryCode: '6010 - សម្ភារៈប្រើប្រាស់',
+    date: r.date || new Date().toISOString().split('T')[0],
+    time: '10:00 AM',
+    amountUSD: usd,
+    amountKHR: khr,
+    vatUSD: 0,
+    type: isIncome ? 'income' : 'expense',
+    status: 'paid',
+    statusTextKh: 'បានបង់',
+    iconName: r.vendor && r.vendor.includes('កាហ្វេ') ? 'local_cafe' : (r.vendor && r.vendor.includes('ដឹកជញ្ជូន') ? 'local_shipping' : 'receipt_long'),
+    aiExplanation: cleanKhmerString(r.description, 'វិក្កយបត្រចំណាយទូទៅ'),
+    ocrConfidence: 98,
+  };
+}
+
 function getStoredTransactions(): any[] {
+  let list: any[] = [];
   try {
     if (fs.existsSync(TRANSACTIONS_FILE)) {
       const raw = fs.readFileSync(TRANSACTIONS_FILE, 'utf-8');
       const data = JSON.parse(raw);
-      if (Array.isArray(data)) return data.map(sanitizeTransaction);
+      if (Array.isArray(data)) list = data.map(sanitizeTransaction);
     }
   } catch (e) {
     console.warn('Error reading khema_transactions.json:', e);
   }
-  return [];
+
+  // Also sync any missing rows from khema_excel_sheets
+  try {
+    const store = getStoredSheets();
+    const existingJvs = new Set(list.map((t: any) => String(t.jvNo || t.ref || '')));
+    const activeRows = store.sheetRows[store.activeSheet] || [];
+    let addedCount = 0;
+    for (let i = 0; i < activeRows.length; i++) {
+      const r = activeRows[i];
+      const jvKey = String(r.jvNo || r.reference || '');
+      if (jvKey && !existingJvs.has(jvKey)) {
+        list.unshift(excelRowToTransaction(r, i));
+        existingJvs.add(jvKey);
+        addedCount++;
+      }
+    }
+    if (addedCount > 0) {
+      saveStoredTransactions(list);
+    }
+  } catch (e) {}
+
+  return list;
 }
 
 function saveStoredTransactions(txs: any[]) {
@@ -425,11 +478,20 @@ function saveStoredTransactions(txs: any[]) {
   }
 }
 
-// GET /api/transactions - fetch shared transactions (accessible from all devices)
-app.get('/api/transactions', (_req, res) => {
+// GET /api/transactions - fetch shared transactions (accessible from all devices, supports ?sheet=...)
+app.get('/api/transactions', (req, res) => {
   try {
+    const store = getStoredSheets();
+    const sheetQuery = req.query.sheet as string;
+
+    if (sheetQuery && sheetQuery !== 'all' && store.sheetRows[sheetQuery]) {
+      const rows = store.sheetRows[sheetQuery] || [];
+      const sheetTxs = rows.map((r, i) => excelRowToTransaction(r, i));
+      return res.json({ success: true, sheet: sheetQuery, activeSheet: store.activeSheet, data: sheetTxs });
+    }
+
     const txs = getStoredTransactions();
-    return res.json({ success: true, data: txs });
+    return res.json({ success: true, activeSheet: store.activeSheet, data: txs });
   } catch (err: any) {
     console.error('Failed to get transactions:', err);
     return res.json({ success: true, data: [] });
@@ -738,6 +800,15 @@ app.post('/api/save-excel-table', (req, res) => {
     }
     saveStoredSheets(store);
 
+    // Sync with khema_transactions so Recent Transactions also updates immediately!
+    try {
+      const currentTxs = getStoredTransactions();
+      const updatedSheetTxs = rows.map((r: any, idx: number) => excelRowToTransaction(r, idx));
+      const sheetJvSet = new Set(updatedSheetTxs.map((t: any) => String(t.jvNo || t.ref || '')));
+      const otherTxs = currentTxs.filter((t: any) => !sheetJvSet.has(String(t.jvNo || t.ref || '')));
+      saveStoredTransactions([...updatedSheetTxs, ...otherTxs]);
+    } catch (e) {}
+
     try {
       const payload = JSON.stringify(rows);
       runPythonCommand(`excel_bridge.py save_all_excel_rows - "${targetSheet}"`, payload);
@@ -907,44 +978,117 @@ app.post('/api/update-google-sheet-config', (req, res) => {
   }
 });
 
-// GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx
-app.get('/api/download-excel', (req, res) => {
-  const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
-  try {
-    const store = getStoredSheets();
-    const allSheets = Array.from(new Set([...store.sheets, ...Object.keys(store.sheetRows)]));
-    const requestedSheet = (req.query.sheet as string) || store.activeSheet;
+function generateExcelWorkbook(requestedSheet?: string): Buffer {
+  const store = getStoredSheets();
+  const txs = getStoredTransactions();
+  const targetSheet = requestedSheet || store.activeSheet || 'Week_5';
 
-    for (const sheet of allSheets) {
-      let rows = store.sheetRows[sheet] || [];
-      // Fallback: If sheet has no rows and is active, check if khema_transactions has rows
-      if (rows.length === 0 && (sheet === store.activeSheet || sheet === requestedSheet)) {
-        const txs = getStoredTransactions();
-        if (txs.length > 0) {
-          rows = txs.map((tx: any, idx: number) =>
-            convertTransactionToExcelRow(tx, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`)
-          );
-          store.sheetRows[sheet] = rows;
-          saveStoredSheets(store);
-        }
-      }
+  const wb = XLSX.utils.book_new();
 
-      const payload = JSON.stringify(rows);
-      try {
-        runPythonCommand(`excel_bridge.py save_all_excel_rows - "${sheet}"`, payload);
-      } catch (err) {
-        console.warn(`Error writing sheet "${sheet}" before download:`, err);
-      }
+  const formatRowsForExcel = (rows: any[]) => {
+    return rows.map((r, idx) => ({
+      'No.': r.no || (idx + 1),
+      'Date': r.date || new Date().toISOString().split('T')[0],
+      'Source': r.source || 'GL-JE',
+      'Entry No': r.entryNo || (57559 + idx),
+      'JV No': r.jvNo || `JV${String(605 + idx).padStart(5, '0')}`,
+      'Reference': r.reference || '',
+      'Class': r.class || 'KHEMA88888',
+      'Vendor / Customer / Employee': cleanKhmerString(r.vendor, 'ខេមា គ្លីនិក & ដេនថល'),
+      'Description': cleanKhmerString(r.description, 'សម្ភារៈប្រើប្រាស់'),
+      'Debit': Number(r.debit) || 0,
+      'Credit': Number(r.credit) || 0,
+      'Balance': r.balance !== undefined && r.balance !== null ? r.balance : '',
+    }));
+  };
+
+  const allSheetNames = Array.from(new Set([...store.sheets, ...Object.keys(store.sheetRows || {})]));
+
+  // Ensure target / active sheet is first in the workbook
+  const orderedSheetNames: string[] = [];
+  if (allSheetNames.includes(targetSheet)) {
+    orderedSheetNames.push(targetSheet);
+  }
+  for (const name of allSheetNames) {
+    if (!orderedSheetNames.includes(name)) {
+      orderedSheetNames.push(name);
     }
-  } catch (e) {
-    console.warn('Sync before download error:', e);
   }
 
-  if (fs.existsSync(filePath)) {
+  if (!orderedSheetNames.includes('ABA Transactions KHR')) {
+    orderedSheetNames.push('ABA Transactions KHR');
+  }
+
+  for (const sheetName of orderedSheetNames) {
+    let rows = store.sheetRows[sheetName] || [];
+
+    // Ensure no sheet is empty if transactions exist
+    if (rows.length === 0) {
+      if (sheetName === targetSheet && txs.length > 0) {
+        rows = txs.map((t, idx) => convertTransactionToExcelRow(t, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`));
+      } else if (sheetName === 'ABA Transactions KHR') {
+        const allRows: any[] = [];
+        for (const s of Object.keys(store.sheetRows || {})) {
+          if (s !== 'ABA Transactions KHR') {
+            allRows.push(...(store.sheetRows[s] || []));
+          }
+        }
+        rows = allRows.length > 0 ? allRows : txs.map((t, idx) => convertTransactionToExcelRow(t, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`));
+      }
+    }
+
+    const formattedData = formatRowsForExcel(rows);
+    const ws = XLSX.utils.json_to_sheet(formattedData, {
+      header: [
+        'No.', 'Date', 'Source', 'Entry No', 'JV No', 'Reference',
+        'Class', 'Vendor / Customer / Employee', 'Description',
+        'Debit', 'Credit', 'Balance'
+      ],
+    });
+
+    ws['!cols'] = [
+      { wch: 6 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 32 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+// GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx with multi-sheet support
+app.get('/api/download-excel', (req, res) => {
+  try {
+    const requestedSheet = (req.query.sheet as string) || '';
+    const buf = generateExcelWorkbook(requestedSheet);
+
+    const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
+    try {
+      fs.writeFileSync(filePath, buf);
+    } catch (e) {}
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.download(filePath, 'ABA_Transactions_Latest.xlsx');
-  } else {
-    res.status(404).json({ error: 'Excel file not found' });
+    res.setHeader('Content-Disposition', 'attachment; filename="ABA_Transactions_Latest.xlsx"');
+    res.setHeader('Content-Length', buf.length);
+    return res.end(buf);
+  } catch (err: any) {
+    console.error('Download Excel error:', err);
+    const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
+    if (fs.existsSync(filePath)) {
+      return res.download(filePath, 'ABA_Transactions_Latest.xlsx');
+    }
+    return res.status(500).json({ error: 'Could not generate Excel file' });
   }
 });
 

@@ -58,20 +58,18 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amountUSD, 0);
 
-  // Trigger export real Excel
-  const handleExport = () => {
-    const link = document.createElement('a');
-    link.href = `/api/download-excel?t=${Date.now()}`;
-    link.download = 'ABA_Transactions_Latest.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Trigger export real Excel with 100% mobile browser compatibility
+  const handleExport = (targetSheet?: string) => {
+    const url = `/api/download-excel?t=${Date.now()}${targetSheet ? `&sheet=${encodeURIComponent(targetSheet)}` : ''}`;
+    
+    // Direct location navigation triggers the native download prompt on iOS Safari and Android Chrome
+    window.location.href = url;
 
-    setToastMessage('បានទាញយកឯកសារ Excel រួមទាំង Sheet ទាំងអស់ជោគជ័យ!');
+    setToastMessage('កំពុងទាញយកឯកសារ Excel (ទិន្នន័យគ្រប់ Sheet ទាំងអស់)...');
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
-    }, 3200);
+    }, 3500);
   };
 
   return (
@@ -245,34 +243,59 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       />
 
       {/* General Ledger Entries Header */}
-      <div className="flex items-center justify-between mb-space-sm">
-        <div className="flex items-center gap-2">
-          <span className="font-headline-sm text-[15px] text-on-surface font-bold">
+      <div className="flex items-center justify-between mb-space-sm gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-headline-sm text-[15px] text-on-surface font-bold truncate">
             ប្រតិបត្តិការថ្មីៗ
           </span>
-          <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[11px] font-semibold">
+          <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[11px] font-semibold shrink-0">
             {sorted.length} ធាតុ
           </span>
         </div>
 
-        <button
-          onClick={() => {
-            setSortOrder((prev) =>
-              prev === 'date-desc' ? 'date-asc' : prev === 'date-asc' ? 'amount-desc' : 'date-desc'
-            );
-          }}
-          className="flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold hover:underline"
-          type="button"
-        >
-          <span>
-            {sortOrder === 'date-desc'
-              ? 'កាលបរិច្ឆេទ (ថ្មីមុន)'
-              : sortOrder === 'date-asc'
-              ? 'កាលបរិច្ឆេទ (ចាស់មុន)'
-              : 'ទឹកប្រាក់ (ច្រើនមុន)'}
-          </span>
-          <span className="material-symbols-outlined text-[16px]">swap_vert</span>
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Quick Download Excel Button right on ប្រតិបត្តិការថ្មីៗ */}
+          <button
+            onClick={() => handleExport()}
+            className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-sm text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
+            title="ទាញយកទិន្នន័យប្រតិបត្តិការថ្មីៗជា Excel"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[15px]">download</span>
+            <span>ទាញយក Excel</span>
+          </button>
+
+          {/* Quick Sync/Fetch button */}
+          <button
+            onClick={onRefresh}
+            className="w-8 h-8 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface flex items-center justify-center shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
+            title="ទាញយកទិន្នន័យថ្មី (Refresh)"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[16px]">sync</span>
+          </button>
+
+          {/* Sort Button */}
+          <button
+            onClick={() => {
+              setSortOrder((prev) =>
+                prev === 'date-desc' ? 'date-asc' : prev === 'date-asc' ? 'amount-desc' : 'date-desc'
+              );
+            }}
+            className="h-8 px-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-secondary font-label-sm text-[11px] font-semibold flex items-center gap-0.5 transition-all shrink-0 cursor-pointer"
+            type="button"
+            title="តម្រៀបតាមកាលបរិច្ឆេទ ឬទឹកប្រាក់"
+          >
+            <span>
+              {sortOrder === 'date-desc'
+                ? 'ថ្មីមុន'
+                : sortOrder === 'date-asc'
+                ? 'ចាស់មុន'
+                : 'ច្រើនមុន'}
+            </span>
+            <span className="material-symbols-outlined text-[15px]">swap_vert</span>
+          </button>
+        </div>
       </div>
 
       {/* Transaction Cards List */}
@@ -410,18 +433,18 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
                 ទាញយករបាយការណ៍
               </span>
               <span className="font-label-sm text-[11px] text-on-surface-variant">
-                Excel (.xlsx) / PDF
+                Excel (.xlsx) • {transactions.length} ប្រតិបត្តិការ
               </span>
             </div>
           </div>
 
           <button
-            onClick={handleExport}
-            className="h-11 px-space-md rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition-all hover:bg-neutral-800"
+            onClick={() => handleExport()}
+            className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
             type="button"
           >
             <span className="material-symbols-outlined text-[18px]">download</span>
-            <span>ទាញយក</span>
+            <span>ទាញយក Excel</span>
           </button>
         </div>
       </div>

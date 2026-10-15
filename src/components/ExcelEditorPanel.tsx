@@ -218,13 +218,9 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
           }),
         });
       }
-      // Download latest file directly
-      const link = document.createElement('a');
-      link.href = `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&t=${Date.now()}`;
-      link.download = 'ABA_Transactions_Latest.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Download latest file directly with mobile support
+      const downloadUrl = `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&t=${Date.now()}`;
+      window.location.href = downloadUrl;
       setSaveSuccessMsg(`បានទាញយកឯកសារ Excel (Sheet៖ «${activeSheet}») ជោគជ័យ!`);
       setTimeout(() => setSaveSuccessMsg(''), 3500);
     } catch (err) {
