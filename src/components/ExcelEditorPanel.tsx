@@ -201,6 +201,40 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     }
   };
 
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
+  // Handle download Excel with automatic auto-save
+  const handleDownloadExcel = async () => {
+    setIsDownloading(true);
+    try {
+      if (rows.length > 0) {
+        // Automatically save current rows first so any new / edited rows are immediately stored!
+        await fetch('/api/save-excel-table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sheet: activeSheet,
+            rows: rows,
+          }),
+        });
+      }
+      // Download latest file directly
+      const link = document.createElement('a');
+      link.href = `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&t=${Date.now()}`;
+      link.download = 'ABA_Transactions_Latest.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setSaveSuccessMsg(`បានទាញយកឯកសារ Excel (Sheet៖ «${activeSheet}») ជោគជ័យ!`);
+      setTimeout(() => setSaveSuccessMsg(''), 3500);
+    } catch (err) {
+      console.error('Download error:', err);
+      window.location.href = `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}`;
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const filteredRows = rows.filter((r) => {
     if (!searchFilter.trim()) return true;
     const q = searchFilter.toLowerCase();
@@ -244,15 +278,18 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
             <span className="truncate">+ បង្កើត Sheet ថ្មី</span>
           </button>
 
-          <a
-            href="/api/download-excel"
-            download="ABA_Transactions_Latest.xlsx"
-            className="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-emerald-800 border border-emerald-600/30 text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0"
+          <button
+            type="button"
+            onClick={handleDownloadExcel}
+            disabled={isDownloading}
+            className="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-emerald-800 border border-emerald-600/30 text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
             title="ទាញយកឯកសារ Excel (.xlsx)"
           >
-            <span className="material-symbols-outlined text-[16px] text-emerald-600">download</span>
-            <span>Excel</span>
-          </a>
+            <span className="material-symbols-outlined text-[16px] text-emerald-600">
+              {isDownloading ? 'hourglass_top' : 'download'}
+            </span>
+            <span>{isDownloading ? '...' : 'Excel'}</span>
+          </button>
         </div>
 
         {/* Row 3: Sheet Tabs List */}

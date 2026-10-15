@@ -61,13 +61,13 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   // Trigger export real Excel
   const handleExport = () => {
     const link = document.createElement('a');
-    link.href = '/api/download-excel';
+    link.href = `/api/download-excel?t=${Date.now()}`;
     link.download = 'ABA_Transactions_Latest.xlsx';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    setToastMessage('បានទាញយកឯកសារ Excel (ABA Transactions KHR) ជោគជ័យ!');
+    setToastMessage('បានទាញយកឯកសារ Excel រួមទាំង Sheet ទាំងអស់ជោគជ័យ!');
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);

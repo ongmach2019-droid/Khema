@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "id": "tx-57560-1",
+    "ref": "JV00606",
+    "entryNo": 57560,
+    "jvNo": "JV00606",
+    "vendor": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
+    "vendorKh": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
+    "category": "ទិញសម្ភារៈប្រើប្រាស់",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-09-15",
+    "time": "10:00 AM",
+    "amountUSD": 1.22,
+    "amountKHR": 5000,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "receipt_long",
+    "aiExplanation": "វិក្កយបត្រចំណាយទូទៅ 5,000៛",
+    "ocrConfidence": 99
+  },
+  {
+    "id": "tx-57559-0",
+    "ref": "JV00605",
+    "entryNo": 57559,
+    "jvNo": "JV00605",
+    "vendor": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
+    "vendorKh": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
+    "category": "ទិញសម្ភារៈប្រើប្រាស់",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-09-15",
+    "time": "10:00 AM",
+    "amountUSD": 1.22,
+    "amountKHR": 5000,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "receipt_long",
+    "aiExplanation": "វិក្កយបត្រចំណាយទូទៅ 5,000៛",
+    "ocrConfidence": 99
+  }
+]

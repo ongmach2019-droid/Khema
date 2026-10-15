@@ -18,6 +18,7 @@ function runPythonCommand(args: string, inputData?: string): string {
     encoding: 'utf-8',
     cwd: process.cwd(),
     timeout: 30000,
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
   });
 }
 
@@ -828,15 +829,32 @@ app.post('/api/update-google-sheet-config', (req, res) => {
 });
 
 // GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx
-app.get('/api/download-excel', (_req, res) => {
+app.get('/api/download-excel', (req, res) => {
   const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
   try {
     const store = getStoredSheets();
-    for (const sheet of store.sheets) {
-      const rows = store.sheetRows[sheet] || [];
-      if (rows.length > 0) {
-        const payload = JSON.stringify(rows);
+    const allSheets = Array.from(new Set([...store.sheets, ...Object.keys(store.sheetRows)]));
+    const requestedSheet = (req.query.sheet as string) || store.activeSheet;
+
+    for (const sheet of allSheets) {
+      let rows = store.sheetRows[sheet] || [];
+      // Fallback: If sheet has no rows and is active, check if khema_transactions has rows
+      if (rows.length === 0 && (sheet === store.activeSheet || sheet === requestedSheet)) {
+        const txs = getStoredTransactions();
+        if (txs.length > 0) {
+          rows = txs.map((tx: any, idx: number) =>
+            convertTransactionToExcelRow(tx, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`)
+          );
+          store.sheetRows[sheet] = rows;
+          saveStoredSheets(store);
+        }
+      }
+
+      const payload = JSON.stringify(rows);
+      try {
         runPythonCommand(`excel_bridge.py save_all_excel_rows - "${sheet}"`, payload);
+      } catch (err) {
+        console.warn(`Error writing sheet "${sheet}" before download:`, err);
       }
     }
   } catch (e) {
@@ -844,6 +862,7 @@ app.get('/api/download-excel', (_req, res) => {
   }
 
   if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.download(filePath, 'ABA_Transactions_Latest.xlsx');
   } else {
     res.status(404).json({ error: 'Excel file not found' });

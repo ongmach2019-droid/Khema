@@ -435,6 +435,14 @@ def save_all_excel_rows(rows_json_str, sheet_name=None):
                 "Balance": None
             })
 
+        if len(formatted_rows) > 1:
+            first_no = formatted_rows[0].get("No.") or 0
+            last_no = formatted_rows[-1].get("No.") or 0
+            first_entry = formatted_rows[0].get("Entry No") or 0
+            last_entry = formatted_rows[-1].get("Entry No") or 0
+            if (first_no > last_no and last_no > 0) or (first_entry > last_entry and last_entry > 0):
+                formatted_rows.reverse()
+
         df = pd.DataFrame(formatted_rows)
         if len(df) > 0:
             df['No.'] = range(1, len(df) + 1)
@@ -465,7 +473,11 @@ def get_memory_context():
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
-        target_sheet = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] not in ["-", "stdin"] else None
+        target_sheet = None
+        if len(sys.argv) > 3 and sys.argv[2] in ["-", "stdin"]:
+            target_sheet = sys.argv[3]
+        elif len(sys.argv) > 2 and sys.argv[2] not in ["-", "stdin"]:
+            target_sheet = sys.argv[2]
 
         if cmd == "get_sheets":
             get_sheets()
