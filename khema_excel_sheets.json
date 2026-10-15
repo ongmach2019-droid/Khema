@@ -1,9 +1,10 @@
 {
-  "activeSheet": "Week_3",
+  "activeSheet": "Week_5",
   "sheets": [
     "ABA Transactions KHR",
     "Week_42_2026",
-    "Week_3"
+    "Week_3",
+    "Week_5"
   ],
   "sheetRows": {
     "ABA Transactions KHR": [],
@@ -33,6 +34,50 @@
         "class": "KHEMA88888",
         "vendor": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
         "description": "ទិញសម្ភារៈប្រើប្រាស់",
+        "debit": 0,
+        "credit": 5000,
+        "balance": null
+      }
+    ],
+    "Week_5": [
+      {
+        "no": 3,
+        "date": "2026-10-15",
+        "source": "GL-JE",
+        "entryNo": 57563,
+        "jvNo": "JV00609",
+        "reference": "",
+        "class": "KHEMA88888",
+        "vendor": "សម្ភារៈការិយាល័យ ភ្នំពេញ",
+        "description": "ទិញក្រដាសការិយាល័យ",
+        "debit": 0,
+        "credit": 10000,
+        "balance": null
+      },
+      {
+        "no": 2,
+        "date": "2026-10-15",
+        "source": "GL-JE",
+        "entryNo": 57562,
+        "jvNo": "JV00608",
+        "reference": "",
+        "class": "KHEMA88888",
+        "vendor": "សេវាដឹកជញ្ជូន វីរៈប៊ុនថាំ",
+        "description": "ថ្លៃផ្ញើអីវ៉ាន់",
+        "debit": 0,
+        "credit": 5000,
+        "balance": null
+      },
+      {
+        "no": 1,
+        "date": "2026-10-15",
+        "source": "GL-JE",
+        "entryNo": 57561,
+        "jvNo": "JV00607",
+        "reference": "",
+        "class": "KHEMA88888",
+        "vendor": "ហាងកាហ្វេ ជួបជុំ",
+        "description": "ទិញសម្ភារៈ និងកាហ្វេ",
         "debit": 0,
         "credit": 5000,
         "balance": null

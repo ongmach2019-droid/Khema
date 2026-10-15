@@ -150,6 +150,26 @@ export default function App() {
     setNotifications((prev) => [newNotif, ...prev]);
   };
 
+  // Add batch of scanned transactions (put at the very TOP)
+  const handleSaveBatchTransactions = (txs: Transaction[]) => {
+    setTransactions((prev) => [...txs, ...prev]);
+
+    // Switch view to Ledger list immediately so user can easily review the top entries!
+    setCurrentTab('ledger-list');
+
+    // Create notification
+    const newNotif: AppNotification = {
+      id: `notif-${Date.now()}`,
+      title: 'បានកត់ត្រាវិក្កយបត្រថ្មី (Multi-Scan)',
+      message: `វិក្កយបត្រថ្មីចំនួន ${txs.length} ត្រូវបានដាក់បញ្ចូលក្នុងតារាងជោគជ័យ។`,
+      time: 'ទើបតែឥឡូវនេះ',
+      read: false,
+      type: 'ai',
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+    fetchTransactions();
+  };
+
   // Update existing transaction
   const handleUpdateTransaction = async (updated: Transaction) => {
     setTransactions((prev) =>
@@ -290,6 +310,7 @@ export default function App() {
             <UploadIngestionScreen
               settings={settings}
               onSaveTransaction={handleSaveTransaction}
+              onSaveBatchTransactions={handleSaveBatchTransactions}
               initialFile={incomingUploadFile}
             />
           )}
