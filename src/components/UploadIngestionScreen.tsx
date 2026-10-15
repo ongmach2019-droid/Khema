@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Transaction, AppSettings } from '../types.ts';
 import { compressAndPrepareImage } from '../utils/imageUtils.ts';
-import { SheetManagerBar } from './SheetManagerBar.tsx';
 
 interface UploadIngestionScreenProps {
   settings: AppSettings;
@@ -548,9 +547,6 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
           អាចដាក់ ឬថតរូបវិក្កយបត្រ<strong>ម្ដងបានច្រើន</strong> • AI នឹងដកស្រង់ទិន្នន័យដោយស្វ័យប្រវត្តិ
         </p>
       </div>
-
-      {/* Prominent Multi-Sheet Management Strip with + បង្កើត Sheet ថ្មី */}
-      <SheetManagerBar className="mb-space-md" />
 
       {/* Upload Target Zone (Supports Multi-Selection) */}
       <div className="w-full bg-surface-container-lowest rounded-2xl p-space-md shadow-sm mb-space-md relative overflow-hidden border border-surface-container-high/60 group">

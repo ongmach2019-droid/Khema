@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Transaction, AppSettings } from '../types.ts';
-import { SheetManagerBar } from './SheetManagerBar.tsx';
 
 interface DashboardScreenProps {
   transactions: Transaction[];
@@ -85,9 +84,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </span>
         </div>
       </div>
-
-      {/* Prominent Multi-Sheet Management Strip with + បង្កើត Sheet ថ្មី */}
-      <SheetManagerBar />
 
       {/* Primary Instant Action: Scan Invoice with AI */}
       <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-surface-container-high/60">
