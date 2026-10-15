@@ -305,6 +305,20 @@ ${memoryContext}`;
 
 const TRANSACTIONS_FILE = path.resolve(process.cwd(), 'khema_transactions.json');
 const EXCEL_SHEETS_FILE = path.resolve(process.cwd(), 'khema_excel_sheets.json');
+const GOOGLE_SHEET_CONFIG_FILE = path.resolve(process.cwd(), 'google_sheet_config.json');
+
+function getGoogleSheetWebhookUrl(): string {
+  if (process.env.GOOGLE_SHEET_WEBHOOK_URL) {
+    return process.env.GOOGLE_SHEET_WEBHOOK_URL.trim();
+  }
+  if (fs.existsSync(GOOGLE_SHEET_CONFIG_FILE)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(GOOGLE_SHEET_CONFIG_FILE, 'utf-8'));
+      if (cfg.webhookUrl) return cfg.webhookUrl.trim();
+    } catch (e) {}
+  }
+  return '';
+}
 
 interface ExcelStore {
   activeSheet: string;
@@ -492,7 +506,7 @@ app.post('/api/save-transaction', (req, res) => {
     }
 
     // Also forward to Google Sheets Webhook if configured
-    const webhookUrl = req.body.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    const webhookUrl = req.body.googleSheetWebhookUrl || getGoogleSheetWebhookUrl();
     if (webhookUrl) {
       fetch(webhookUrl, {
         method: 'POST',
@@ -559,7 +573,7 @@ app.post('/api/save-batch-transactions', (req, res) => {
     } catch (e) {}
 
     // Forward to Google Sheets Webhook if configured
-    const webhookUrl = req.body.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    const webhookUrl = req.body.googleSheetWebhookUrl || getGoogleSheetWebhookUrl();
     if (webhookUrl) {
       fetch(webhookUrl, {
         method: 'POST',
@@ -726,7 +740,7 @@ app.post('/api/clear-all-transactions', (_req, res) => {
 app.post('/api/google-sheet-sync', async (req, res) => {
   try {
     const { webhookUrl, action, transaction, transactions } = req.body;
-    const targetUrl = webhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    const targetUrl = webhookUrl || getGoogleSheetWebhookUrl();
     if (!targetUrl) {
       return res.status(400).json({ success: false, error: 'Google Sheet Webhook URL មិនទាន់បានកំណត់' });
     }
@@ -757,10 +771,36 @@ app.post('/api/google-sheet-sync', async (req, res) => {
   }
 });
 
-// POST /api/update-google-sheet-config - persist Webhook URL in .env
+// GET /api/google-sheet-config - retrieve shared webhook and sheet URL for all devices
+app.get('/api/google-sheet-config', (_req, res) => {
+  let webhookUrl = getGoogleSheetWebhookUrl();
+  let sheetUrl = 'https://docs.google.com/spreadsheets/d/1yo4JVj4G-YrDqtu5s4EdSCwQn0UGTF4m/edit?usp=sharing';
+  if (fs.existsSync(GOOGLE_SHEET_CONFIG_FILE)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(GOOGLE_SHEET_CONFIG_FILE, 'utf-8'));
+      if (cfg.sheetUrl) sheetUrl = cfg.sheetUrl.trim();
+    } catch (e) {}
+  }
+  return res.json({ success: true, webhookUrl, sheetUrl });
+});
+
+// POST /api/update-google-sheet-config - persist Webhook URL in google_sheet_config.json and .env
 app.post('/api/update-google-sheet-config', (req, res) => {
   const { webhookUrl, sheetUrl } = req.body;
   try {
+    const configData: any = {};
+    if (fs.existsSync(GOOGLE_SHEET_CONFIG_FILE)) {
+      try {
+        Object.assign(configData, JSON.parse(fs.readFileSync(GOOGLE_SHEET_CONFIG_FILE, 'utf-8')));
+      } catch (e) {}
+    }
+    if (webhookUrl !== undefined) configData.webhookUrl = webhookUrl.trim();
+    if (sheetUrl !== undefined) configData.sheetUrl = sheetUrl.trim();
+    fs.writeFileSync(GOOGLE_SHEET_CONFIG_FILE, JSON.stringify(configData, null, 2), 'utf-8');
+
+    if (webhookUrl) process.env.GOOGLE_SHEET_WEBHOOK_URL = webhookUrl.trim();
+    if (sheetUrl) process.env.GOOGLE_SHEET_URL = sheetUrl.trim();
+
     const envPath = path.resolve(process.cwd(), '.env');
     let envContent = '';
     if (fs.existsSync(envPath)) {

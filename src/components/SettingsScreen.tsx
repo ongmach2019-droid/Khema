@@ -168,6 +168,25 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [showRateModal, setShowRateModal] = useState<boolean>(false);
   const [showLanguageModal, setShowLanguageModal] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (settings.googleSheetWebhookUrl) {
+      setSheetWebhookUrl(settings.googleSheetWebhookUrl);
+    } else {
+      fetch('/api/google-sheet-config')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.webhookUrl) {
+            setSheetWebhookUrl(d.webhookUrl);
+            onUpdateSettings({
+              googleSheetWebhookUrl: d.webhookUrl,
+              googleSheetUrl: d.sheetUrl || settings.googleSheetUrl,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [settings.googleSheetWebhookUrl]);
+
   // Open edit profile modal with current settings
   const handleOpenEditProfile = () => {
     setProfileName(settings.userName);
@@ -620,6 +639,39 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </a>
         </div>
 
+        {/* Unconnected Warning Banner */}
+        {!sheetWebhookUrl && (
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 mb-3 text-xs text-amber-900 flex flex-col gap-2 animate-in fade-in">
+            <div className="flex items-center gap-1.5 font-bold text-amber-950">
+              <span className="material-symbols-outlined text-[18px] text-amber-600">warning</span>
+              <span>ទូរសព្ទមិនទាន់អាច Sync ចូល Google Sheet បានទេ (ខ្វះ Web App URL)</span>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              Google Drive តម្រូវឱ្យមានការអនុញ្ញាត (Permission) ដើម្បីសរសេរទិន្នន័យ។ សូមចុចប៊ូតុង <strong>[របៀបដំឡើង]</strong> ខាងក្រោម ដើម្បីដំឡើងលើកុំព្យូទ័រ (ចំណាយពេលត្រឹមតែ ១ នាទី) រួចចម្លង Web App URL មកដាក់ក្នុងប្រអប់នេះ។
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowScriptModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[14px]">menu_book</span>
+                <span>របៀបដំឡើង (Setup Guide)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyScriptCode}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {copiedCode ? 'done' : 'content_copy'}
+                </span>
+                <span>{copiedCode ? 'បានចម្លងកូដរួចរាល់!' : 'ចម្លងកូដ Apps Script'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Webhook URL Input */}
         <div className="flex flex-col gap-1.5 mb-3">
           <div className="flex items-center justify-between">
@@ -628,7 +680,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </label>
             <button
               onClick={() => setShowScriptModal(true)}
-              className="text-secondary text-[11px] font-bold hover:underline flex items-center gap-0.5"
+              className="text-secondary text-[11px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
               type="button"
             >
               <span className="material-symbols-outlined text-[13px]">help</span>
@@ -646,11 +698,22 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <button
               type="button"
               onClick={handleSaveWebhook}
-              className="h-10 px-3 bg-secondary text-white rounded-xl text-xs font-semibold hover:bg-secondary/90 active:scale-95 transition-all shadow-xs"
+              className="h-10 px-3.5 bg-secondary text-white rounded-xl text-xs font-bold hover:bg-secondary/90 active:scale-95 transition-all shadow-xs cursor-pointer shrink-0"
             >
               រក្សាទុក
             </button>
           </div>
+
+          {sheetWebhookUrl.includes('docs.google.com/spreadsheets') && (
+            <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[11px] font-semibold flex items-center gap-1.5 mt-1">
+              <span className="material-symbols-outlined text-[15px] text-red-600">error</span>
+              <span>⚠️ នេះជាតំណ Google Sheet ធម្មតា។ សូមដាក់តំណ Web App URL (ដែលផ្តើមដោយ https://script.google.com/macros/s/.../exec)!</span>
+            </div>
+          )}
+
+          <span className="text-[10px] text-on-surface-variant mt-0.5">
+            តំណ Web App URL ត្រូវតែផ្តើមដោយ https://script.google.com/macros/s/.../exec
+          </span>
         </div>
 
         {/* Action Buttons: Test Connection & Sync All */}

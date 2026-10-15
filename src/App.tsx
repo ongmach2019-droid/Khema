@@ -96,6 +96,22 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch shared Google Sheet webhook configuration from server
+  useEffect(() => {
+    fetch('/api/google-sheet-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.webhookUrl) {
+          setSettings((prev) => ({
+            ...prev,
+            googleSheetWebhookUrl: data.webhookUrl,
+            googleSheetUrl: data.sheetUrl || prev.googleSheetUrl,
+          }));
+        }
+      })
+      .catch((e) => console.warn('Could not load google sheet config:', e));
+  }, []);
+
   // Unread notifications count
   const unreadNotifsCount = notifications.filter((n) => !n.read).length;
 
