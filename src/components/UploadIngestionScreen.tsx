@@ -69,10 +69,6 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string>('');
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
-  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
-  const [geminiKeyInput, setGeminiKeyInput] = useState<string>(() => localStorage.getItem('gemini_api_key') || '');
-  const [isSavingKey, setIsSavingKey] = useState<boolean>(false);
-  const [needsApiKey, setNeedsApiKey] = useState<boolean>(false);
 
   // Camera video ref
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -194,7 +190,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 
   // Run AI analysis for a specific batch item
   const runAiForItem = async (item: BatchReceiptItem) => {
-    const currentKey = (localStorage.getItem('gemini_api_key') || geminiKeyInput || '').trim();
+    const currentKey = (localStorage.getItem('gemini_api_key') || '').trim();
 
     try {
       const response = await fetch('/api/analyze-receipt', {
@@ -212,11 +208,6 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
         const result = await response.json();
         setAnalysisSource(result.source || 'gemini');
         if (result.notice) setAnalysisNotice(result.notice);
-        if (result.needsApiKey || result.source === 'smart-engine') {
-          setNeedsApiKey(true);
-        } else {
-          setNeedsApiKey(false);
-        }
 
         if (result.data) {
           const d = result.data;
@@ -315,31 +306,6 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
         extractedData: data,
       });
       setIsAnalyzing(false);
-    }
-  };
-
-  const handleSaveApiKey = async () => {
-    const key = geminiKeyInput.trim();
-    if (!key) {
-      alert('សូមបញ្ចូល Gemini API Key របស់អ្នក!');
-      return;
-    }
-    setIsSavingKey(true);
-    try {
-      localStorage.setItem('gemini_api_key', key);
-      await fetch('/api/update-api-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key }),
-      });
-      setShowApiKeyModal(false);
-      setNeedsApiKey(false);
-      // Re-analyze active item with new API key
-      analyzeActiveWithAI();
-    } catch (e) {
-      console.error('Failed to update API key:', e);
-    } finally {
-      setIsSavingKey(false);
     }
   };
 
@@ -740,20 +706,11 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setShowApiKeyModal(true)}
-              className="font-label-sm text-[10px] text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-0.5 active:scale-95 transition-transform"
-              title="កំណត់ Google Gemini API Key"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[12px]">key</span>
-              <span>Gemini Key</span>
-            </button>
-            {analysisSource === 'smart-engine' && (
+            {receiptImage && !isAnalyzing && (
               <button
                 onClick={analyzeActiveWithAI}
                 className="font-label-sm text-[10px] text-secondary bg-secondary-container/40 hover:bg-secondary-container px-2 py-0.5 rounded-full flex items-center gap-0.5 active:scale-95 transition-transform"
-                title="សាកល្បងភ្ជាប់ Gemini AI ម្តងទៀត"
+                title="សាកល្បងវិភាគឡើងវិញជាមួយ AI"
                 type="button"
               >
                 <span className="material-symbols-outlined text-[12px]">refresh</span>
@@ -770,35 +727,8 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
           </div>
         </div>
 
-        {/* API Key Alert Banner */}
-        {receiptImage && (needsApiKey || analysisSource === 'smart-engine') && (
-          <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start justify-between gap-2.5 animate-in fade-in">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0 mt-0.5">
-                warning
-              </span>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold leading-tight">
-                  Gemini API Key មិនទាន់ដំណើរការ
-                </span>
-                <span className="text-[11px] text-amber-800/90 mt-0.5 leading-snug">
-                  ដើម្បីឱ្យ AI អានអក្សរដៃ និងទិន្នន័យលើវិក្កយបត្រនេះពិតប្រាកដ សូមបញ្ចូល Gemini API Key ឥតគិតថ្លៃ (Free) ពី Google AI Studio។
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowApiKeyModal(true)}
-              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shrink-0 shadow-xs active:scale-95 transition-all flex items-center gap-1"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[13px]">key</span>
-              <span>បញ្ចូល Key</span>
-            </button>
-          </div>
-        )}
-
         {/* Notice banner */}
-        {analysisNotice && !needsApiKey && (
+        {analysisNotice && (
           <div className="mb-3 p-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[15px] text-amber-600">info</span>
@@ -1168,95 +1098,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
         </div>
       )}
 
-      {/* Gemini API Key Modal */}
-      {showApiKeyModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-surface-container-lowest rounded-3xl p-6 w-full max-w-md shadow-2xl border border-surface-container-high relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
-                  <span className="material-symbols-outlined text-[20px]">smart_toy</span>
-                </div>
-                <h3 className="font-headline-sm text-[16px] font-bold text-on-surface">
-                  កំណត់ Gemini API Key (AI ស្កេនវិក្កយបត្រ)
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowApiKeyModal(false)}
-                className="w-8 h-8 rounded-full bg-surface-container-low text-on-surface-variant flex items-center justify-center hover:bg-surface-container-high transition-colors"
-                type="button"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
 
-            <p className="text-xs text-on-surface-variant leading-relaxed mb-4">
-              Gemini API Key ជួយឱ្យប្រព័ន្ធអាចអានអក្សរខ្មែរ លេខសរសេរដៃ វិក្កយបត្រ និង KHQR បានយ៉ាងត្រឹមត្រូវ។ ទទួលបាន <strong>Free API Key</strong> ដោយផ្ទាល់ពី Google AI Studio (ផ្តើមដោយ <code className="bg-surface-container-high px-1 py-0.5 rounded text-secondary font-mono">AIzaSy...</code>)។
-            </p>
-
-            <div className="flex flex-col gap-1.5 mb-4">
-              <label className="text-xs font-bold text-on-surface">
-                Google Gemini API Key
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">
-                  key
-                </span>
-                <input
-                  type="text"
-                  value={geminiKeyInput}
-                  onChange={(e) => setGeminiKeyInput(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm font-mono outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="mb-5 p-3 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center justify-between gap-2">
-              <span className="text-[11.5px] text-secondary font-medium">
-                មិនទាន់មាន Key? ចុចទីនេះដើម្បីយក Free
-              </span>
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline"
-              >
-                <span>Google AI Studio</span>
-                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-              </a>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowApiKeyModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-surface-container-high text-on-surface font-semibold text-sm hover:bg-surface-container-high/80 transition-colors"
-                type="button"
-              >
-                បោះបង់
-              </button>
-              <button
-                onClick={handleSaveApiKey}
-                disabled={isSavingKey}
-                className="flex-1 py-2.5 rounded-xl bg-secondary text-white font-semibold text-sm shadow-md hover:bg-secondary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
-                type="button"
-              >
-                {isSavingKey ? (
-                  <>
-                    <span className="material-symbols-outlined text-[17px] animate-spin">progress_activity</span>
-                    <span>កំពុងរក្សាទុក...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[17px]">check</span>
-                    <span>រក្សាទុក & វិភាគឡើងវិញ</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
