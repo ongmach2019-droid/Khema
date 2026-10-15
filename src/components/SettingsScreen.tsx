@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppSettings, Transaction } from '../types.ts';
 
 const GOOGLE_APPS_SCRIPT_CODE = `/**
@@ -151,13 +151,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 }) => {
   const [isUpdatingRate, setIsUpdatingRate] = useState<boolean>(false);
   const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
-  const [profileName, setProfileName] = useState<string>(settings.userName);
-  const [profileRole, setProfileRole] = useState<string>(settings.userRole);
-  const [profileAvatar, setProfileAvatar] = useState<string>(settings.userAvatar);
+  const [profileName, setProfileName] = useState<string>(settings?.userName || 'ពេទ្យធ្មេញ ខេមា');
+  const [profileRole, setProfileRole] = useState<string>(settings?.userRole || 'គណនេយ្យករជាន់ខ្ពស់');
+  const [profileAvatar, setProfileAvatar] = useState<string>(settings?.userAvatar || '/khema-logo.jpg');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Google Sheets state
-  const [sheetWebhookUrl, setSheetWebhookUrl] = useState<string>(settings.googleSheetWebhookUrl || '');
+  const [sheetWebhookUrl, setSheetWebhookUrl] = useState<string>(settings?.googleSheetWebhookUrl || '');
   const [isTestingSheet, setIsTestingSheet] = useState<boolean>(false);
   const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
   const [sheetNotice, setSheetNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -169,7 +169,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [showLanguageModal, setShowLanguageModal] = useState<boolean>(false);
 
   useEffect(() => {
-    if (settings.googleSheetWebhookUrl) {
+    if (settings?.googleSheetWebhookUrl) {
       setSheetWebhookUrl(settings.googleSheetWebhookUrl);
     } else {
       fetch('/api/google-sheet-config')
@@ -179,19 +179,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             setSheetWebhookUrl(d.webhookUrl);
             onUpdateSettings({
               googleSheetWebhookUrl: d.webhookUrl,
-              googleSheetUrl: d.sheetUrl || settings.googleSheetUrl,
+              googleSheetUrl: d.sheetUrl || settings?.googleSheetUrl,
             });
           }
         })
         .catch(() => {});
     }
-  }, [settings.googleSheetWebhookUrl]);
+  }, [settings?.googleSheetWebhookUrl]);
 
   // Open edit profile modal with current settings
   const handleOpenEditProfile = () => {
-    setProfileName(settings.userName);
-    setProfileRole(settings.userRole);
-    setProfileAvatar(settings.userAvatar);
+    setProfileName(settings?.userName || 'ពេទ្យធ្មេញ ខេមា');
+    setProfileRole(settings?.userRole || 'គណនេយ្យករជាន់ខ្ពស់');
+    setProfileAvatar(settings?.userAvatar || '/khema-logo.jpg');
     setShowEditProfile(true);
   };
 
@@ -437,7 +437,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   អត្រាប្តូរប្រាក់ (Rate)
                 </span>
                 <span className="font-financial-numeric text-[16px] text-on-surface font-bold">
-                  1$ = {settings.exchangeRate.toLocaleString()} ៛
+                  1$ = {(settings?.exchangeRate || 4100).toLocaleString()} ៛
                 </span>
               </div>
             </div>
@@ -538,21 +538,21 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 កម្រិតភាពជឿជាក់ AI (Confidence Threshold)
               </span>
               <span className="font-financial-numeric text-[14px] text-secondary font-bold">
-                {settings.aiConfidenceThreshold}%
+                {settings?.aiConfidenceThreshold || 90}%
               </span>
             </div>
             <input
               type="range"
               min="85"
               max="99"
-              value={settings.aiConfidenceThreshold}
+              value={settings?.aiConfidenceThreshold || 90}
               onChange={(e) =>
                 onUpdateSettings({ aiConfidenceThreshold: parseInt(e.target.value, 10) })
               }
               className="w-full accent-secondary h-2 bg-surface-container-high rounded-lg cursor-pointer"
             />
             <span className="text-[11px] text-on-surface-variant mt-1 block">
-              AI នឹងស្នើសុំការពិនិត្យឡើងវិញ ប្រសិនបើកម្រិតភាពត្រឹមត្រូវទាបជាង {settings.aiConfidenceThreshold}%
+              AI នឹងស្នើសុំការពិនិត្យឡើងវិញ ប្រសិនបើកម្រិតភាពត្រឹមត្រូវទាបជាង {settings?.aiConfidenceThreshold || 90}%
             </span>
           </div>
 

@@ -357,9 +357,35 @@ function saveStoredSheets(store: ExcelStore) {
   }
 }
 
+function cleanKhmerString(val: any, fallback: string): string {
+  if (!val || typeof val !== 'string') return fallback;
+  const trimmed = val.trim();
+  if (!trimmed || /^[\s?]+$/.test(trimmed) || trimmed === '???' || trimmed.includes('?????')) {
+    return fallback;
+  }
+  return trimmed;
+}
+
+function sanitizeTransaction(tx: any): any {
+  if (!tx || typeof tx !== 'object') return tx;
+  return {
+    ...tx,
+    vendor: cleanKhmerString(tx.vendor, tx.vendorKh ? cleanKhmerString(tx.vendorKh, 'ខេមា គ្លីនិក & ដេនថល') : 'ខេមា គ្លីនិក & ដេនថល'),
+    vendorKh: cleanKhmerString(tx.vendorKh, tx.vendor ? cleanKhmerString(tx.vendor, 'ខេមា គ្លីនិក & ដេនថល') : 'ខេមា គ្លីនិក & ដេនថល'),
+    category: cleanKhmerString(tx.category, 'សម្ភារៈប្រើប្រាស់'),
+    categoryCode: cleanKhmerString(tx.categoryCode, '6010 - សម្ភារៈប្រើប្រាស់'),
+    aiExplanation: cleanKhmerString(tx.aiExplanation, 'វិក្កយបត្រចំណាយទូទៅ'),
+    statusTextKh: cleanKhmerString(tx.statusTextKh, 'បានបង់'),
+    description: cleanKhmerString(tx.description, 'វិក្កយបត្រចំណាយទូទៅ'),
+  };
+}
+
 function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: number, jvNoStr: string) {
   const isIncome = tx.type === 'income';
   const khrAmount = Number(tx.amountKHR) || Math.round(Number(tx.amountUSD || 0) * 4100) || (Number(tx.amountUSD) === 1.22 ? 5000 : 0);
+
+  const vendorClean = cleanKhmerString(tx.vendor || tx.vendorKh, 'ខេមា គ្លីនិក & ដេនថល');
+  const descClean = cleanKhmerString(tx.description || tx.category || (tx.items && tx.items.length ? tx.items.map((i: any) => i.name).join(', ') : ''), 'សម្ភារៈប្រើប្រាស់');
 
   return {
     no: rowNumber,
@@ -369,8 +395,8 @@ function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: numbe
     jvNo: jvNoStr,
     reference: tx.ref || tx.invoiceNumber || '',
     class: 'KHEMA88888',
-    vendor: tx.vendor || tx.vendorKh || '',
-    description: tx.description || tx.category || (tx.items && tx.items.length ? tx.items.map((i: any) => i.name).join(', ') : 'សម្ភារៈប្រើប្រាស់'),
+    vendor: vendorClean,
+    description: descClean,
     debit: isIncome ? khrAmount : 0,
     credit: isIncome ? 0 : khrAmount,
     balance: null,
@@ -382,7 +408,7 @@ function getStoredTransactions(): any[] {
     if (fs.existsSync(TRANSACTIONS_FILE)) {
       const raw = fs.readFileSync(TRANSACTIONS_FILE, 'utf-8');
       const data = JSON.parse(raw);
-      if (Array.isArray(data)) return data;
+      if (Array.isArray(data)) return data.map(sanitizeTransaction);
     }
   } catch (e) {
     console.warn('Error reading khema_transactions.json:', e);
@@ -392,7 +418,8 @@ function getStoredTransactions(): any[] {
 
 function saveStoredTransactions(txs: any[]) {
   try {
-    fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify(txs, null, 2), 'utf-8');
+    const sanitized = Array.isArray(txs) ? txs.map(sanitizeTransaction) : [];
+    fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify(sanitized, null, 2), 'utf-8');
   } catch (e) {
     console.warn('Error writing khema_transactions.json:', e);
   }
