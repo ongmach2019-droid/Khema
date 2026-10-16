@@ -337,7 +337,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full px-margin pb-32 pt-2">
+    <div className="flex flex-col w-full max-w-4xl mx-auto px-margin pb-32 md:pb-16 pt-2">
       {/* Title */}
       <div className="relative w-full mb-space-md">
         <div className="flex flex-col pt-1">

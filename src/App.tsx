@@ -282,63 +282,66 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eceef0] flex justify-center selection:bg-secondary/20 selection:text-secondary">
-      {/* Container simulating mobile frame or responsive view */}
-      <div className="w-full max-w-md min-h-screen bg-surface flex flex-col relative shadow-2xl border-x border-surface-container-high/40">
+    <div className="min-h-screen bg-surface flex flex-col selection:bg-secondary/20 selection:text-secondary w-full">
+      {/* Container: 100% full-width on mobile phone & responsive wide view on computer */}
+      <div className="w-full min-h-screen flex flex-col relative">
         {/* Top Sticky Header */}
         <Header
           currentTab={currentTab}
           unreadNotifsCount={unreadNotifsCount}
           userAvatar={settings.userAvatar}
+          onTabChange={(tab) => setCurrentTab(tab)}
           onOpenNotifications={() => setShowNotifications(true)}
           onGoToSettings={() => setCurrentTab('settings')}
         />
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col relative w-full pt-16 bg-surface">
-          {currentTab === 'dashboard' && (
-            <DashboardScreen
-              transactions={transactions}
-              settings={settings}
-              onNavigateToUpload={handleNavigateToUpload}
-              onNavigateToLedger={handleNavigateToLedger}
-              onSelectTransaction={(tx) => setSelectedTransaction(tx)}
-            />
-          )}
+          <div className="w-full max-w-[1600px] mx-auto flex flex-col flex-1">
+            {currentTab === 'dashboard' && (
+              <DashboardScreen
+                transactions={transactions}
+                settings={settings}
+                onNavigateToUpload={handleNavigateToUpload}
+                onNavigateToLedger={handleNavigateToLedger}
+                onSelectTransaction={(tx) => setSelectedTransaction(tx)}
+              />
+            )}
 
-          {currentTab === 'upload-ingestion' && (
-            <UploadIngestionScreen
-              settings={settings}
-              onSaveTransaction={handleSaveTransaction}
-              onSaveBatchTransactions={handleSaveBatchTransactions}
-              initialFile={incomingUploadFile}
-            />
-          )}
+            {currentTab === 'upload-ingestion' && (
+              <UploadIngestionScreen
+                settings={settings}
+                onSaveTransaction={handleSaveTransaction}
+                onSaveBatchTransactions={handleSaveBatchTransactions}
+                initialFile={incomingUploadFile}
+              />
+            )}
 
-          {currentTab === 'ledger-list' && (
-            <LedgerListScreen
-              transactions={transactions}
-              settings={settings}
-              onSelectTransaction={(tx) => setSelectedTransaction(tx)}
-              onEditTransaction={(tx) => setEditingTransaction(tx)}
-              onDeleteTransaction={handleDeleteTransaction}
-              onClearAll={handleClearAllTransactions}
-              onRefresh={fetchTransactions}
-            />
-          )}
+            {currentTab === 'ledger-list' && (
+              <LedgerListScreen
+                transactions={transactions}
+                settings={settings}
+                onSelectTransaction={(tx) => setSelectedTransaction(tx)}
+                onEditTransaction={(tx) => setEditingTransaction(tx)}
+                onDeleteTransaction={handleDeleteTransaction}
+                onClearAll={handleClearAllTransactions}
+                onRefresh={fetchTransactions}
+              />
+            )}
 
-          {currentTab === 'settings' && (
-            <SettingsScreen
-              settings={settings}
-              transactions={transactions}
-              onUpdateSettings={handleUpdateSettings}
-              onClearAll={handleClearAllTransactions}
-              onLogout={logout}
-            />
-          )}
+            {currentTab === 'settings' && (
+              <SettingsScreen
+                settings={settings}
+                transactions={transactions}
+                onUpdateSettings={handleUpdateSettings}
+                onClearAll={handleClearAllTransactions}
+                onLogout={logout}
+              />
+            )}
+          </div>
         </main>
 
-        {/* Bottom Fixed Navigation Bar */}
+        {/* Bottom Fixed Navigation Bar (Mobile only) */}
         <BottomNav currentTab={currentTab} onTabChange={(tab) => setCurrentTab(tab)} />
 
         {/* Detailed Transaction Modal */}

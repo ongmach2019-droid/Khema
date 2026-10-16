@@ -298,10 +298,10 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
         </div>
       </div>
 
-      {/* Transaction Cards List */}
-      <div className="flex flex-col gap-space-sm mb-space-lg">
+      {/* Transaction Cards List (Responsive Multi-column Grid on Desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-sm mb-space-lg">
         {sorted.length === 0 ? (
-          <div className="p-8 text-center bg-surface-container-lowest rounded-2xl border border-surface-container-high/60 flex flex-col items-center">
+          <div className="col-span-full p-8 text-center bg-surface-container-lowest rounded-2xl border border-surface-container-high/60 flex flex-col items-center">
             <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">
               {transactions.length === 0 ? 'receipt_long' : 'search_off'}
             </span>
@@ -422,7 +422,7 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       </div>
 
       {/* Bottom Floating Action Utility */}
-      <div className="w-full flex flex-col gap-space-xs sticky bottom-20 z-20">
+      <div className="w-full flex flex-col gap-space-xs sticky bottom-20 md:bottom-6 z-20 max-w-2xl mx-auto">
         <div className="w-full p-2.5 rounded-2xl bg-surface-container-lowest/95 backdrop-blur-md shadow-xl border border-surface-container-high/80 flex items-center justify-between gap-space-sm">
           <div className="flex items-center gap-2.5 pl-1.5">
             <div className="w-9 h-9 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">

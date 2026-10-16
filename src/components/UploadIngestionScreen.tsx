@@ -611,7 +611,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   const completedBatchCount = batchItems.filter((it) => it.status === 'done').length;
 
   return (
-    <div className="flex flex-col w-full px-margin pb-32 pt-2">
+    <div className="flex flex-col w-full px-margin pb-32 md:pb-16 pt-2">
       {/* Eyebrow & Headline */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/80 text-on-secondary-container font-label-sm text-[12px] font-semibold border border-secondary/20 shadow-xs">
@@ -1220,7 +1220,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
       )}
 
       {/* Primary CTA Action Group */}
-      <div className="flex flex-col gap-space-sm w-full">
+      <div className="flex flex-col gap-space-sm w-full max-w-2xl mx-auto">
         {/* If multiple items in batch, provide Batch Save All button */}
         {batchItems.length > 1 ? (
           <>
