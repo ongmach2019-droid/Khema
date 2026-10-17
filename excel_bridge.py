@@ -149,8 +149,14 @@ def get_excel_rows(sheet_name=None):
         return
 
     rows = []
-    # Present latest at top (reversed)
-    for idx, row in df.iloc[::-1].iterrows():
+    # Sort ascending (លំដាប់កើន) by Entry No and No.
+    sort_cols = [c for c in ["Entry No", "No."] if c in df.columns]
+    if sort_cols:
+        df_sorted = df.sort_values(by=sort_cols, ascending=True)
+    else:
+        df_sorted = df
+
+    for idx, row in df_sorted.iterrows():
         no_val = int(row.get("No.", idx + 1)) if pd.notna(row.get("No.")) else (idx + 1)
         entry_val = int(row.get("Entry No", 0)) if pd.notna(row.get("Entry No")) else 0
         jv_val = str(row.get("JV No", ""))

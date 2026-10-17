@@ -19,6 +19,8 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [sortField, setSortField] = useState<keyof ExcelRow>('entryNo');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // New Sheet Modal
   const [showNewSheetModal, setShowNewSheetModal] = useState<boolean>(false);
@@ -49,7 +51,9 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       const res = await fetch(`/api/excel-rows?sheet=${encodeURIComponent(sheetToLoad)}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        setRows(data.data);
+        const sorted = [...data.data].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0));
+        sorted.forEach((r, i) => { r.no = i + 1; });
+        setRows(sorted);
       } else {
         setRows([]);
       }
@@ -231,6 +235,15 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     }
   };
 
+  const handleSort = (field: keyof ExcelRow) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredRows = rows.filter((r) => {
     if (!searchFilter.trim()) return true;
     const q = searchFilter.toLowerCase();
@@ -241,6 +254,19 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       (r.date && r.date.toLowerCase().includes(q)) ||
       String(r.entryNo).includes(q)
     );
+  });
+
+  const sortedRows = [...filteredRows].sort((a, b) => {
+    let aVal: any = a[sortField];
+    let bVal: any = b[sortField];
+    if (sortField === 'entryNo' || sortField === 'no' || sortField === 'debit' || sortField === 'credit') {
+      aVal = Number(aVal) || 0;
+      bVal = Number(bVal) || 0;
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    aVal = String(aVal || '').toLowerCase();
+    bVal = String(bVal || '').toLowerCase();
+    return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
   return (
@@ -375,7 +401,24 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                   className="h-8 px-2.5 rounded-lg bg-secondary text-white font-label-sm text-[11px] font-semibold flex items-center gap-1 shadow-xs hover:bg-secondary/90 active:scale-95 transition-all shrink-0"
                 >
                   <span className="material-symbols-outlined text-[15px]">add</span>
-                  <span>បន្ថែមជួរថ្មី (ខាងលើ)</span>
+                  <span>បន្ថែមជួរថ្មី</span>
+                </button>
+
+                {/* Sort Toggle Button (លំដាប់កើន / លំដាប់ចុះ) */}
+                <button
+                  type="button"
+                  onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                  className={`h-8 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-xs transition-all cursor-pointer shrink-0 border ${
+                    sortDirection === 'asc'
+                      ? 'bg-emerald-600/10 text-emerald-800 border-emerald-600/30 hover:bg-emerald-600/20'
+                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high border-surface-container-high'
+                  }`}
+                  title={`តម្រៀបតាម៖ ${String(sortField)} (${sortDirection === 'asc' ? 'លំដាប់កើន' : 'លំដាប់ចុះ'})`}
+                >
+                  <span className="material-symbols-outlined text-[15px] text-emerald-700">
+                    {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                  </span>
+                  <span>{sortDirection === 'asc' ? 'លំដាប់កើន (តូច -> ធំ)' : 'លំដាប់ចុះ (ធំ -> តូច)'}</span>
                 </button>
               </div>
 
@@ -424,17 +467,94 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
               }`}
             >
               <table className="w-full text-left border-collapse text-[11px] whitespace-nowrap">
-                <thead className="sticky top-0 bg-surface-container-high/90 backdrop-blur-sm text-on-surface-variant font-bold border-b border-surface-container-high z-10">
+                <thead className="sticky top-0 bg-surface-container-high/90 backdrop-blur-sm text-on-surface-variant font-bold border-b border-surface-container-high z-10 select-none">
                   <tr>
                     <th className="py-2 px-2.5 text-center">#</th>
-                    <th className="py-2 px-2.5">No.</th>
-                    <th className="py-2 px-2.5">Date (កាលបរិច្ឆេទ)</th>
+                    <th
+                      onClick={() => handleSort('no')}
+                      className="py-2 px-2.5 cursor-pointer hover:bg-surface-container-highest transition-colors"
+                      title="ចុចដើម្បីតម្រៀបតាម No. (កើន/ចុះ)"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>No.</span>
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">
+                          {sortField === 'no' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('date')}
+                      className="py-2 px-2.5 cursor-pointer hover:bg-surface-container-highest transition-colors"
+                      title="ចុចដើម្បីតម្រៀបតាម Date"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Date (កាលបរិច្ឆេទ)</span>
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">
+                          {sortField === 'date' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
                     <th className="py-2 px-2.5">Source</th>
-                    <th className="py-2 px-2.5">Entry No</th>
-                    <th className="py-2 px-2.5">JV No</th>
-                    <th className="py-2 px-2.5 min-w-[150px]">Vendor / អ្នកផ្គត់ផ្គង់</th>
-                    <th className="py-2 px-2.5 min-w-[160px]">Description / បរិយាយ</th>
-                    <th className="py-2 px-2.5 text-right min-w-[100px]">Credit (រៀល)</th>
+                    <th
+                      onClick={() => handleSort('entryNo')}
+                      className="py-2 px-2.5 cursor-pointer hover:bg-surface-container-highest transition-colors text-emerald-800 font-bold bg-emerald-50/50"
+                      title="ចុចដើម្បីតម្រៀបតាម Entry No (កើន/ចុះ)"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Entry No</span>
+                        <span className="material-symbols-outlined text-[15px] font-bold text-emerald-700">
+                          {sortField === 'entryNo' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('jvNo')}
+                      className="py-2 px-2.5 cursor-pointer hover:bg-surface-container-highest transition-colors"
+                      title="ចុចដើម្បីតម្រៀបតាម JV No"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>JV No</span>
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">
+                          {sortField === 'jvNo' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('vendor')}
+                      className="py-2 px-2.5 min-w-[150px] cursor-pointer hover:bg-surface-container-highest transition-colors"
+                      title="ចុចដើម្បីតម្រៀបតាម អ្នកផ្គត់ផ្គង់"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Vendor / អ្នកផ្គត់ផ្គង់</span>
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">
+                          {sortField === 'vendor' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('description')}
+                      className="py-2 px-2.5 min-w-[160px] cursor-pointer hover:bg-surface-container-highest transition-colors"
+                      title="ចុចដើម្បីតម្រៀបតាម បរិយាយ"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Description / បរិយាយ</span>
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">
+                          {sortField === 'description' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('credit')}
+                      className="py-2 px-2.5 text-right min-w-[100px] cursor-pointer hover:bg-surface-container-highest transition-colors"
+                      title="ចុចដើម្បីតម្រៀបតាម Credit"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Credit (រៀល)</span>
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">
+                          {sortField === 'credit' ? (sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                        </span>
+                      </div>
+                    </th>
                     <th className="py-2 px-2.5 text-right">USD ($)</th>
                     <th className="py-2 px-2.5 text-center">លុប</th>
                   </tr>
@@ -449,7 +569,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                         <p>កំពុងទាញទិន្នន័យពី Sheet «{activeSheet}»...</p>
                       </td>
                     </tr>
-                  ) : filteredRows.length === 0 ? (
+                  ) : sortedRows.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="py-8 text-center text-on-surface-variant">
                         <div className="flex flex-col items-center justify-center gap-1">
@@ -464,7 +584,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row, idx) => {
+                    sortedRows.map((row, idx) => {
                       const actualIdx = rows.indexOf(row);
                       const usdVal = ((row.credit || 0) / 4100).toFixed(2);
                       return (
@@ -473,10 +593,10 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                           className="hover:bg-secondary/5 transition-colors group"
                         >
                           <td className="py-1.5 px-2 text-center text-on-surface-variant/60 font-mono text-[10px]">
-                            {actualIdx + 1}
+                            {idx + 1}
                           </td>
                           <td className="py-1.5 px-2 text-center font-mono font-medium">
-                            {row.no}
+                            {row.no || (idx + 1)}
                           </td>
                           <td className="py-1 px-2">
                             <input

@@ -620,7 +620,7 @@ app.post('/api/save-transaction', (req, res) => {
       maxEntry + 1,
       `JV${String(maxJv + 1).padStart(5, '0')}`
     );
-    store.sheetRows[sheet] = [newExcelRow, ...existingRows];
+    const combined = [...existingRows, newExcelRow].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0)); combined.forEach((r, idx) => { r.no = idx + 1; }); store.sheetRows[sheet] = combined;
     saveStoredSheets(store);
 
     // Best-effort Python Excel bridge
@@ -712,7 +712,7 @@ app.post('/api/save-batch-transactions', (req, res) => {
         )
       );
     }
-    store.sheetRows[sheet] = [...newRows, ...existingRows];
+    const combined = [...existingRows, ...newRows].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0)); combined.forEach((r, idx) => { r.no = idx + 1; }); store.sheetRows[sheet] = combined;
     saveStoredSheets(store);
 
     // Sync with Python Excel bridge
@@ -767,7 +767,7 @@ app.get('/api/excel-rows', (req, res) => {
     // 2. Check stored JSON sheetRows
     const cachedRows = store.sheetRows[targetSheet] || [];
     if (cachedRows.length > 0) {
-      return res.json({ success: true, sheet: targetSheet, data: cachedRows });
+      const sorted = [...cachedRows].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0)); sorted.forEach((r, idx) => { r.no = idx + 1; }); return res.json({ success: true, sheet: targetSheet, data: sorted });
     }
 
     // 3. Fallback: ONLY for default 'ABA Transactions KHR' sheet when no other sheets exist
@@ -803,7 +803,7 @@ app.post('/api/save-excel-table', (req, res) => {
     const rows = Array.isArray(req.body) ? req.body : (req.body.rows || []);
     const targetSheet = (req.body.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
 
-    store.sheetRows[targetSheet] = rows;
+    const sortedInput = [...rows].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0)); sortedInput.forEach((r, idx) => { r.no = idx + 1; }); store.sheetRows[targetSheet] = sortedInput;
     if (!store.sheets.includes(targetSheet)) {
       store.sheets.push(targetSheet);
     }
@@ -1032,7 +1032,7 @@ function generateExcelWorkbook(requestedSheet?: string): { buffer: Buffer; targe
   };
 
   const addSheetToWorkbook = (sheetName: string) => {
-    const rows = getRowsForSheet(sheetName);
+    let rows = getRowsForSheet(sheetName); rows = [...rows].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0)); rows.forEach((r, idx) => { r.no = idx + 1; });
     const formattedData = formatRowsForExcel(rows);
     const ws = XLSX.utils.json_to_sheet(formattedData, {
       header: [
