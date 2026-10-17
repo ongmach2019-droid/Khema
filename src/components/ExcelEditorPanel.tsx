@@ -20,7 +20,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [sortField, setSortField] = useState<keyof ExcelRow>('entryNo');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // New Sheet Modal
   const [showNewSheetModal, setShowNewSheetModal] = useState<boolean>(false);
@@ -51,8 +51,9 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       const res = await fetch(`/api/excel-rows?sheet=${encodeURIComponent(sheetToLoad)}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        const sorted = [...data.data].sort((a, b) => (Number(a.entryNo) || 0) - (Number(b.entryNo) || 0));
-        sorted.forEach((r, i) => { r.no = i + 1; });
+        const sorted = [...data.data].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
+        const total = sorted.length;
+        sorted.forEach((r, i) => { r.no = total - i; });
         setRows(sorted);
       } else {
         setRows([]);
@@ -240,7 +241,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection('desc');
     }
   };
 
@@ -418,7 +419,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                   <span className="material-symbols-outlined text-[15px] text-emerald-700">
                     {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
                   </span>
-                  <span>{sortDirection === 'asc' ? 'លំដាប់កើន (តូច -> ធំ)' : 'លំដាប់ចុះ (ធំ -> តូច)'}</span>
+                  <span>{sortDirection === 'desc' ? 'រាប់ពីក្រោមទៅលើ (ថ្មីនៅខាងលើ)' : 'រាប់ពីលើទៅក្រោម (ចាស់នៅខាងលើ)'}</span>
                 </button>
               </div>
 

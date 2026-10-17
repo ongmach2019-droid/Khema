@@ -1,5 +1,115 @@
 [
   {
+    "id": "tx-57568-JV02988",
+    "ref": "JV02988",
+    "entryNo": 57568,
+    "jvNo": "JV02988",
+    "vendor": "KHAI NAM CO. LTD (សេវាបញ្ជូនឥវ៉ាន់)",
+    "vendorKh": "KHAI NAM CO. LTD (សេវាបញ្ជូនឥវ៉ាន់)",
+    "category": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-02-16",
+    "time": "10:00 AM",
+    "amountUSD": 3.9,
+    "amountKHR": 16000,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "local_shipping",
+    "aiExplanation": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
+  },
+  {
+    "id": "tx-57567-JV02987",
+    "ref": "JV02987",
+    "entryNo": 57567,
+    "jvNo": "JV02987",
+    "vendor": "អ្នកលក់ទូទៅ (General Vendor)",
+    "vendorKh": "អ្នកលក់ទូទៅ (General Vendor)",
+    "category": "សម្ភារៈប្រើប្រាស់",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-09-15",
+    "time": "10:00 AM",
+    "amountUSD": 13.66,
+    "amountKHR": 56000,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "receipt_long",
+    "aiExplanation": "សម្ភារៈប្រើប្រាស់",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
+  },
+  {
+    "id": "tx-57566-JV02986",
+    "ref": "JV02986",
+    "entryNo": 57566,
+    "jvNo": "JV02986",
+    "vendor": "សេវាបញ្ជូនឥវ៉ាន់ (Manit)",
+    "vendorKh": "សេវាបញ្ជូនឥវ៉ាន់ (Manit)",
+    "category": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-09-15",
+    "time": "10:00 AM",
+    "amountUSD": 1.83,
+    "amountKHR": 7500,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "local_shipping",
+    "aiExplanation": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
+  },
+  {
+    "id": "tx-57565-JV02985",
+    "ref": "JV02985",
+    "entryNo": 57565,
+    "jvNo": "JV02985",
+    "vendor": "សេវាបញ្ជូនឥវ៉ាន់ (មាយ ណុយ)",
+    "vendorKh": "សេវាបញ្ជូនឥវ៉ាន់ (មាយ ណុយ)",
+    "category": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-09-26",
+    "time": "10:00 AM",
+    "amountUSD": 1.22,
+    "amountKHR": 5000,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "local_shipping",
+    "aiExplanation": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
+  },
+  {
+    "id": "tx-57564-JV00610",
+    "ref": "JV00610",
+    "entryNo": 57564,
+    "jvNo": "JV00610",
+    "vendor": "សេវាបញ្ជូនឥវ៉ាន់ (Manit)",
+    "vendorKh": "សេវាបញ្ជូនឥវ៉ាន់ (Manit)",
+    "category": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "date": "2026-09-15",
+    "time": "10:00 AM",
+    "amountUSD": 1.83,
+    "amountKHR": 7500,
+    "vatUSD": 0,
+    "type": "expense",
+    "status": "paid",
+    "statusTextKh": "បានបង់",
+    "iconName": "local_shipping",
+    "aiExplanation": "ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
+  },
+  {
     "id": "tx-57563-JV00609",
     "ref": "JV00609",
     "entryNo": 57563,
@@ -19,8 +129,7 @@
     "iconName": "receipt_long",
     "aiExplanation": "ទិញក្រដាសការិយាល័យ",
     "ocrConfidence": 98,
-    "sheet": "Week_5",
-    "description": "វិក្កយបត្រចំណាយទូទៅ"
+    "sheet": "Week_5"
   },
   {
     "id": "tx-57562-JV00608",
@@ -42,8 +151,7 @@
     "iconName": "local_shipping",
     "aiExplanation": "ថ្លៃផ្ញើអីវ៉ាន់",
     "ocrConfidence": 98,
-    "sheet": "Week_5",
-    "description": "វិក្កយបត្រចំណាយទូទៅ"
+    "sheet": "Week_5"
   },
   {
     "id": "tx-57561-JV00607",
@@ -65,8 +173,7 @@
     "iconName": "local_cafe",
     "aiExplanation": "ទិញសម្ភារៈ និងកាហ្វេ",
     "ocrConfidence": 98,
-    "sheet": "Week_5",
-    "description": "វិក្កយបត្រចំណាយទូទៅ"
+    "sheet": "Week_5"
   },
   {
     "id": "tx-57560-JV00606",
@@ -88,8 +195,7 @@
     "iconName": "receipt_long",
     "aiExplanation": "ទិញសម្ភារៈប្រើប្រាស់",
     "ocrConfidence": 98,
-    "sheet": "Week_3",
-    "description": "វិក្កយបត្រចំណាយទូទៅ"
+    "sheet": "Week_5"
   },
   {
     "id": "tx-57559-JV00605",
@@ -111,7 +217,6 @@
     "iconName": "receipt_long",
     "aiExplanation": "ទិញសម្ភារៈប្រើប្រាស់",
     "ocrConfidence": 98,
-    "sheet": "Week_3",
-    "description": "វិក្កយបត្រចំណាយទូទៅ"
+    "sheet": "Week_5"
   }
 ]

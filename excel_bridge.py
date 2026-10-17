@@ -149,12 +149,12 @@ def get_excel_rows(sheet_name=None):
         return
 
     rows = []
-    # Sort ascending (លំដាប់កើន) by Entry No and No.
+    # Sort descending by Entry No (latest on top, counting from bottom up 1..N)
     sort_cols = [c for c in ["Entry No", "No."] if c in df.columns]
     if sort_cols:
-        df_sorted = df.sort_values(by=sort_cols, ascending=True)
+        df_sorted = df.sort_values(by=sort_cols, ascending=False)
     else:
-        df_sorted = df
+        df_sorted = df.iloc[::-1]
 
     for idx, row in df_sorted.iterrows():
         no_val = int(row.get("No.", idx + 1)) if pd.notna(row.get("No.")) else (idx + 1)
