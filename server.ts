@@ -431,6 +431,7 @@ function excelRowToTransaction(r: any, idx: number): any {
     iconName: r.vendor && r.vendor.includes('កាហ្វេ') ? 'local_cafe' : (r.vendor && r.vendor.includes('ដឹកជញ្ជូន') ? 'local_shipping' : 'receipt_long'),
     aiExplanation: cleanKhmerString(r.description, 'វិក្កយបត្រចំណាយទូទៅ'),
     ocrConfidence: 98,
+    sheet: r.sheet || (r.date && String(r.date).includes('2026-10') ? 'Week_5' : 'Week_3'),
   };
 }
 

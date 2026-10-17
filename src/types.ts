@@ -30,6 +30,7 @@ export interface Transaction {
   items?: ReceiptLineItem[];
   aiExplanation?: string;
   ocrConfidence?: number;
+  sheet?: string;
 }
 
 export interface ExcelRow {

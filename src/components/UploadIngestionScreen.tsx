@@ -41,18 +41,65 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [activeSheet, setActiveSheet] = useState<string>('ABA Transactions KHR');
+  const [sheets, setSheets] = useState<string[]>(['Week_5', 'ABA Transactions KHR', 'Week_3']);
+  const [activeSheet, setActiveSheet] = useState<string>('Week_5');
+  const [showCreateSheetModal, setShowCreateSheetModal] = useState<boolean>(false);
+  const [newSheetNameInput, setNewSheetNameInput] = useState<string>('');
 
-  useEffect(() => {
+  const fetchSheetsList = () => {
     fetch('/api/excel-sheets')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.activeSheet) {
-          setActiveSheet(data.activeSheet);
+        if (data.success) {
+          if (Array.isArray(data.sheets) && data.sheets.length > 0) {
+            setSheets(data.sheets);
+          }
+          if (data.activeSheet) {
+            setActiveSheet(data.activeSheet);
+          }
         }
       })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchSheetsList();
   }, []);
+
+  const handleSelectSheet = async (sheetName: string) => {
+    setActiveSheet(sheetName);
+    try {
+      await fetch('/api/excel-sheets/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetName }),
+      });
+    } catch (e) {}
+  };
+
+  const handleCreateNewSheet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = newSheetNameInput.trim();
+    if (!clean) return;
+    try {
+      const res = await fetch('/api/excel-sheets/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetName: clean }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSheets(data.sheets || [...sheets, clean]);
+        setActiveSheet(clean);
+        setShowCreateSheetModal(false);
+        setNewSheetNameInput('');
+      } else {
+        alert('បរាជ័យក្នុងការបង្កើត Sheet');
+      }
+    } catch (err) {
+      alert('កំហុសក្នុងការបង្កើត Sheet ថ្មី');
+    }
+  };
 
   const EMPTY_EXTRACTED_DATA: ExtractedData = {
     vendor: '---',
@@ -612,16 +659,65 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 
   return (
     <div className="flex flex-col w-full px-margin pb-32 md:pb-16 pt-2">
-      {/* Eyebrow & Headline */}
-      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/80 text-on-secondary-container font-label-sm text-[12px] font-semibold border border-secondary/20 shadow-xs">
-          <span className="material-symbols-outlined text-[15px] animate-spin">sync</span>
-          ប្រព័ន្ធ AI ស្កេនច្រើនរូបភាព សកម្ម
-        </span>
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600/10 text-emerald-800 border border-emerald-600/20 font-label-sm text-[11px] font-bold">
-          <span className="material-symbols-outlined text-[14px] text-emerald-600">tab</span>
-          <span>Sheet កត់ត្រា៖ <strong className="underline">{activeSheet}</strong></span>
-        </span>
+      {/* Eyebrow & Interactive Sheet Selector */}
+      <div className="flex flex-col gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/80 text-on-secondary-container font-label-sm text-[12px] font-semibold border border-secondary/20 shadow-xs">
+            <span className="material-symbols-outlined text-[15px] animate-spin">sync</span>
+            ប្រព័ន្ធ AI ស្កេនច្រើនរូបភាព សកម្ម
+          </span>
+
+          {/* Quick Add Sheet Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const now = new Date();
+              const onejan = new Date(now.getFullYear(), 0, 1);
+              const weekNum = Math.ceil(((now.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7);
+              setNewSheetNameInput(`Week_${weekNum}_${now.getFullYear()}`);
+              setShowCreateSheetModal(true);
+            }}
+            className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-sm text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer"
+            title="បង្កើត Sheet ថ្មីសម្រាប់ថ្ងៃ ឬសប្តាហ៍នេះ"
+          >
+            <span className="material-symbols-outlined text-[16px]">add_circle</span>
+            <span>+ បង្កើត Sheet ថ្មី</span>
+          </button>
+        </div>
+
+        {/* Interactive Sheet Selector Card */}
+        <div className="w-full bg-surface-container-lowest rounded-2xl p-2.5 sm:p-3 shadow-xs border-2 border-emerald-600/30 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
+              📊
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-label-sm text-[11px] text-on-surface-variant font-medium truncate">
+                រក្សាទុកទៅកាន់ Sheet (រាល់ថ្ងៃ/សប្តាហ៍)៖
+              </span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <select
+                  value={activeSheet}
+                  onChange={(e) => handleSelectSheet(e.target.value)}
+                  className="bg-surface-container-low text-emerald-800 font-bold text-xs rounded-lg px-2.5 py-1 border border-emerald-600/40 outline-none focus:border-emerald-600 cursor-pointer shadow-2xs"
+                >
+                  {sheets.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-emerald-700 font-semibold hidden sm:inline">
+                  (បានកំណត់សម្រាប់រក្សាទុក)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
+            ✓ កំពុងប្រើ
+          </span>
+        </div>
       </div>
 
       <div className="mb-space-md">
@@ -1344,7 +1440,60 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
         </div>
       )}
 
+      {/* Create New Sheet Modal */}
+      {showCreateSheetModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-surface-container-lowest w-full max-w-sm rounded-2xl shadow-2xl border border-surface-container-high p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-surface-container-high pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📊</span>
+                <h3 className="font-headline-sm text-sm font-bold text-on-surface">
+                  បង្កើត Sheet ថ្មីសម្រាប់កត់ត្រា
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateSheetModal(false)}
+                className="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
+            <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
+              អ្នកអាចបង្កើត Sheet សម្រាប់សប្តាហ៍ ឬថ្ងៃថ្មី (ឧទាហរណ៍៖ <strong>Week_6</strong>, <strong>Day_17_10_2026</strong>, ឬ <strong>សប្ដាហ៍ទី៦</strong>)៖
+            </p>
+
+            <form onSubmit={handleCreateNewSheet} className="flex flex-col gap-3">
+              <input
+                type="text"
+                autoFocus
+                placeholder="ឈ្មោះ Sheet ថ្មី..."
+                value={newSheetNameInput}
+                onChange={(e) => setNewSheetNameInput(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-semibold text-sm outline-none focus:border-secondary"
+              />
+
+              <div className="flex items-center gap-2 justify-end mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSheetModal(false)}
+                  className="px-3.5 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold cursor-pointer"
+                >
+                  បោះបង់
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newSheetNameInput.trim()}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50 cursor-pointer shadow-sm active:scale-95"
+                >
+                  បង្កើត Sheet
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

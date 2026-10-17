@@ -1,24 +1,25 @@
 [
   {
-    "id": "batch-tx-1",
+    "id": "batch-tx-3",
     "ref": "JV00609",
     "entryNo": 57563,
     "jvNo": "JV00609",
-    "vendor": "ហាងកាហ្វេ ជួបជុំ (Meeting Coffee)",
-    "vendorKh": "ហាងកាហ្វេ ជួបជុំ (Meeting Coffee)",
-    "category": "ភេសជ្ជៈ និងអាហារសម្រន់",
-    "categoryCode": "6011 - ភេសជ្ជៈ និងកាហ្វេ",
+    "vendor": "សម្ភារៈការិយាល័យ ភ្នំពេញ",
+    "vendorKh": "សម្ភារៈការិយាល័យ ភ្នំពេញ",
+    "category": "សម្ភារៈការិយាល័យ",
+    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
     "date": "2026-10-15",
     "time": "10:15 AM",
-    "amountUSD": 1.22,
-    "amountKHR": 5000,
+    "amountUSD": 2.44,
+    "amountKHR": 10000,
     "vatUSD": 0,
     "type": "expense",
     "status": "paid",
     "statusTextKh": "បានបង់",
-    "iconName": "local_cafe",
-    "aiExplanation": "កាហ្វេប្រជុំបុគ្គលិក 5,000៛",
-    "ocrConfidence": 98
+    "iconName": "receipt_long",
+    "aiExplanation": "ទិញក្រដាស និងប៊ិចការិយាល័យ 10,000៛",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
   },
   {
     "id": "batch-tx-2",
@@ -39,28 +40,30 @@
     "statusTextKh": "បានបង់",
     "iconName": "local_shipping",
     "aiExplanation": "ថ្លៃផ្ញើអីវ៉ាន់ និងសម្ភារៈ 5,000៛",
-    "ocrConfidence": 98
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
   },
   {
-    "id": "batch-tx-3",
+    "id": "batch-tx-1",
     "ref": "JV00607",
     "entryNo": 57561,
     "jvNo": "JV00607",
-    "vendor": "សម្ភារៈការិយាល័យ ភ្នំពេញ",
-    "vendorKh": "សម្ភារៈការិយាល័យ ភ្នំពេញ",
-    "category": "សម្ភារៈការិយាល័យ",
-    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "vendor": "ហាងកាហ្វេ ជួបជុំ (Meeting Coffee)",
+    "vendorKh": "ហាងកាហ្វេ ជួបជុំ (Meeting Coffee)",
+    "category": "ភេសជ្ជៈ និងអាហារសម្រន់",
+    "categoryCode": "6011 - ភេសជ្ជៈ និងកាហ្វេ",
     "date": "2026-10-15",
     "time": "10:05 AM",
-    "amountUSD": 2.44,
-    "amountKHR": 10000,
+    "amountUSD": 1.22,
+    "amountKHR": 5000,
     "vatUSD": 0,
     "type": "expense",
     "status": "paid",
     "statusTextKh": "បានបង់",
-    "iconName": "receipt_long",
-    "aiExplanation": "ទិញក្រដាស និងប៊ិចការិយាល័យ 10,000៛",
-    "ocrConfidence": 98
+    "iconName": "local_cafe",
+    "aiExplanation": "កាហ្វេប្រជុំបុគ្គលិក 5,000៛",
+    "ocrConfidence": 98,
+    "sheet": "Week_5"
   },
   {
     "id": "tx-57560-1",
@@ -81,7 +84,8 @@
     "statusTextKh": "បានបង់",
     "iconName": "receipt_long",
     "aiExplanation": "វិក្កយបត្រចំណាយទូទៅ 5,000៛",
-    "ocrConfidence": 99
+    "ocrConfidence": 99,
+    "sheet": "Week_5"
   },
   {
     "id": "tx-57559-0",
@@ -91,7 +95,7 @@
     "vendor": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
     "vendorKh": "ខេមា គ្លីនិក & ដេនថល (Khema Clinic)",
     "category": "ទិញសម្ភារៈប្រើប្រាស់",
-    "categoryCode": "6010 - សម្ភារៈប្រើប្រាស់",
+    "categoryCode": "6010 - សម្ភារ~ប្រើប្រាស់",
     "date": "2026-09-15",
     "time": "10:00 AM",
     "amountUSD": 1.22,
@@ -102,6 +106,7 @@
     "statusTextKh": "បានបង់",
     "iconName": "receipt_long",
     "aiExplanation": "វិក្កយបត្រចំណាយទូទៅ 5,000៛",
-    "ocrConfidence": 99
+    "ocrConfidence": 99,
+    "sheet": "Week_5"
   }
 ]

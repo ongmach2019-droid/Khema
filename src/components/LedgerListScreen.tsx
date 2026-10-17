@@ -27,6 +27,16 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
+  const [selectedSheetFilter, setSelectedSheetFilter] = useState<string>('all');
+
+  const getTxSheet = (t: Transaction): string => {
+    return (t as any).sheet || (t.date && t.date.includes('2026-10') ? 'Week_5' : 'Week_3');
+  };
+
+  const availableSheets = Array.from(
+    new Set(transactions.map(getTxSheet).filter(Boolean))
+  );
+
   // Filter transactions
   const filtered = transactions.filter((tx) => {
     const matchesCategory =
@@ -34,15 +44,19 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       (activeCategory === 'expense' && tx.type === 'expense') ||
       (activeCategory === 'income' && tx.type === 'income');
 
+    const txSheet = getTxSheet(tx);
+    const matchesSheet = selectedSheetFilter === 'all' || txSheet === selectedSheetFilter;
+
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
       tx.vendor.toLowerCase().includes(q) ||
       tx.vendorKh.toLowerCase().includes(q) ||
       tx.ref.toLowerCase().includes(q) ||
-      tx.category.toLowerCase().includes(q);
+      tx.category.toLowerCase().includes(q) ||
+      txSheet.toLowerCase().includes(q);
 
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesSheet && matchesSearch;
   });
 
   // Sort
@@ -298,6 +312,45 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
         </div>
       </div>
 
+      {/* Filter by Sheet Pills */}
+      {availableSheets.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2.5 mb-1 pt-0.5">
+          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px] text-emerald-600">tab</span>
+            <span>Sheet:</span>
+          </span>
+          <button
+            onClick={() => setSelectedSheetFilter('all')}
+            className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
+              selectedSheetFilter === 'all'
+                ? 'bg-secondary text-white shadow-2xs'
+                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+            type="button"
+          >
+            ទាំងអស់ ({transactions.length})
+          </button>
+          {availableSheets.map((s) => {
+            const count = transactions.filter((t) => getTxSheet(t) === s).length;
+            return (
+              <button
+                key={s}
+                onClick={() => setSelectedSheetFilter(s)}
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                  selectedSheetFilter === s
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+                type="button"
+              >
+                <span>{s}</span>
+                <span className="text-[10px] opacity-80 font-mono">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Transaction Cards List (Responsive Multi-column Grid on Desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-sm mb-space-lg">
         {sorted.length === 0 ? (
@@ -333,6 +386,9 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-label-lg text-[14px] text-on-surface font-bold truncate">
                         {tx.vendorKh || tx.vendor}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-600/10 text-emerald-800 text-[10px] font-bold">
+                        {getTxSheet(tx)}
                       </span>
                       {idx === 0 && (
                         <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
