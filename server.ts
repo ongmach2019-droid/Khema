@@ -979,10 +979,10 @@ app.post('/api/update-google-sheet-config', (req, res) => {
   }
 });
 
-function generateExcelWorkbook(requestedSheet?: string): Buffer {
+function generateExcelWorkbook(requestedSheet?: string): { buffer: Buffer; targetSheet: string } {
   const store = getStoredSheets();
   const txs = getStoredTransactions();
-  const targetSheet = requestedSheet || store.activeSheet || 'Week_5';
+  const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'Week_5';
 
   const wb = XLSX.utils.book_new();
 
@@ -1003,31 +1003,10 @@ function generateExcelWorkbook(requestedSheet?: string): Buffer {
     }));
   };
 
-  const allSheetNames = Array.from(new Set([...store.sheets, ...Object.keys(store.sheetRows || {})]));
-
-  // Ensure target / active sheet is first in the workbook
-  const orderedSheetNames: string[] = [];
-  if (allSheetNames.includes(targetSheet)) {
-    orderedSheetNames.push(targetSheet);
-  }
-  for (const name of allSheetNames) {
-    if (!orderedSheetNames.includes(name)) {
-      orderedSheetNames.push(name);
-    }
-  }
-
-  if (!orderedSheetNames.includes('ABA Transactions KHR')) {
-    orderedSheetNames.push('ABA Transactions KHR');
-  }
-
-  for (const sheetName of orderedSheetNames) {
+  const getRowsForSheet = (sheetName: string) => {
     let rows = store.sheetRows[sheetName] || [];
-
-    // Ensure no sheet is empty if transactions exist
     if (rows.length === 0) {
-      if (sheetName === targetSheet && txs.length > 0) {
-        rows = txs.map((t, idx) => convertTransactionToExcelRow(t, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`));
-      } else if (sheetName === 'ABA Transactions KHR') {
+      if (sheetName === 'ABA Transactions KHR') {
         const allRows: any[] = [];
         for (const s of Object.keys(store.sheetRows || {})) {
           if (s !== 'ABA Transactions KHR') {
@@ -1035,9 +1014,17 @@ function generateExcelWorkbook(requestedSheet?: string): Buffer {
           }
         }
         rows = allRows.length > 0 ? allRows : txs.map((t, idx) => convertTransactionToExcelRow(t, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`));
+      } else if (txs.length > 0) {
+        const sheetTxs = txs.filter((t: any) => t.sheet === sheetName);
+        const sourceTxs = sheetTxs.length > 0 ? sheetTxs : txs;
+        rows = sourceTxs.map((t, idx) => convertTransactionToExcelRow(t, idx + 1, 57559 + idx, `JV${String(605 + idx).padStart(5, '0')}`));
       }
     }
+    return rows;
+  };
 
+  const addSheetToWorkbook = (sheetName: string) => {
+    const rows = getRowsForSheet(sheetName);
     const formattedData = formatRowsForExcel(rows);
     const ws = XLSX.utils.json_to_sheet(formattedData, {
       header: [
@@ -1063,32 +1050,40 @@ function generateExcelWorkbook(requestedSheet?: string): Buffer {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  };
+
+  // If requestedSheet is 'all', export all sheets. Otherwise export ONLY the selected single sheet!
+  if (requestedSheet === 'all') {
+    const allSheetNames = Array.from(new Set([...store.sheets, ...Object.keys(store.sheetRows || {})]));
+    for (const name of allSheetNames) {
+      addSheetToWorkbook(name);
+    }
+  } else {
+    // ONLY export the single requested/active sheet
+    addSheetToWorkbook(targetSheet);
   }
 
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  return { buffer, targetSheet };
 }
 
-// GET /api/download-excel - direct download of ABA_Transactions_Latest.xlsx with multi-sheet support
+// GET /api/download-excel - direct download of Excel for ONLY the selected sheet
 app.get('/api/download-excel', (req, res) => {
   try {
     const requestedSheet = (req.query.sheet as string) || '';
-    const buf = generateExcelWorkbook(requestedSheet);
+    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet);
 
-    const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
-    try {
-      fs.writeFileSync(filePath, buf);
-    } catch (e) {}
+    const safeSheetName = targetSheet ? targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'Sheet';
+    const downloadFilename = targetSheet && targetSheet !== 'all'
+      ? `ABA_Transactions_${safeSheetName}.xlsx`
+      : 'ABA_Transactions_Latest.xlsx';
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="ABA_Transactions_Latest.xlsx"');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
     res.setHeader('Content-Length', buf.length);
     return res.end(buf);
   } catch (err: any) {
     console.error('Download Excel error:', err);
-    const filePath = path.resolve(process.cwd(), 'ABA_Transactions_Latest.xlsx');
-    if (fs.existsSync(filePath)) {
-      return res.download(filePath, 'ABA_Transactions_Latest.xlsx');
-    }
     return res.status(500).json({ error: 'Could not generate Excel file' });
   }
 });

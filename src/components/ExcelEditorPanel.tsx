@@ -279,12 +279,12 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
             onClick={handleDownloadExcel}
             disabled={isDownloading}
             className="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-emerald-800 border border-emerald-600/30 text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
-            title="ទាញយកឯកសារ Excel (.xlsx)"
+            title={`ទាញយកឯកសារ Excel (តែសន្លឹក «${activeSheet}» ប៉ុណ្ណោះ)`}
           >
             <span className="material-symbols-outlined text-[16px] text-emerald-600">
               {isDownloading ? 'hourglass_top' : 'download'}
             </span>
-            <span>{isDownloading ? '...' : 'Excel'}</span>
+            <span>{isDownloading ? '...' : `Excel (${activeSheet})`}</span>
           </button>
         </div>
 

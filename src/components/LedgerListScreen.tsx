@@ -28,13 +28,31 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   const [toastMessage, setToastMessage] = useState<string>('');
 
   const [selectedSheetFilter, setSelectedSheetFilter] = useState<string>('all');
+  const [serverSheets, setServerSheets] = useState<string[]>([]);
+  const [serverActiveSheet, setServerActiveSheet] = useState<string>('Week_5');
+
+  const fetchServerSheets = () => {
+    fetch('/api/excel-sheets')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          if (Array.isArray(data.sheets)) setServerSheets(data.sheets);
+          if (data.activeSheet) setServerActiveSheet(data.activeSheet);
+        }
+      })
+      .catch(() => {});
+  };
+
+  React.useEffect(() => {
+    fetchServerSheets();
+  }, []);
 
   const getTxSheet = (t: Transaction): string => {
     return (t as any).sheet || (t.date && t.date.includes('2026-10') ? 'Week_5' : 'Week_3');
   };
 
   const availableSheets = Array.from(
-    new Set(transactions.map(getTxSheet).filter(Boolean))
+    new Set([...serverSheets, ...transactions.map(getTxSheet).filter(Boolean)])
   );
 
   // Filter transactions
@@ -72,14 +90,17 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amountUSD, 0);
 
-  // Trigger export real Excel with 100% mobile browser compatibility
+  // Trigger export real Excel for ONLY the selected single sheet
   const handleExport = (targetSheet?: string) => {
-    const url = `/api/download-excel?t=${Date.now()}${targetSheet ? `&sheet=${encodeURIComponent(targetSheet)}` : ''}`;
+    const sheetToExport =
+      targetSheet ||
+      (selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet || 'Week_5');
+    const url = `/api/download-excel?sheet=${encodeURIComponent(sheetToExport)}&t=${Date.now()}`;
     
     // Direct location navigation triggers the native download prompt on iOS Safari and Android Chrome
     window.location.href = url;
 
-    setToastMessage('កំពុងទាញយកឯកសារ Excel (ទិន្នន័យគ្រប់ Sheet ទាំងអស់)...');
+    setToastMessage(`កំពុងទាញយកឯកសារ Excel (តែសន្លឹក «${sheetToExport}» ប៉ុណ្ណោះ)...`);
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
@@ -270,13 +291,13 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Quick Download Excel Button right on ប្រតិបត្តិការថ្មីៗ */}
           <button
-            onClick={() => handleExport()}
+            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet)}
             className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-sm text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
-            title="ទាញយកទិន្នន័យប្រតិបត្តិការថ្មីៗជា Excel"
+            title={`ទាញយកទិន្នន័យ Sheet «${selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet}» ជា Excel`}
             type="button"
           >
             <span className="material-symbols-outlined text-[15px]">download</span>
-            <span>ទាញយក Excel</span>
+            <span>ទាញយក Excel ({selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet})</span>
           </button>
 
           {/* Quick Sync/Fetch button */}
@@ -335,7 +356,15 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
             return (
               <button
                 key={s}
-                onClick={() => setSelectedSheetFilter(s)}
+                onClick={() => {
+                  setSelectedSheetFilter(s);
+                  setServerActiveSheet(s);
+                  fetch('/api/excel-sheets/select', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheetName: s }),
+                  }).catch(() => {});
+                }}
                 className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
                   selectedSheetFilter === s
                     ? 'bg-emerald-600 text-white shadow-2xs'
@@ -480,23 +509,23 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       {/* Bottom Floating Action Utility */}
       <div className="w-full flex flex-col gap-space-xs sticky bottom-20 md:bottom-6 z-20 max-w-2xl mx-auto">
         <div className="w-full p-2.5 rounded-2xl bg-surface-container-lowest/95 backdrop-blur-md shadow-xl border border-surface-container-high/80 flex items-center justify-between gap-space-sm">
-          <div className="flex items-center gap-2.5 pl-1.5">
-            <div className="w-9 h-9 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 pl-1.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600/10 text-emerald-700 flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-[20px]">file_download</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-label-md text-[13px] text-on-surface font-bold">
-                ទាញយករបាយការណ៍
+            <div className="flex flex-col min-w-0">
+              <span className="font-label-md text-[13px] text-on-surface font-bold truncate">
+                ទាញយក Sheet៖ <span className="text-emerald-700 underline">{selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet}</span>
               </span>
-              <span className="font-label-sm text-[11px] text-on-surface-variant">
-                Excel (.xlsx) • {transactions.length} ប្រតិបត្តិការ
+              <span className="font-label-sm text-[11px] text-on-surface-variant truncate">
+                Excel (.xlsx) • {selectedSheetFilter !== 'all' ? sorted.length : transactions.length} ជួរ (តែ Sheet នេះប៉ុណ្ណោះ)
               </span>
             </div>
           </div>
 
           <button
-            onClick={() => handleExport()}
-            className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet)}
+            className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer shrink-0 whitespace-nowrap"
             type="button"
           >
             <span className="material-symbols-outlined text-[18px]">download</span>
