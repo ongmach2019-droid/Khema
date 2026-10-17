@@ -316,18 +316,23 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
           let khr = Number(d.amountKHR) || 0;
           let usd = Number(d.amountUSD) || 0;
 
-          // Smart rounding fix for Cambodian delivery slips: 5002 -> 5000
-          if (khr >= 4990 && khr <= 5015) {
+          // Smart rounding fix for Cambodian delivery slips: 5002 -> 5000, 7500 -> 7500
+          if (khr >= 7480 && khr <= 7520) {
+            khr = 7500;
+            usd = 1.83;
+          } else if (khr >= 4990 && khr <= 5015) {
             khr = 5000;
             usd = 1.22;
           } else if (khr === 0 && usd > 0) {
-            if (Math.abs(usd - 1.22) < 0.02) {
+            if (Math.abs(usd - 1.83) < 0.02) {
+              khr = 7500;
+            } else if (Math.abs(usd - 1.22) < 0.02) {
               khr = 5000;
             } else {
               khr = Math.round(usd * settings.exchangeRate);
             }
           } else if (usd === 0 && khr > 0) {
-            usd = khr === 5000 ? 1.22 : parseFloat((khr / settings.exchangeRate).toFixed(2));
+            usd = khr === 7500 ? 1.83 : (khr === 5000 ? 1.22 : parseFloat((khr / settings.exchangeRate).toFixed(2)));
           } else if (khr === 0 && usd === 0) {
             khr = 5000;
             usd = 1.22;

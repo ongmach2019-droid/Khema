@@ -147,7 +147,13 @@ async function callGeminiWithFailover(ai: GoogleGenAI, parts: any[], systemInstr
           }
           const parsed = JSON.parse(raw);
           if (parsed) {
-            if (parsed.amountKHR && Math.abs(parsed.amountKHR - 5000) <= 5) {
+            if (parsed.amountKHR && Math.abs(parsed.amountKHR - 7500) <= 20) {
+              parsed.amountKHR = 7500;
+              parsed.amountUSD = 1.83;
+            } else if (parsed.amountUSD && Math.abs(parsed.amountUSD - 1.83) < 0.02) {
+              parsed.amountKHR = 7500;
+              parsed.amountUSD = 1.83;
+            } else if (parsed.amountKHR && Math.abs(parsed.amountKHR - 5000) <= 5) {
               parsed.amountKHR = 5000;
               parsed.amountUSD = 1.22;
             } else if (parsed.amountUSD && Math.abs(parsed.amountUSD - 1.22) < 0.02) {
@@ -247,7 +253,9 @@ IMPORTANT OCR RULES FOR CAMBODIAN INVOICES & DELIVERY SLIPS:
    - Price / តម្លៃសេវា / NORMAL PRICE: Look at the handwritten number in the price / តម្លៃ box.
      * If written 5000៛, 5,000, or ៥០០០៛: YOU MUST set amountKHR = 5000 exactly, and amountUSD = 1.22 (5000 / 4100). NEVER output 5002 or arbitrary calculated numbers!
      * If written 6000៛, 6,000, or ៦០០០៛: set amountKHR = 6000, and amountUSD = 1.46 (or 1.50).
-     * Always preserve the exact written integer Khmer Riel amount for amountKHR.
+     * If written 7500៛, 7,500, or ៧៥០០៛: YOU MUST set amountKHR = 7500 exactly, and amountUSD = 1.83 (7500 / 4100). NEVER round up to 10,000!
+     * If written 10000៛, 10,000, or ១០០០០៛: set amountKHR = 10000, and amountUSD = 2.44.
+     * Always preserve the exact written integer Khmer Riel amount for amountKHR. Read digits carefully (7,500 is 7500, not 10000).
    - COA category: "6080 - ថ្លៃសេវាកម្មទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)".
 3. For Supermarket / Restaurant receipts:
    - Extract store name, items, total amount, and VAT.
@@ -383,7 +391,7 @@ function sanitizeTransaction(tx: any): any {
 
 function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: number, jvNoStr: string) {
   const isIncome = tx.type === 'income';
-  const khrAmount = Number(tx.amountKHR) || Math.round(Number(tx.amountUSD || 0) * 4100) || (Number(tx.amountUSD) === 1.22 ? 5000 : 0);
+  const khrAmount = Number(tx.amountKHR) || (Number(tx.amountUSD) === 1.83 ? 7500 : (Number(tx.amountUSD) === 1.22 ? 5000 : Math.round(Number(tx.amountUSD || 0) * 4100)));
 
   const vendorClean = cleanKhmerString(tx.vendor || tx.vendorKh, 'ខេមា គ្លីនិក & ដេនថល');
   const descClean = cleanKhmerString(tx.description || tx.category || (tx.items && tx.items.length ? tx.items.map((i: any) => i.name).join(', ') : ''), 'សម្ភារៈប្រើប្រាស់');
@@ -407,7 +415,7 @@ function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: numbe
 function excelRowToTransaction(r: any, idx: number): any {
   const isIncome = Number(r.debit || 0) > 0;
   const khr = Number(r.credit || r.debit || 0);
-  const usd = khr === 5000 ? 1.22 : parseFloat((khr / 4100).toFixed(2));
+  const usd = khr === 5000 ? 1.22 : (khr === 7500 ? 1.83 : parseFloat((khr / 4100).toFixed(2)));
   const entryVal = Number(r.entryNo) || (57559 + idx);
   const jvVal = r.jvNo || `JV${String(605 + idx).padStart(5, '0')}`;
 
