@@ -208,8 +208,8 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-  // Handle download Excel with automatic auto-save
-  const handleDownloadExcel = async () => {
+  // Handle download Excel / CSV with automatic auto-save and GL grouping
+  const handleDownloadExcel = async (format: 'gl' | 'csv' | 'raw' = 'gl') => {
     setIsDownloading(true);
     try {
       if (rows.length > 0) {
@@ -224,9 +224,12 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
         });
       }
       // Download latest file directly with mobile support
-      const downloadUrl = `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&t=${Date.now()}`;
+      const downloadUrl = format === 'csv'
+        ? `/api/download-gl-csv?sheet=${encodeURIComponent(activeSheet)}&t=${Date.now()}`
+        : `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&format=${format}&t=${Date.now()}`;
       window.location.href = downloadUrl;
-      setSaveSuccessMsg(`បានទាញយកឯកសារ Excel (Sheet៖ «${activeSheet}») ជោគជ័យ!`);
+      const typeLabel = format === 'csv' ? 'CSV (គំរូ GL)' : 'Excel គំរូ GL (បូកសរុបតាមប្រភេទ)';
+      setSaveSuccessMsg(`បានទាញយក ${typeLabel} (Sheet៖ «${activeSheet}») ជោគជ័យ!`);
       setTimeout(() => setSaveSuccessMsg(''), 3500);
     } catch (err) {
       console.error('Download error:', err);
@@ -303,15 +306,28 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 
           <button
             type="button"
-            onClick={handleDownloadExcel}
+            onClick={() => handleDownloadExcel('gl')}
             disabled={isDownloading}
-            className="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-emerald-800 border border-emerald-600/30 text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
-            title={`ទាញយកឯកសារ Excel (តែសន្លឹក «${activeSheet}» ប៉ុណ្ណោះ)`}
+            className="h-9 px-3 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 border border-emerald-600/30 text-[11px] font-bold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
+            title={`ទាញយកឯកសារ Excel គំរូ GL (SHEET1 & SHEET2 បូកសរុបតាមប្រភេទ)`}
           >
-            <span className="material-symbols-outlined text-[16px] text-emerald-600">
+            <span className="material-symbols-outlined text-[16px] text-emerald-700">
               {isDownloading ? 'hourglass_top' : 'download'}
             </span>
-            <span>{isDownloading ? '...' : `Excel (${activeSheet})`}</span>
+            <span>{isDownloading ? '...' : `ទាញយក Excel (GL)`}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDownloadExcel('csv')}
+            disabled={isDownloading}
+            className="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface border border-surface-container-high text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
+            title="ទាញយកជាឯកសារ CSV (គំរូ GL/ERP)"
+          >
+            <span className="material-symbols-outlined text-[15px] text-on-surface-variant">
+              description
+            </span>
+            <span>CSV</span>
           </button>
         </div>
 

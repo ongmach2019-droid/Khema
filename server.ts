@@ -993,29 +993,112 @@ app.post('/api/update-google-sheet-config', (req, res) => {
   }
 });
 
-function generateExcelWorkbook(requestedSheet?: string): { buffer: Buffer; targetSheet: string } {
+function formatSingleDate(d: Date): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function formatDdMmmYyyy(dVal: any): string {
+  if (!dVal) return formatSingleDate(new Date());
+  const s = String(dVal).trim();
+  if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(s)) return s;
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) return formatSingleDate(parsed);
+  const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymd) {
+    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
+    if (!isNaN(d.getTime())) return formatSingleDate(d);
+  }
+  const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmy) {
+    const d = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+    if (!isNaN(d.getTime())) return formatSingleDate(d);
+  }
+  return s;
+}
+
+function getStandardCategory(desc?: string): string {
+  const d = (desc || '').trim();
+  if (d.includes('ថ្លៃផ្ញើអីវ៉ាន់') || d.includes('សេវាទូទៅ') || d.includes('បញ្ជូន')) {
+    return 'ថ្លៃសេវាទូទៅ (ថ្លៃផ្ញើអីវ៉ាន់)';
+  }
+  if (d.includes('កាហ្វេ')) {
+    return 'ទិញសម្ភារៈ និងកាហ្វេ';
+  }
+  if (d.includes('ក្រដាស') || d.includes('ការិយាល័យ')) {
+    return 'ទិញក្រដាសការិយាល័យ';
+  }
+  if (d.includes('សម្ភារៈប្រើប្រាស់')) {
+    return 'សម្ភារៈប្រើប្រាស់';
+  }
+  return d || 'ចំណាយទូទៅ';
+}
+
+interface CategoryGroup {
+  category: string;
+  items: any[];
+  totalCredit: number;
+  totalDebit: number;
+  latestDate: string;
+  latestEntryNo: number;
+  latestJvNo: string;
+  vendors: string[];
+}
+
+function groupRowsByCategory(rows: any[]): CategoryGroup[] {
+  const map = new Map<string, CategoryGroup>();
+
+  for (const r of rows) {
+    const cat = getStandardCategory(r.description);
+    if (!map.has(cat)) {
+      map.set(cat, {
+        category: cat,
+        items: [],
+        totalCredit: 0,
+        totalDebit: 0,
+        latestDate: r.date || '',
+        latestEntryNo: Number(r.entryNo) || 57559,
+        latestJvNo: r.jvNo || 'JV00001',
+        vendors: [],
+      });
+    }
+    const g = map.get(cat)!;
+    g.items.push(r);
+    g.totalCredit += Number(r.credit) || 0;
+    g.totalDebit += Number(r.debit) || 0;
+
+    const vendor = (r.vendor || '').trim();
+    if (vendor && !g.vendors.includes(vendor)) {
+      g.vendors.push(vendor);
+    }
+    if (r.date && (!g.latestDate || String(r.date) > String(g.latestDate))) {
+      g.latestDate = r.date;
+    }
+    if (Number(r.entryNo) && Number(r.entryNo) > g.latestEntryNo) {
+      g.latestEntryNo = Number(r.entryNo);
+      g.latestJvNo = r.jvNo || g.latestJvNo;
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+function escapeCsv(val: any): string {
+  if (val === null || val === undefined) return '';
+  const s = String(val);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function generateExcelWorkbook(requestedSheet?: string, format?: string): { buffer: Buffer; targetSheet: string } {
   const store = getStoredSheets();
   const txs = getStoredTransactions();
   const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'Week_5';
-
-  const wb = XLSX.utils.book_new();
-
-  const formatRowsForExcel = (rows: any[]) => {
-    return rows.map((r, idx) => ({
-      'No.': r.no || (idx + 1),
-      'Date': r.date || new Date().toISOString().split('T')[0],
-      'Source': r.source || 'GL-JE',
-      'Entry No': r.entryNo || (57559 + idx),
-      'JV No': r.jvNo || `JV${String(605 + idx).padStart(5, '0')}`,
-      'Reference': r.reference || '',
-      'Class': r.class || 'KHEMA88888',
-      'Vendor / Customer / Employee': cleanKhmerString(r.vendor, 'ខេមា គ្លីនិក & ដេនថល'),
-      'Description': cleanKhmerString(r.description, 'សម្ភារៈប្រើប្រាស់'),
-      'Debit': Number(r.debit) || 0,
-      'Credit': Number(r.credit) || 0,
-      'Balance': r.balance !== undefined && r.balance !== null ? r.balance : '',
-    }));
-  };
 
   const getRowsForSheet = (sheetName: string) => {
     let rows = store.sheetRows[sheetName] || [];
@@ -1037,60 +1120,164 @@ function generateExcelWorkbook(requestedSheet?: string): { buffer: Buffer; targe
     return rows;
   };
 
-  const addSheetToWorkbook = (sheetName: string) => {
-    let rows = getRowsForSheet(sheetName); rows = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)); const total = rows.length; rows.forEach((r, idx) => { r.no = total - idx; });
-    const formattedData = formatRowsForExcel(rows);
-    const ws = XLSX.utils.json_to_sheet(formattedData, {
-      header: [
-        'No.', 'Date', 'Source', 'Entry No', 'JV No', 'Reference',
-        'Class', 'Vendor / Customer / Employee', 'Description',
-        'Debit', 'Credit', 'Balance'
-      ],
+  const rawRows = getRowsForSheet(targetSheet);
+  const sortedRaw = [...rawRows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
+  const totalRaw = sortedRaw.length;
+  sortedRaw.forEach((r, idx) => { r.no = totalRaw - idx; });
+
+  const wb = XLSX.utils.book_new();
+
+  // If raw format requested specifically, output classic single-sheet layout
+  if (format === 'raw') {
+    const formattedData = sortedRaw.map((r, idx) => ({
+      'No.': r.no || (idx + 1),
+      'Date': r.date || new Date().toISOString().split('T')[0],
+      'Source': r.source || 'GL-JE',
+      'Entry No': r.entryNo || (57559 + idx),
+      'JV No': r.jvNo || `JV${String(605 + idx).padStart(5, '0')}`,
+      'Reference': r.reference || '',
+      'Class': r.class || 'KHEMA88888',
+      'Vendor / Customer / Employee': cleanKhmerString(r.vendor, 'ខេមា គ្លីនិក & ដេនថល'),
+      'Description': cleanKhmerString(r.description, 'សម្ភារៈប្រើប្រាស់'),
+      'Debit': Number(r.debit) || 0,
+      'Credit': Number(r.credit) || 0,
+      'Balance': r.balance !== undefined && r.balance !== null ? r.balance : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(formattedData);
+    XLSX.utils.book_append_sheet(wb, ws, targetSheet);
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return { buffer, targetSheet };
+  }
+
+  // --- NEW DEFAULT: GL / ERP Journal Template Grouped by Category ---
+  const groups = groupRowsByCategory(sortedRaw);
+
+  // 1. Build SHEET1 (Header Table)
+  const sheet1Rows = groups.map((g, idx) => ({
+    'Entry No': g.latestEntryNo,
+    'Date (dd-MMM-YYYY)': formatDdMmmYyyy(g.latestDate),
+    'Prefix': 'DEFAULT',
+    'Source Entry No': `JV${String(idx + 1).padStart(5, '0')}`,
+    'Reference': g.vendors.join(', '),
+    'Remark': g.category,
+    'Currency ID': (g.totalCredit > 100 || g.totalDebit > 100) ? 'KHR' : 'USD',
+    'Exchange Rate': 1,
+  }));
+
+  // 2. Build SHEET2 (Lines Table: Debit POS Cash & Credit Account Receivable)
+  const sheet2Rows: any[] = [];
+  groups.forEach((g) => {
+    const amount = g.totalCredit > 0 ? g.totalCredit : g.totalDebit;
+    const isKhr = amount > 100;
+    const dateStr = formatDdMmmYyyy(g.latestDate);
+
+    // Debit Line
+    sheet2Rows.push({
+      'Entry No': g.latestEntryNo,
+      'Date (dd-MMM-YYYY)': dateStr,
+      'Account ID': 11100,
+      'Account Name': isKhr ? 'POS Cash - KHR' : 'POS Cash - USD',
+      'Class ID': 'KHEMA88888',
+      'Description': g.category,
+      'Debit': amount,
+      'Credit': 0,
+      'Job No': '',
+      'Job Task No': 0,
+      'Job Planning Line': 0,
     });
 
-    ws['!cols'] = [
-      { wch: 6 },
-      { wch: 14 },
-      { wch: 10 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 32 },
-      { wch: 30 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-    ];
+    // Credit Line
+    sheet2Rows.push({
+      'Entry No': g.latestEntryNo,
+      'Date (dd-MMM-YYYY)': dateStr,
+      'Account ID': 12000,
+      'Account Name': 'Account Receivable',
+      'Class ID': '',
+      'Description': g.category,
+      'Debit': 0,
+      'Credit': amount,
+      'Job No': '',
+      'Job Task No': 0,
+      'Job Planning Line': 0,
+    });
+  });
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  };
+  // Append SHEET1
+  const ws1 = XLSX.utils.json_to_sheet(sheet1Rows, {
+    header: ['Entry No', 'Date (dd-MMM-YYYY)', 'Prefix', 'Source Entry No', 'Reference', 'Remark', 'Currency ID', 'Exchange Rate']
+  });
+  ws1['!cols'] = [
+    { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 16 },
+    { wch: 45 }, { wch: 35 }, { wch: 14 }, { wch: 14 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws1, 'SHEET1');
 
-  // If requestedSheet is 'all', export all sheets. Otherwise export ONLY the selected single sheet!
-  if (requestedSheet === 'all') {
-    const allSheetNames = Array.from(new Set([...store.sheets, ...Object.keys(store.sheetRows || {})]));
-    for (const name of allSheetNames) {
-      addSheetToWorkbook(name);
-    }
-  } else {
-    // ONLY export the single requested/active sheet
-    addSheetToWorkbook(targetSheet);
-  }
+  // Append SHEET2
+  const ws2 = XLSX.utils.json_to_sheet(sheet2Rows, {
+    header: ['Entry No', 'Date (dd-MMM-YYYY)', 'Account ID', 'Account Name', 'Class ID', 'Description', 'Debit', 'Credit', 'Job No', 'Job Task No', 'Job Planning Line']
+  });
+  ws2['!cols'] = [
+    { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 25 },
+    { wch: 14 }, { wch: 35 }, { wch: 14 }, { wch: 14 },
+    { wch: 10 }, { wch: 14 }, { wch: 18 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws2, 'SHEET2');
+
+  // Append Combined_GL (Stacked Header and Lines in single sheet)
+  const combinedAoa: any[][] = [
+    ['Entry No', 'Date (dd-MMM-YYYY)', 'Prefix', 'Source Entry No', 'Reference', 'Remark', 'Currency ID', 'Exchange Rate'],
+    ...sheet1Rows.map(r => [
+      r['Entry No'], r['Date (dd-MMM-YYYY)'], r['Prefix'], r['Source Entry No'],
+      r['Reference'], r['Remark'], r['Currency ID'], r['Exchange Rate']
+    ]),
+    [],
+    ['Entry No', 'Date (dd-MMM-YYYY)', 'Account ID', 'Account Name', 'Class ID', 'Description', 'Debit', 'Credit', 'Job No', 'Job Task No', 'Job Planning Line'],
+    ...sheet2Rows.map(r => [
+      r['Entry No'], r['Date (dd-MMM-YYYY)'], r['Account ID'], r['Account Name'],
+      r['Class ID'], r['Description'], r['Debit'], r['Credit'],
+      r['Job No'], r['Job Task No'], r['Job Planning Line']
+    ])
+  ];
+  const wsCombined = XLSX.utils.aoa_to_sheet(combinedAoa);
+  wsCombined['!cols'] = [
+    { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 25 },
+    { wch: 14 }, { wch: 35 }, { wch: 14 }, { wch: 14 },
+    { wch: 10 }, { wch: 14 }, { wch: 18 }
+  ];
+  XLSX.utils.book_append_sheet(wb, wsCombined, 'Combined_GL');
+
+  // Append Detailed Transactions Sheet
+  const safeSheetName = targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const wsDetails = XLSX.utils.json_to_sheet(sortedRaw.map((r, idx) => ({
+    'No.': r.no || (idx + 1),
+    'Date': r.date || '',
+    'Source': r.source || 'GL-JE',
+    'Entry No': r.entryNo || 0,
+    'JV No': r.jvNo || '',
+    'Reference': r.reference || '',
+    'Class': r.class || 'KHEMA88888',
+    'Vendor': r.vendor || '',
+    'Description': r.description || '',
+    'Debit': Number(r.debit) || 0,
+    'Credit': Number(r.credit) || 0,
+  })));
+  XLSX.utils.book_append_sheet(wb, wsDetails, `${safeSheetName}_Details`);
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   return { buffer, targetSheet };
 }
 
-// GET /api/download-excel - direct download of Excel for ONLY the selected sheet
+// GET /api/download-excel - direct download of Excel (GL Template with SHEET1, SHEET2, Combined_GL)
 app.get('/api/download-excel', (req, res) => {
   try {
     const requestedSheet = (req.query.sheet as string) || '';
-    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet);
+    const format = (req.query.format as string) || '';
+    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet, format);
 
     const safeSheetName = targetSheet ? targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'Sheet';
-    const downloadFilename = targetSheet && targetSheet !== 'all'
+    const downloadFilename = format === 'raw'
       ? `ABA_Transactions_${safeSheetName}.xlsx`
-      : 'ABA_Transactions_Latest.xlsx';
+      : `GL_${safeSheetName}.xlsx`;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
@@ -1099,6 +1286,60 @@ app.get('/api/download-excel', (req, res) => {
   } catch (err: any) {
     console.error('Download Excel error:', err);
     return res.status(500).json({ error: 'Could not generate Excel file' });
+  }
+});
+
+// GET /api/download-gl-csv - direct download of CSV in exact requested template format
+app.get('/api/download-gl-csv', (req, res) => {
+  try {
+    const store = getStoredSheets();
+    const targetSheet = ((req.query.sheet as string) && (req.query.sheet as string).trim()) || store.activeSheet || 'Week_5';
+    const rows = store.sheetRows[targetSheet] || [];
+    const sortedRaw = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
+    const groups = groupRowsByCategory(sortedRaw);
+
+    const lines: string[] = [];
+    // Header Table
+    lines.push('Entry No,Date (dd-MMM-YYYY),Prefix,Source Entry No,Reference,Remark,Currency ID,Exchange Rate');
+    groups.forEach((g, idx) => {
+      const entryNo = g.latestEntryNo;
+      const dateStr = formatDdMmmYyyy(g.latestDate);
+      const prefix = 'DEFAULT';
+      const jvNo = `JV${String(idx + 1).padStart(5, '0')}`;
+      const ref = escapeCsv(g.vendors.join(', '));
+      const remark = escapeCsv(g.category);
+      const curr = (g.totalCredit > 100 || g.totalDebit > 100) ? 'KHR' : 'USD';
+      const rate = '1';
+      lines.push(`${entryNo},${dateStr},${prefix},${jvNo},${ref},${remark},${curr},${rate}`);
+    });
+
+    // Lines Table
+    lines.push('Entry No,Date (dd-MMM-YYYY),Account ID,Account Name,Class ID,Description,Debit,Credit,Job No,Job Task No,Job Planning Line');
+    groups.forEach((g) => {
+      const entryNo = g.latestEntryNo;
+      const dateStr = formatDdMmmYyyy(g.latestDate);
+      const amount = g.totalCredit > 0 ? g.totalCredit : g.totalDebit;
+      const isKhr = amount > 100;
+      const accName = isKhr ? 'POS Cash - KHR' : 'POS Cash - USD';
+      const classId = 'KHEMA88888';
+      const desc = escapeCsv(g.category);
+
+      // Debit
+      lines.push(`${entryNo},${dateStr},11100,${accName},${classId},${desc},${amount},0,,0,0`);
+      // Credit
+      lines.push(`${entryNo},${dateStr},12000,Account Receivable,,${desc},0,${amount},,0,0`);
+    });
+
+    const csvContent = '\uFEFF' + lines.join('\r\n');
+    const safeSheetName = targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const downloadFilename = `GL_${safeSheetName}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    return res.send(csvContent);
+  } catch (err: any) {
+    console.error('Download CSV error:', err);
+    return res.status(500).json({ error: 'Could not generate CSV file' });
   }
 });
 

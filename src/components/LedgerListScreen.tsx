@@ -90,17 +90,20 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amountUSD, 0);
 
-  // Trigger export real Excel for ONLY the selected single sheet
-  const handleExport = (targetSheet?: string) => {
+  // Trigger export real Excel for ONLY the selected single sheet (GL template)
+  const handleExport = (targetSheet?: string, format: 'gl' | 'csv' | 'raw' = 'gl') => {
     const sheetToExport =
       targetSheet ||
       (selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet || 'Week_5');
-    const url = `/api/download-excel?sheet=${encodeURIComponent(sheetToExport)}&t=${Date.now()}`;
+    const url = format === 'csv'
+      ? `/api/download-gl-csv?sheet=${encodeURIComponent(sheetToExport)}&t=${Date.now()}`
+      : `/api/download-excel?sheet=${encodeURIComponent(sheetToExport)}&format=${format}&t=${Date.now()}`;
     
     // Direct location navigation triggers the native download prompt on iOS Safari and Android Chrome
     window.location.href = url;
 
-    setToastMessage(`កំពុងទាញយកឯកសារ Excel (តែសន្លឹក «${sheetToExport}» ប៉ុណ្ណោះ)...`);
+    const label = format === 'csv' ? 'CSV (គំរូ GL)' : 'Excel គំរូ GL (បូកសរុបតាមប្រភេទ)';
+    setToastMessage(`កំពុងទាញយក ${label} សម្រាប់សន្លឹក «${sheetToExport}»...`);
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
@@ -289,15 +292,25 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Quick Download Excel Button right on ប្រតិបត្តិការថ្មីៗ */}
+          {/* Quick Download Excel GL & CSV Buttons right on ប្រតិបត្តិការថ្មីៗ */}
           <button
-            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet)}
+            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet, 'gl')}
             className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-sm text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
-            title={`ទាញយកទិន្នន័យ Sheet «${selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet}» ជា Excel`}
+            title={`ទាញយកទិន្នន័យ Sheet «${selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet}» ជាគំរូ Excel GL`}
             type="button"
           >
             <span className="material-symbols-outlined text-[15px]">download</span>
-            <span>ទាញយក Excel ({selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet})</span>
+            <span>Excel GL ({selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet})</span>
+          </button>
+
+          <button
+            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet, 'csv')}
+            className="h-8 px-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-[11px] font-semibold flex items-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0 border border-surface-container-high"
+            title="ទាញយកជាឯកសារ CSV (គំរូ GL/ERP)"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[14px]">description</span>
+            <span>CSV</span>
           </button>
 
           {/* Quick Sync/Fetch button */}
@@ -518,18 +531,18 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
                 ទាញយក Sheet៖ <span className="text-emerald-700 underline">{selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet}</span>
               </span>
               <span className="font-label-sm text-[11px] text-on-surface-variant truncate">
-                Excel (.xlsx) • {selectedSheetFilter !== 'all' ? sorted.length : transactions.length} ជួរ (តែ Sheet នេះប៉ុណ្ណោះ)
+                Excel (.xlsx) • គំរូ GL/ERP (បូកសរុបតាមប្រភេទ)
               </span>
             </div>
           </div>
 
           <button
-            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet)}
+            onClick={() => handleExport(selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet, 'gl')}
             className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer shrink-0 whitespace-nowrap"
             type="button"
           >
             <span className="material-symbols-outlined text-[18px]">download</span>
-            <span>ទាញយក Excel</span>
+            <span>ទាញយក Excel (GL)</span>
           </button>
         </div>
       </div>
