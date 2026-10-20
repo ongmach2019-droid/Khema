@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ExcelRow } from '../types.ts';
+import {
+  parseDateDetails,
+  matchesPeriodFilter,
+  getPeriodFilterSummary,
+  KHMER_MONTHS,
+  KHMER_WEEKS,
+} from '../utils/dateFilters.ts';
 
 interface ExcelEditorPanelProps {
   onDataSaved?: () => void;
@@ -21,6 +28,12 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [sortField, setSortField] = useState<keyof ExcelRow>('entryNo');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Date / Period Filter State (Filter 1 ខែ / 1 សប្ដាហ៍)
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedWeek, setSelectedWeek] = useState<string>('all');
+  const [selectedYearSheetMonth, setSelectedYearSheetMonth] = useState<string>('10'); // Default to Month 10 for 2026 sheet navigator
 
   // New Sheet Modal
   const [showNewSheetModal, setShowNewSheetModal] = useState<boolean>(false);
@@ -208,7 +221,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-  // Handle download Excel / CSV with automatic auto-save and GL grouping
+  // Handle download Excel / CSV with automatic auto-save, GL grouping, and active period filter
   const handleDownloadExcel = async (format: 'gl' | 'csv' | 'raw' = 'gl') => {
     setIsDownloading(true);
     try {
@@ -223,13 +236,16 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
           }),
         });
       }
+      // Period filter parameters
+      const periodParams = `&year=${encodeURIComponent(selectedYear)}&month=${encodeURIComponent(selectedMonth)}&week=${encodeURIComponent(selectedWeek)}`;
       // Download latest file directly with mobile support
       const downloadUrl = format === 'csv'
-        ? `/api/download-gl-csv?sheet=${encodeURIComponent(activeSheet)}&t=${Date.now()}`
-        : `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&format=${format}&t=${Date.now()}`;
+        ? `/api/download-gl-csv?sheet=${encodeURIComponent(activeSheet)}${periodParams}&t=${Date.now()}`
+        : `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&format=${format}${periodParams}&t=${Date.now()}`;
       window.location.href = downloadUrl;
+      const filterSummary = getPeriodFilterSummary(selectedYear, selectedMonth, selectedWeek);
       const typeLabel = format === 'csv' ? 'CSV (គំរូ GL)' : 'Excel គំរូ GL (បូកសរុបតាមប្រភេទ)';
-      setSaveSuccessMsg(`បានទាញយក ${typeLabel} (Sheet៖ «${activeSheet}») ជោគជ័យ!`);
+      setSaveSuccessMsg(`បានទាញយក ${typeLabel} (${filterSummary}) ជោគជ័យ!`);
       setTimeout(() => setSaveSuccessMsg(''), 3500);
     } catch (err) {
       console.error('Download error:', err);
@@ -248,7 +264,13 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     }
   };
 
-  const filteredRows = rows.filter((r) => {
+  // 1. Filter rows by period (Year, Month, Week)
+  const periodFilteredRows = rows.filter((r) =>
+    matchesPeriodFilter(r.date, selectedYear, selectedMonth, selectedWeek)
+  );
+
+  // 2. Filter rows by search term
+  const filteredRows = periodFilteredRows.filter((r) => {
     if (!searchFilter.trim()) return true;
     const q = searchFilter.toLowerCase();
     return (
@@ -259,6 +281,11 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       String(r.entryNo).includes(q)
     );
   });
+
+  // Calculate totals for filtered rows
+  const filteredTotalCredit = filteredRows.reduce((sum, r) => sum + (Number(r.credit) || 0), 0);
+  const filteredTotalDebit = filteredRows.reduce((sum, r) => sum + (Number(r.debit) || 0), 0);
+  const isPeriodFilterActive = selectedYear !== 'all' || selectedMonth !== 'all' || selectedWeek !== 'all';
 
   const sortedRows = [...filteredRows].sort((a, b) => {
     let aVal: any = a[sortField];
@@ -331,32 +358,115 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
           </button>
         </div>
 
-        {/* Row 3: Sheet Tabs List */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
-          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 mr-1 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">tab</span>
-            <span>Sheets:</span>
-          </span>
-          {sheets.map((sheet) => {
-            const isActive = sheet === activeSheet;
-            return (
-              <button
-                key={sheet}
-                type="button"
-                onClick={() => handleSelectSheet(sheet)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-secondary text-white shadow-xs'
-                    : 'bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-secondary'
-                }`}
-              >
-                <span>{sheet}</span>
-                {isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                )}
-              </button>
-            );
-          })}
+        {/* Row 3: Sheet Tabs & 2026 Navigator */}
+        <div className="flex flex-col gap-1.5 pt-0.5">
+          {/* Main / Primary Sheets */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] text-on-surface-variant font-bold shrink-0 mr-1 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px] text-emerald-600">tab</span>
+              <span>Sheets មេ:</span>
+            </span>
+            {sheets
+              .filter((sheet) => !sheet.startsWith('2026_M'))
+              .map((sheet) => {
+                const isActive = sheet === activeSheet;
+                return (
+                  <button
+                    key={sheet}
+                    type="button"
+                    onClick={() => handleSelectSheet(sheet)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? 'bg-secondary text-white shadow-xs font-bold'
+                        : 'bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-secondary'
+                    }`}
+                  >
+                    <span>{sheet}</span>
+                    {isActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* 2026 Year & Month Sheets Navigator */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-surface-container-high/40">
+            <span className="text-[11px] text-emerald-800 font-bold shrink-0 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+              <span className="material-symbols-outlined text-[13px] text-emerald-600">calendar_month</span>
+              <span>ឆ្នាំ 2026:</span>
+            </span>
+
+            {/* Month Select for 2026 Sheets */}
+            <select
+              value={selectedYearSheetMonth}
+              onChange={(e) => {
+                const mNum = e.target.value;
+                setSelectedYearSheetMonth(mNum);
+                const mObj = KHMER_MONTHS.find((m) => m.value === mNum);
+                const targetMonthSheet = `2026_M${String(mNum).padStart(2, '0')}_${mObj ? mObj.short : ''}`;
+                if (sheets.includes(targetMonthSheet)) {
+                  handleSelectSheet(targetMonthSheet);
+                }
+              }}
+              className="h-7 px-2 rounded-lg bg-surface-container text-xs font-bold text-on-surface border border-surface-container-high outline-none focus:ring-1 focus:ring-secondary cursor-pointer"
+            >
+              {KHMER_MONTHS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  ខែ {m.num} - {m.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Quick Week Sheets for Selected Month */}
+            {(() => {
+              const mNumStr = String(selectedYearSheetMonth).padStart(2, '0');
+              const mObj = KHMER_MONTHS.find((m) => m.value === selectedYearSheetMonth);
+              const monthSheetName = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
+              const isMonthActive = activeSheet === monthSheetName;
+
+              return (
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                  {/* Full Month Sheet button */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSheet(monthSheetName)}
+                    className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold shrink-0 transition-all flex items-center gap-1 cursor-pointer ${
+                      isMonthActive
+                        ? 'bg-emerald-700 text-white font-bold shadow-xs'
+                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+                    }`}
+                    title={`បើក Sheet ប្រចាំខែពេញ៖ ${monthSheetName}`}
+                  >
+                    <span>សន្លឹកខែពេញ</span>
+                    {isMonthActive && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                  </button>
+
+                  {/* 4 Weeks */}
+                  {[1, 2, 3, 4].map((wk) => {
+                    const weekSheetName = `2026_M${mNumStr}_Week${wk}`;
+                    const isWkActive = activeSheet === weekSheetName;
+                    const wkLabel = wk === 1 ? 'W1 (1-7)' : wk === 2 ? 'W2 (8-14)' : wk === 3 ? 'W3 (15-21)' : 'W4 (22-31)';
+                    return (
+                      <button
+                        key={weekSheetName}
+                        type="button"
+                        onClick={() => handleSelectSheet(weekSheetName)}
+                        className={`h-7 px-2 rounded-lg text-[10px] font-semibold shrink-0 transition-all cursor-pointer ${
+                          isWkActive
+                            ? 'bg-secondary text-white font-bold shadow-xs'
+                            : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                        }`}
+                        title={`បើកសន្លឹក៖ ${weekSheetName}`}
+                      >
+                        {wkLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       </div>
 
@@ -375,7 +485,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
               តារាងទិន្នន័យ Excel លម្អិតក្នុង Sheet &apos;{activeSheet}&apos;
             </span>
             <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-[11px] font-semibold">
-              {rows.length} ជួរ
+              {isPeriodFilterActive ? `${filteredRows.length} / ${rows.length} ជួរ (ចម្រាញ់)` : `${rows.length} ជួរ`}
             </span>
           </div>
 
@@ -476,6 +586,149 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                 <span>{saveSuccessMsg}</span>
               </div>
             )}
+
+            {/* 3. Date / Period Filter Bar (ចម្រាញ់ ១ខែ ឫ ១សប្ដាហ៍) */}
+            <div className="my-2 p-2.5 rounded-xl bg-surface-container-low/90 border border-secondary/20 flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-surface-container-high/50">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[17px] text-emerald-700">filter_alt</span>
+                  <span className="text-xs font-bold text-on-surface">
+                    ចម្រាញ់ទិន្នន័យតាមកាលបរិច្ឆេទ (Filter 1 ខែ / 1 សប្ដាហ៍)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    {filteredRows.length} ជួរ
+                  </span>
+                </div>
+
+                {isPeriodFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedYear('all');
+                      setSelectedMonth('all');
+                      setSelectedWeek('all');
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-error-container/60 hover:bg-error-container text-error text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[13px]">close</span>
+                    <span>សម្អាត Filter (បង្ហាញទាំងអស់)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Month selector row (12 Months) */}
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                <span className="text-[11px] font-bold text-on-surface-variant shrink-0 mr-1 flex items-center gap-0.5">
+                  <span className="material-symbols-outlined text-[13px] text-emerald-700">calendar_month</span>
+                  <span>ខែ:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonth('all')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
+                    selectedMonth === 'all'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                  }`}
+                >
+                  ខែទាំងអស់ (All)
+                </button>
+                {KHMER_MONTHS.map((m) => {
+                  const isSel = selectedMonth === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => setSelectedMonth(m.value)}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-all cursor-pointer ${
+                        isSel
+                          ? 'bg-emerald-700 text-white font-bold shadow-xs ring-1 ring-emerald-500'
+                          : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                      }`}
+                      title={`ចម្រាញ់ខែ ${m.label}`}
+                    >
+                      {m.num} {m.short}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Week selector row (4 Weeks) */}
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                <span className="text-[11px] font-bold text-on-surface-variant shrink-0 mr-1 flex items-center gap-0.5">
+                  <span className="material-symbols-outlined text-[13px] text-secondary">view_week</span>
+                  <span>សប្ដាហ៍:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedWeek('all')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
+                    selectedWeek === 'all'
+                      ? 'bg-secondary text-white shadow-xs'
+                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                  }`}
+                >
+                  សប្ដាហ៍ទាំងអស់
+                </button>
+                {KHMER_WEEKS.map((w) => {
+                  const isSel = selectedWeek === w.value;
+                  return (
+                    <button
+                      key={w.value}
+                      type="button"
+                      onClick={() => setSelectedWeek(w.value)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                        isSel
+                          ? 'bg-secondary text-white font-bold shadow-xs ring-1 ring-secondary'
+                          : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                      }`}
+                      title={`ចម្រាញ់ ${w.label}`}
+                    >
+                      <span>{w.tag}</span>
+                      <span className="text-[10px] opacity-75 font-mono">({w.days})</span>
+                    </button>
+                  );
+                })}
+
+                {/* Quick Shortcuts */}
+                <div className="flex items-center gap-1 ml-auto shrink-0 pl-2 border-l border-surface-container-high">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedMonth('10'); setSelectedWeek('all'); }}
+                    className="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold transition-all cursor-pointer"
+                    title="ចម្រាញ់ត្រឹមខែតុលា"
+                  >
+                    ⚡ ខែតុលា
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedMonth('9'); setSelectedWeek('all'); }}
+                    className="px-2 py-0.5 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-[10px] font-semibold transition-all cursor-pointer"
+                    title="ចម្រាញ់ត្រឹមខែកញ្ញា"
+                  >
+                    ខែកញ្ញា
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Filter Summary Banner */}
+              {isPeriodFilterActive && (
+                <div className="mt-1 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-700">check_circle</span>
+                    <span>
+                      កំពុងចម្រាញ់៖ <strong>{getPeriodFilterSummary(selectedYear, selectedMonth, selectedWeek)}</strong>
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-200/90 font-mono text-[10px] font-bold">
+                      {filteredRows.length} / {rows.length} ជួរ
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 font-mono text-[11px]">
+                    <span>សរុប Credit: <strong className="text-error">{filteredTotalCredit.toLocaleString()} ៛</strong> (~${(filteredTotalCredit / 4100).toFixed(2)})</span>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Table Container */}
             <div
@@ -695,8 +948,16 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 
             {/* Bottom Save Button */}
             <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-surface-container-high/60">
-              <span className="text-on-surface-variant font-label-sm text-[11px]">
-                Sheet <strong className="text-secondary">{activeSheet}</strong> • សរុប {rows.length} ជួរ
+              <span className="text-on-surface-variant font-label-sm text-[11px] flex items-center gap-1.5 flex-wrap">
+                <span>
+                  Sheet <strong className="text-secondary">{activeSheet}</strong>
+                </span>
+                <span>•</span>
+                <span>
+                  {isPeriodFilterActive
+                    ? `បង្ហាញ ${filteredRows.length} / ${rows.length} ជួរ (Credit៖ ${filteredTotalCredit.toLocaleString()} ៛)`
+                    : `សរុប ${rows.length} ជួរ`}
+                </span>
               </span>
 
               <button

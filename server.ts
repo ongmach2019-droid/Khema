@@ -1095,7 +1095,79 @@ function escapeCsv(val: any): string {
   return s;
 }
 
-function generateExcelWorkbook(requestedSheet?: string, format?: string): { buffer: Buffer; targetSheet: string } {
+function parseDateDetails(dateStr?: string): { year: number; month: number; day: number; week: number } {
+  if (!dateStr) return { year: 2026, month: 10, day: 15, week: 3 };
+  const s = String(dateStr).trim();
+  let y = 2026;
+  let m = 1;
+  let d = 1;
+
+  // Format 1: YYYY-MM-DD or YYYY/MM/DD
+  const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymd) {
+    y = parseInt(ymd[1], 10);
+    m = parseInt(ymd[2], 10);
+    d = parseInt(ymd[3], 10);
+  } else {
+    // Format 2: DD-MMM-YYYY (e.g. 15-Oct-2026)
+    const dmyWord = s.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,})[-/\s](\d{4})/);
+    if (dmyWord) {
+      d = parseInt(dmyWord[1], 10);
+      y = parseInt(dmyWord[3], 10);
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const foundIdx = monthNames.findIndex((mn) => dmyWord[2].toLowerCase().startsWith(mn));
+      m = foundIdx !== -1 ? foundIdx + 1 : 1;
+    } else {
+      // Format 3: DD/MM/YYYY or DD-MM-YYYY
+      const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (dmy) {
+        d = parseInt(dmy[1], 10);
+        m = parseInt(dmy[2], 10);
+        y = parseInt(dmy[3], 10);
+      } else {
+        const parsed = new Date(s);
+        if (!isNaN(parsed.getTime())) {
+          y = parsed.getFullYear();
+          m = parsed.getMonth() + 1;
+          d = parsed.getDate();
+        }
+      }
+    }
+  }
+
+  let week = 1;
+  if (d <= 7) week = 1;
+  else if (d <= 14) week = 2;
+  else if (d <= 21) week = 3;
+  else week = 4;
+
+  return { year: y, month: m, day: d, week };
+}
+
+function filterRowsByPeriod(rows: any[], year?: string, month?: string, week?: string) {
+  if ((!year || year === 'all') && (!month || month === 'all') && (!week || week === 'all')) {
+    return rows;
+  }
+  return rows.filter((r) => {
+    const details = parseDateDetails(r.date);
+    if (year && year !== 'all' && String(details.year) !== String(year)) {
+      return false;
+    }
+    if (month && month !== 'all' && String(details.month) !== String(month)) {
+      return false;
+    }
+    if (week && week !== 'all' && String(details.week) !== String(week)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function generateExcelWorkbook(
+  requestedSheet?: string,
+  format?: string,
+  period?: { year?: string; month?: string; week?: string }
+): { buffer: Buffer; targetSheet: string } {
   const store = getStoredSheets();
   const txs = getStoredTransactions();
   const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'Week_5';
@@ -1120,7 +1192,10 @@ function generateExcelWorkbook(requestedSheet?: string, format?: string): { buff
     return rows;
   };
 
-  const rawRows = getRowsForSheet(targetSheet);
+  let rawRows = getRowsForSheet(targetSheet);
+  if (period && (period.year || period.month || period.week)) {
+    rawRows = filterRowsByPeriod(rawRows, period.year, period.month, period.week);
+  }
   const sortedRaw = [...rawRows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
   const totalRaw = sortedRaw.length;
   sortedRaw.forEach((r, idx) => { r.no = totalRaw - idx; });
@@ -1272,12 +1347,21 @@ app.get('/api/download-excel', (req, res) => {
   try {
     const requestedSheet = (req.query.sheet as string) || '';
     const format = (req.query.format as string) || '';
-    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet, format);
+    const year = (req.query.year as string) || '';
+    const month = (req.query.month as string) || '';
+    const week = (req.query.week as string) || '';
+
+    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet, format, { year, month, week });
 
     const safeSheetName = targetSheet ? targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'Sheet';
+    let periodSuffix = '';
+    if (year && year !== 'all') periodSuffix += `_${year}`;
+    if (month && month !== 'all') periodSuffix += `_M${month}`;
+    if (week && week !== 'all') periodSuffix += `_W${week}`;
+
     const downloadFilename = format === 'raw'
-      ? `ABA_Transactions_${safeSheetName}.xlsx`
-      : `GL_${safeSheetName}.xlsx`;
+      ? `ABA_Transactions_${safeSheetName}${periodSuffix}.xlsx`
+      : `GL_${safeSheetName}${periodSuffix}.xlsx`;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
@@ -1294,7 +1378,14 @@ app.get('/api/download-gl-csv', (req, res) => {
   try {
     const store = getStoredSheets();
     const targetSheet = ((req.query.sheet as string) && (req.query.sheet as string).trim()) || store.activeSheet || 'Week_5';
-    const rows = store.sheetRows[targetSheet] || [];
+    const year = (req.query.year as string) || '';
+    const month = (req.query.month as string) || '';
+    const week = (req.query.week as string) || '';
+
+    let rows = store.sheetRows[targetSheet] || [];
+    if (year || month || week) {
+      rows = filterRowsByPeriod(rows, year, month, week);
+    }
     const sortedRaw = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
     const groups = groupRowsByCategory(sortedRaw);
 
@@ -1331,8 +1422,13 @@ app.get('/api/download-gl-csv', (req, res) => {
     });
 
     const csvContent = '\uFEFF' + lines.join('\r\n');
+    let periodSuffix = '';
+    if (year && year !== 'all') periodSuffix += `_${year}`;
+    if (month && month !== 'all') periodSuffix += `_M${month}`;
+    if (week && week !== 'all') periodSuffix += `_W${week}`;
+
     const safeSheetName = targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const downloadFilename = `GL_${safeSheetName}.csv`;
+    const downloadFilename = `GL_${safeSheetName}${periodSuffix}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);

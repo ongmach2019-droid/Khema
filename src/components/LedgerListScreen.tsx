@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Transaction, AppSettings } from '../types.ts';
 import { ExcelEditorPanel } from './ExcelEditorPanel.tsx';
+import {
+  matchesPeriodFilter,
+  getPeriodFilterSummary,
+  KHMER_MONTHS,
+  KHMER_WEEKS,
+} from '../utils/dateFilters.ts';
 
 interface LedgerListScreenProps {
   transactions: Transaction[];
@@ -28,6 +34,8 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   const [toastMessage, setToastMessage] = useState<string>('');
 
   const [selectedSheetFilter, setSelectedSheetFilter] = useState<string>('all');
+  const [selectedTxMonth, setSelectedTxMonth] = useState<string>('all');
+  const [selectedTxWeek, setSelectedTxWeek] = useState<string>('all');
   const [serverSheets, setServerSheets] = useState<string[]>([]);
   const [serverActiveSheet, setServerActiveSheet] = useState<string>('Week_5');
 
@@ -65,6 +73,8 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     const txSheet = getTxSheet(tx);
     const matchesSheet = selectedSheetFilter === 'all' || txSheet === selectedSheetFilter;
 
+    const matchesPeriod = matchesPeriodFilter(tx.date, 'all', selectedTxMonth, selectedTxWeek);
+
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -74,7 +84,7 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       tx.category.toLowerCase().includes(q) ||
       txSheet.toLowerCase().includes(q);
 
-    return matchesCategory && matchesSheet && matchesSearch;
+    return matchesCategory && matchesSheet && matchesPeriod && matchesSearch;
   });
 
   // Sort
@@ -95,15 +105,17 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     const sheetToExport =
       targetSheet ||
       (selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet || 'Week_5');
+    const periodParams = `&year=2026&month=${encodeURIComponent(selectedTxMonth)}&week=${encodeURIComponent(selectedTxWeek)}`;
     const url = format === 'csv'
-      ? `/api/download-gl-csv?sheet=${encodeURIComponent(sheetToExport)}&t=${Date.now()}`
-      : `/api/download-excel?sheet=${encodeURIComponent(sheetToExport)}&format=${format}&t=${Date.now()}`;
+      ? `/api/download-gl-csv?sheet=${encodeURIComponent(sheetToExport)}${periodParams}&t=${Date.now()}`
+      : `/api/download-excel?sheet=${encodeURIComponent(sheetToExport)}&format=${format}${periodParams}&t=${Date.now()}`;
     
     // Direct location navigation triggers the native download prompt on iOS Safari and Android Chrome
     window.location.href = url;
 
+    const filterDesc = getPeriodFilterSummary('2026', selectedTxMonth, selectedTxWeek);
     const label = format === 'csv' ? 'CSV (គំរូ GL)' : 'Excel គំរូ GL (បូកសរុបតាមប្រភេទ)';
-    setToastMessage(`កំពុងទាញយក ${label} សម្រាប់សន្លឹក «${sheetToExport}»...`);
+    setToastMessage(`កំពុងទាញយក ${label} («${sheetToExport}» • ${filterDesc})...`);
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
@@ -392,6 +404,92 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
           })}
         </div>
       )}
+
+      {/* Month & Week Filter Pills for Receipts List */}
+      <div className="flex flex-col gap-1 mb-2.5 p-2 rounded-xl bg-surface-container-low/70 border border-surface-container-high/50">
+        {/* Month Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-0.5">
+            <span className="material-symbols-outlined text-[13px] text-emerald-700">calendar_month</span>
+            <span>ខែ:</span>
+          </span>
+          <button
+            onClick={() => setSelectedTxMonth('all')}
+            className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
+              selectedTxMonth === 'all'
+                ? 'bg-emerald-700 text-white shadow-2xs'
+                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+            type="button"
+          >
+            ខែទាំងអស់
+          </button>
+          {KHMER_MONTHS.map((m) => {
+            const isSel = selectedTxMonth === m.value;
+            return (
+              <button
+                key={m.value}
+                onClick={() => setSelectedTxMonth(m.value)}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold shrink-0 transition-all cursor-pointer ${
+                  isSel
+                    ? 'bg-emerald-700 text-white font-bold shadow-2xs'
+                    : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+                type="button"
+              >
+                {m.num} {m.short}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Week Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-0.5">
+            <span className="material-symbols-outlined text-[13px] text-secondary">view_week</span>
+            <span>សប្ដាហ៍:</span>
+          </span>
+          <button
+            onClick={() => setSelectedTxWeek('all')}
+            className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
+              selectedTxWeek === 'all'
+                ? 'bg-secondary text-white shadow-2xs'
+                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+            type="button"
+          >
+            សប្ដាហ៍ទាំងអស់
+          </button>
+          {KHMER_WEEKS.map((w) => {
+            const isSel = selectedTxWeek === w.value;
+            return (
+              <button
+                key={w.value}
+                onClick={() => setSelectedTxWeek(w.value)}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold shrink-0 transition-all cursor-pointer ${
+                  isSel
+                    ? 'bg-secondary text-white font-bold shadow-2xs'
+                    : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+                type="button"
+              >
+                {w.tag}
+              </button>
+            );
+          })}
+
+          {(selectedTxMonth !== 'all' || selectedTxWeek !== 'all') && (
+            <button
+              onClick={() => { setSelectedTxMonth('all'); setSelectedTxWeek('all'); }}
+              className="px-2 py-0.5 rounded-lg bg-error-container/60 hover:bg-error-container text-error text-[10px] font-bold shrink-0 ml-auto flex items-center gap-0.5 transition-colors cursor-pointer"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[12px]">close</span>
+              <span>សម្អាត</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Transaction Cards List (Responsive Multi-column Grid on Desktop) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-sm mb-space-lg">
