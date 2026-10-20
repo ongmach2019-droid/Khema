@@ -1354,22 +1354,19 @@ function filterRowsByPeriod(
     return rows;
   }
   return rows.filter((r) => {
+    // Strictly catches by entryDate (ថ្ងៃខែខាងក្រោម / ថ្ងៃកត់ត្រា) when present, NOT paper date (ថ្ងៃខែខាងលើ)
+    const effectiveDate = (r.entryDate && String(r.entryDate).trim()) || (r.date && String(r.date).trim()) || '';
+
     if (startDate || endDate) {
-      const entryMatches = r.entryDate ? isDateInRange(r.entryDate, startDate, endDate) : false;
-      const paperMatches = r.date ? isDateInRange(r.date, startDate, endDate) : false;
-      return entryMatches || paperMatches;
+      return isDateInRange(effectiveDate, startDate, endDate);
     }
-    const checkPeriod = (dStr?: string) => {
-      if (!dStr || !String(dStr).trim()) return false;
-      const dt = parseDateDetails(dStr);
-      if (year && year !== 'all' && String(dt.year) !== String(year)) return false;
-      if (month && month !== 'all' && String(dt.month) !== String(month)) return false;
-      if (week && week !== 'all' && String(dt.week) !== String(week)) return false;
-      return true;
-    };
-    const paperMatches = checkPeriod(r.date);
-    const entryMatches = checkPeriod(r.entryDate);
-    return entryMatches || paperMatches;
+    if (!effectiveDate) return false;
+
+    const dt = parseDateDetails(effectiveDate);
+    if (year && year !== 'all' && String(dt.year) !== String(year)) return false;
+    if (month && month !== 'all' && String(dt.month) !== String(month)) return false;
+    if (week && week !== 'all' && String(dt.week) !== String(week)) return false;
+    return true;
   });
 }
 
