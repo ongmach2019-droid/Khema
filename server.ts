@@ -1316,12 +1316,38 @@ function escapeCsv(val: any): string {
 
 
 
-function filterRowsByPeriod(rows: any[], year?: string, month?: string, week?: string) {
-  if ((!year || year === 'all') && (!month || month === 'all') && (!week || week === 'all')) {
+function toComparableDate(dateStr?: string): string {
+  const dt = parseDateDetails(dateStr);
+  const mm = String(dt.month).padStart(2, '0');
+  const dd = String(dt.day).padStart(2, '0');
+  return `${dt.year}-${mm}-${dd}`;
+}
+
+function filterRowsByPeriod(
+  rows: any[],
+  year?: string,
+  month?: string,
+  week?: string,
+  startDate?: string,
+  endDate?: string
+) {
+  if (
+    (!year || year === 'all') &&
+    (!month || month === 'all') &&
+    (!week || week === 'all') &&
+    !startDate &&
+    !endDate
+  ) {
     return rows;
   }
   return rows.filter((r) => {
-    const details = parseDateDetails(r.date);
+    if (startDate || endDate) {
+      const comp = toComparableDate(r.date || r.entryDate);
+      if (startDate && comp < startDate) return false;
+      if (endDate && comp > endDate) return false;
+      return true;
+    }
+    const details = parseDateDetails(r.date || r.entryDate);
     if (year && year !== 'all' && String(details.year) !== String(year)) {
       return false;
     }
@@ -1338,7 +1364,7 @@ function filterRowsByPeriod(rows: any[], year?: string, month?: string, week?: s
 function generateExcelWorkbook(
   requestedSheet?: string,
   format?: string,
-  period?: { year?: string; month?: string; week?: string }
+  period?: { year?: string; month?: string; week?: string; startDate?: string; endDate?: string }
 ): { buffer: Buffer; targetSheet: string } {
   const store = getStoredSheets();
   const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'All data';
@@ -1364,8 +1390,8 @@ function generateExcelWorkbook(
   };
 
   let rawRows = getRowsForSheet(targetSheet);
-  if (period && (period.year || period.month || period.week)) {
-    rawRows = filterRowsByPeriod(rawRows, period.year, period.month, period.week);
+  if (period && (period.year || period.month || period.week || period.startDate || period.endDate)) {
+    rawRows = filterRowsByPeriod(rawRows, period.year, period.month, period.week, period.startDate, period.endDate);
   }
   const sortedRaw = [...rawRows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
   const totalRaw = sortedRaw.length;
@@ -1521,14 +1547,22 @@ app.get('/api/download-excel', (req, res) => {
     const year = (req.query.year as string) || '';
     const month = (req.query.month as string) || '';
     const week = (req.query.week as string) || '';
+    const startDate = (req.query.startDate as string) || '';
+    const endDate = (req.query.endDate as string) || '';
 
-    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet, format, { year, month, week });
+    const { buffer: buf, targetSheet } = generateExcelWorkbook(requestedSheet, format, { year, month, week, startDate, endDate });
 
     const safeSheetName = targetSheet ? targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'Sheet';
     let periodSuffix = '';
-    if (year && year !== 'all') periodSuffix += `_${year}`;
-    if (month && month !== 'all') periodSuffix += `_M${month}`;
-    if (week && week !== 'all') periodSuffix += `_W${week}`;
+    if (startDate || endDate) {
+      if (startDate && endDate) periodSuffix += `_${startDate}_to_${endDate}`;
+      else if (startDate) periodSuffix += `_from_${startDate}`;
+      else periodSuffix += `_to_${endDate}`;
+    } else {
+      if (year && year !== 'all') periodSuffix += `_${year}`;
+      if (month && month !== 'all') periodSuffix += `_M${month}`;
+      if (week && week !== 'all') periodSuffix += `_W${week}`;
+    }
 
     const downloadFilename = format === 'raw'
       ? `ABA_Transactions_${safeSheetName}${periodSuffix}.xlsx`
@@ -1552,10 +1586,12 @@ app.get('/api/download-gl-csv', (req, res) => {
     const year = (req.query.year as string) || '';
     const month = (req.query.month as string) || '';
     const week = (req.query.week as string) || '';
+    const startDate = (req.query.startDate as string) || '';
+    const endDate = (req.query.endDate as string) || '';
 
     let rows = store.sheetRows[targetSheet] || [];
-    if (year || month || week) {
-      rows = filterRowsByPeriod(rows, year, month, week);
+    if (year || month || week || startDate || endDate) {
+      rows = filterRowsByPeriod(rows, year, month, week, startDate, endDate);
     }
     const sortedRaw = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
     const groups = groupRowsByCategory(sortedRaw);

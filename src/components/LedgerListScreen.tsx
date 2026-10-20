@@ -36,6 +36,9 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   const [selectedSheetFilter, setSelectedSheetFilter] = useState<string>('all');
   const [selectedTxMonth, setSelectedTxMonth] = useState<string>('all');
   const [selectedTxWeek, setSelectedTxWeek] = useState<string>('all');
+  const [customTxStartDate, setCustomTxStartDate] = useState<string>('');
+  const [customTxEndDate, setCustomTxEndDate] = useState<string>('');
+  const [isCustomTxDateActive, setIsCustomTxDateActive] = useState<boolean>(false);
   const [serverSheets, setServerSheets] = useState<string[]>([]);
   const [serverActiveSheet, setServerActiveSheet] = useState<string>('All data');
 
@@ -87,7 +90,14 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     const txSheet = getTxSheet(tx);
     const matchesSheet = selectedSheetFilter === 'all' || txSheet === selectedSheetFilter;
 
-    const matchesPeriod = matchesPeriodFilter(tx.entryDate || tx.date, 'all', selectedTxMonth, selectedTxWeek);
+    const matchesPeriod = matchesPeriodFilter(
+      tx.entryDate || tx.date,
+      'all',
+      selectedTxMonth,
+      selectedTxWeek,
+      isCustomTxDateActive ? customTxStartDate : undefined,
+      isCustomTxDateActive ? customTxEndDate : undefined
+    );
 
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -119,7 +129,10 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     const sheetToExport =
       targetSheet ||
       (selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet || 'All data');
-    const periodParams = `&year=2026&month=${encodeURIComponent(selectedTxMonth)}&week=${encodeURIComponent(selectedTxWeek)}`;
+    let periodParams = `&year=2026&month=${encodeURIComponent(selectedTxMonth)}&week=${encodeURIComponent(selectedTxWeek)}`;
+    if (isCustomTxDateActive && (customTxStartDate || customTxEndDate)) {
+      periodParams += `&startDate=${encodeURIComponent(customTxStartDate)}&endDate=${encodeURIComponent(customTxEndDate)}`;
+    }
     const url = format === 'csv'
       ? `/api/download-gl-csv?sheet=${encodeURIComponent(sheetToExport)}${periodParams}&t=${Date.now()}`
       : `/api/download-excel?sheet=${encodeURIComponent(sheetToExport)}&format=${format}${periodParams}&t=${Date.now()}`;
@@ -127,7 +140,9 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     // Direct location navigation triggers the native download prompt on iOS Safari and Android Chrome
     window.location.href = url;
 
-    const filterDesc = getPeriodFilterSummary('2026', selectedTxMonth, selectedTxWeek);
+    const filterDesc = isCustomTxDateActive && (customTxStartDate || customTxEndDate)
+      ? `ពី ${customTxStartDate || 'ដើមដំបូង'} ដល់ ${customTxEndDate || 'បច្ចុប្បន្ន'}`
+      : getPeriodFilterSummary('2026', selectedTxMonth, selectedTxWeek);
     const label = format === 'csv' ? 'CSV (គំរូ GL)' : 'Excel គំរូ GL (បូកសរុបតាមប្រភេទ)';
     setToastMessage(`កំពុងទាញយក ${label} («${sheetToExport}» • ${filterDesc})...`);
     setShowToast(true);
@@ -499,14 +514,62 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
             );
           })}
 
-          {(selectedTxMonth !== 'all' || selectedTxWeek !== 'all') && (
+          {(selectedTxMonth !== 'all' || selectedTxWeek !== 'all' || isCustomTxDateActive) && (
             <button
-              onClick={() => { setSelectedTxMonth('all'); setSelectedTxWeek('all'); }}
+              onClick={() => {
+                setSelectedTxMonth('all');
+                setSelectedTxWeek('all');
+                setCustomTxStartDate('');
+                setCustomTxEndDate('');
+                setIsCustomTxDateActive(false);
+              }}
               className="px-2 py-0.5 rounded-lg bg-error-container/60 hover:bg-error-container text-error text-[10px] font-bold shrink-0 ml-auto flex items-center gap-0.5 transition-colors cursor-pointer"
               type="button"
             >
               <span className="material-symbols-outlined text-[12px]">close</span>
               <span>សម្អាត</span>
+            </button>
+          )}
+        </div>
+
+        {/* Custom Date Range Row for Receipts List */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 border-t border-surface-container-high/40">
+          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-0.5">
+            <span className="material-symbols-outlined text-[13px] text-emerald-700">date_range</span>
+            <span>ចន្លោះថ្ងៃ (Custom):</span>
+          </span>
+          <span className="text-[10px] text-on-surface-variant font-medium shrink-0">ចាប់ពី</span>
+          <input
+            type="date"
+            value={customTxStartDate}
+            onChange={(e) => {
+              setCustomTxStartDate(e.target.value);
+              setIsCustomTxDateActive(true);
+            }}
+            className="h-6 px-1.5 rounded-lg border border-surface-container-high text-[11px] text-on-surface bg-surface-container font-mono focus:ring-1 focus:ring-secondary outline-none cursor-pointer"
+          />
+          <span className="text-[10px] text-on-surface-variant font-medium shrink-0">ដល់</span>
+          <input
+            type="date"
+            value={customTxEndDate}
+            onChange={(e) => {
+              setCustomTxEndDate(e.target.value);
+              setIsCustomTxDateActive(true);
+            }}
+            className="h-6 px-1.5 rounded-lg border border-surface-container-high text-[11px] text-on-surface bg-surface-container font-mono focus:ring-1 focus:ring-secondary outline-none cursor-pointer"
+          />
+          {(customTxStartDate || customTxEndDate) && (
+            <button
+              onClick={() => {
+                setCustomTxStartDate('');
+                setCustomTxEndDate('');
+                setIsCustomTxDateActive(false);
+              }}
+              className="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/60 hover:bg-error-container text-error transition-colors cursor-pointer shrink-0"
+              type="button"
+              title="សម្អាតចន្លោះកាលបរិច្ឆេទ"
+            >
+              ✕ សម្អាត
             </button>
           )}
         </div>

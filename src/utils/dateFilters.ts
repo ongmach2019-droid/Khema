@@ -97,14 +97,40 @@ export function parseDateDetails(dateStr?: string): DateDetails {
 }
 
 /**
- * Filter items by period (year, month, week)
+ * Converts any date string to YYYY-MM-DD for reliable comparison
+ */
+export function toComparableDate(dateStr?: string): string {
+  const dt = parseDateDetails(dateStr);
+  const mm = String(dt.month).padStart(2, '0');
+  const dd = String(dt.day).padStart(2, '0');
+  return `${dt.year}-${mm}-${dd}`;
+}
+
+/**
+ * Checks if a date falls between startDate and endDate (inclusive)
+ */
+export function isDateInRange(dateStr?: string, startDate?: string, endDate?: string): boolean {
+  if (!startDate && !endDate) return true;
+  const comp = toComparableDate(dateStr);
+  if (startDate && comp < startDate) return false;
+  if (endDate && comp > endDate) return false;
+  return true;
+}
+
+/**
+ * Filter items by period (year, month, week) or custom date range
  */
 export function matchesPeriodFilter(
   dateStr: string | undefined,
   year: string,
   month: string,
-  week: string
+  week: string,
+  startDate?: string,
+  endDate?: string
 ): boolean {
+  if (startDate || endDate) {
+    return isDateInRange(dateStr, startDate, endDate);
+  }
   if (year === 'all' && month === 'all' && week === 'all') return true;
   const dt = parseDateDetails(dateStr);
   if (year !== 'all' && String(dt.year) !== String(year)) return false;
@@ -116,7 +142,18 @@ export function matchesPeriodFilter(
 /**
  * Formats a period filter description in Khmer
  */
-export function getPeriodFilterSummary(year: string, month: string, week: string): string {
+export function getPeriodFilterSummary(
+  year: string,
+  month: string,
+  week: string,
+  startDate?: string,
+  endDate?: string
+): string {
+  if (startDate || endDate) {
+    if (startDate && endDate) return `ពី ${startDate} ដល់ ${endDate}`;
+    if (startDate) return `ចាប់ពី ${startDate}`;
+    return `រហូតដល់ ${endDate}`;
+  }
   const parts: string[] = [];
   if (year !== 'all') parts.push(`ឆ្នាំ ${year}`);
   if (month !== 'all') {

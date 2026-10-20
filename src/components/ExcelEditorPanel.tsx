@@ -4,6 +4,8 @@ import {
   parseDateDetails,
   matchesPeriodFilter,
   getPeriodFilterSummary,
+  toComparableDate,
+  isDateInRange,
   KHMER_MONTHS,
   KHMER_WEEKS,
 } from '../utils/dateFilters.ts';
@@ -34,7 +36,12 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedWeek, setSelectedWeek] = useState<string>('all');
   const [selectedYearSheetMonth, setSelectedYearSheetMonth] = useState<string>('10'); // Default to Month 10
-  const [selectedYearSheetWeek, setSelectedYearSheetWeek] = useState<string>('full'); // 'full' or '1'..'4'
+  const [selectedYearSheetWeek, setSelectedYearSheetWeek] = useState<string>('full'); // 'full' or '1'..'4' or 'custom'
+
+  // Custom Date Range State (ចាប់ពីថ្ងៃណា ទៅថ្ងៃណា)
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [isCustomDateActive, setIsCustomDateActive] = useState<boolean>(false);
 
   // New Sheet Modal
   const [showNewSheetModal, setShowNewSheetModal] = useState<boolean>(false);
@@ -99,12 +106,13 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
         setSelectedYearSheetMonth(m);
         if (match[3]) {
           setSelectedYearSheetWeek(match[3]);
-        } else {
+          setIsCustomDateActive(false);
+        } else if (!isCustomDateActive) {
           setSelectedYearSheetWeek('full');
         }
       }
     }
-  }, [activeSheet]);
+  }, [activeSheet, isCustomDateActive]);
 
   // Switch sheet
   const handleSelectSheet = async (sheetName: string) => {
@@ -261,13 +269,18 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
         });
       }
       // Period filter parameters
-      const periodParams = `&year=${encodeURIComponent(selectedYear)}&month=${encodeURIComponent(selectedMonth)}&week=${encodeURIComponent(selectedWeek)}`;
+      let periodParams = `&year=${encodeURIComponent(selectedYear)}&month=${encodeURIComponent(selectedMonth)}&week=${encodeURIComponent(selectedWeek)}`;
+      if (isCustomDateActive && (customStartDate || customEndDate)) {
+        periodParams += `&startDate=${encodeURIComponent(customStartDate)}&endDate=${encodeURIComponent(customEndDate)}`;
+      }
       // Download latest file directly with mobile support
       const downloadUrl = format === 'csv'
         ? `/api/download-gl-csv?sheet=${encodeURIComponent(activeSheet)}${periodParams}&t=${Date.now()}`
         : `/api/download-excel?sheet=${encodeURIComponent(activeSheet)}&format=${format}${periodParams}&t=${Date.now()}`;
       window.location.href = downloadUrl;
-      const filterSummary = getPeriodFilterSummary(selectedYear, selectedMonth, selectedWeek);
+      const filterSummary = isCustomDateActive && (customStartDate || customEndDate)
+        ? `ចាប់ពី ${customStartDate || 'ដើមដំបូង'} ដល់ ${customEndDate || 'បច្ចុប្បន្ន'}`
+        : getPeriodFilterSummary(selectedYear, selectedMonth, selectedWeek);
       const typeLabel = format === 'csv' ? 'CSV (គំរូ GL)' : 'Excel គំរូ GL (បូកសរុបតាមប្រភេទ)';
       setSaveSuccessMsg(`បានទាញយក ${typeLabel} (${filterSummary}) ជោគជ័យ!`);
       setTimeout(() => setSaveSuccessMsg(''), 3500);
@@ -288,10 +301,13 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     }
   };
 
-  // 1. Filter rows by period (Year, Month, Week)
-  const periodFilteredRows = rows.filter((r) =>
-    matchesPeriodFilter(r.date, selectedYear, selectedMonth, selectedWeek)
-  );
+  // 1. Filter rows by period (Year, Month, Week) OR custom date range (ចាប់ពីថ្ងៃណា ទៅថ្ងៃណា)
+  const periodFilteredRows = rows.filter((r) => {
+    if (isCustomDateActive && (customStartDate || customEndDate)) {
+      return isDateInRange(r.date || r.entryDate, customStartDate, customEndDate);
+    }
+    return matchesPeriodFilter(r.date, selectedYear, selectedMonth, selectedWeek);
+  });
 
   // 2. Filter rows by search term
   const filteredRows = periodFilteredRows.filter((r) => {
@@ -309,7 +325,11 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   // Calculate totals for filtered rows
   const filteredTotalCredit = filteredRows.reduce((sum, r) => sum + (Number(r.credit) || 0), 0);
   const filteredTotalDebit = filteredRows.reduce((sum, r) => sum + (Number(r.debit) || 0), 0);
-  const isPeriodFilterActive = selectedYear !== 'all' || selectedMonth !== 'all' || selectedWeek !== 'all';
+  const isPeriodFilterActive =
+    selectedYear !== 'all' ||
+    selectedMonth !== 'all' ||
+    selectedWeek !== 'all' ||
+    (isCustomDateActive && Boolean(customStartDate || customEndDate));
 
   const sortedRows = [...filteredRows].sort((a, b) => {
     let aVal: any = a[sortField];
@@ -426,10 +446,18 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                   setSelectedYearSheetMonth(newM);
                   const mNumStr = String(newM).padStart(2, '0');
                   const mObj = KHMER_MONTHS.find((m) => m.value === newM);
-                  const targetSheet = selectedYearSheetWeek === 'full'
-                    ? `2026_M${mNumStr}_${mObj ? mObj.short : ''}`
-                    : `2026_M${mNumStr}_Week${selectedYearSheetWeek}`;
-                  handleSelectSheet(targetSheet);
+                  if (selectedYearSheetWeek === 'custom' || isCustomDateActive) {
+                    const targetSheet = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
+                    handleSelectSheet(targetSheet);
+                    const maxDays = newM === '2' ? '28' : ['4', '6', '9', '11'].includes(newM) ? '30' : '31';
+                    setCustomStartDate(`2026-${mNumStr}-01`);
+                    setCustomEndDate(`2026-${mNumStr}-${maxDays}`);
+                  } else {
+                    const targetSheet = selectedYearSheetWeek === 'full'
+                      ? `2026_M${mNumStr}_${mObj ? mObj.short : ''}`
+                      : `2026_M${mNumStr}_Week${selectedYearSheetWeek}`;
+                    handleSelectSheet(targetSheet);
+                  }
                 }}
                 className={`h-8 pl-2 pr-7 rounded-xl text-xs font-bold outline-none cursor-pointer transition-all appearance-none border ${
                   activeSheet.startsWith('2026_M')
@@ -451,26 +479,43 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
               </span>
             </div>
 
-            {/* Dropdown 2: ៤ សប្ដាហ៍ក្នុងខែនោះ (4 Weeks in that month) */}
+            {/* Dropdown 2: ៤ សប្ដាហ៍ក្នុងខែនោះ ឬ ចាប់ពីថ្ងៃណាទៅថ្ងៃណា (Highlighted in user screenshot) */}
             <div className="relative">
               <select
-                value={selectedYearSheetWeek}
+                value={isCustomDateActive || selectedYearSheetWeek === 'custom' ? 'custom' : selectedYearSheetWeek}
                 onChange={(e) => {
                   const newW = e.target.value;
-                  setSelectedYearSheetWeek(newW);
                   const mNumStr = String(selectedYearSheetMonth).padStart(2, '0');
                   const mObj = KHMER_MONTHS.find((m) => m.value === selectedYearSheetMonth);
-                  const targetSheet = newW === 'full'
-                    ? `2026_M${mNumStr}_${mObj ? mObj.short : ''}`
-                    : `2026_M${mNumStr}_Week${newW}`;
-                  handleSelectSheet(targetSheet);
+                  if (newW === 'custom') {
+                    setSelectedYearSheetWeek('custom');
+                    setIsCustomDateActive(true);
+                    const targetSheet = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
+                    handleSelectSheet(targetSheet);
+                    if (!customStartDate) {
+                      setCustomStartDate(`2026-${mNumStr}-01`);
+                    }
+                    if (!customEndDate) {
+                      const maxDays = selectedYearSheetMonth === '2' ? '28' : ['4', '6', '9', '11'].includes(selectedYearSheetMonth) ? '30' : '31';
+                      setCustomEndDate(`2026-${mNumStr}-${maxDays}`);
+                    }
+                  } else {
+                    setIsCustomDateActive(false);
+                    setSelectedYearSheetWeek(newW);
+                    const targetSheet = newW === 'full'
+                      ? `2026_M${mNumStr}_${mObj ? mObj.short : ''}`
+                      : `2026_M${mNumStr}_Week${newW}`;
+                    handleSelectSheet(targetSheet);
+                  }
                 }}
                 className={`h-8 pl-2 pr-7 rounded-xl text-xs font-bold outline-none cursor-pointer transition-all appearance-none border ${
-                  activeSheet.startsWith('2026_M') && selectedYearSheetWeek !== 'full'
+                  isCustomDateActive || selectedYearSheetWeek === 'custom'
+                    ? 'bg-emerald-800 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-400/50'
+                    : activeSheet.startsWith('2026_M') && selectedYearSheetWeek !== 'full'
                     ? 'bg-secondary text-white border-secondary shadow-xs'
                     : 'bg-surface-container text-on-surface border-surface-container-high hover:border-secondary'
                 }`}
-                title="ជ្រើសរើសសប្ដាហ៍ក្នុងខែនេះ (4 សប្ដាហ៍)"
+                title="ជ្រើសរើសសប្ដាហ៍ ឬ កំណត់ចាប់ពីថ្ងៃណា ទៅថ្ងៃណា"
               >
                 <option value="full" className="bg-white text-on-surface font-semibold py-1">
                   សន្លឹកពេញមួយខែ (Full Month)
@@ -487,13 +532,84 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                 <option value="4" className="bg-white text-on-surface font-semibold py-1">
                   សប្ដាហ៍ទី ៤ (Week 4: ថ្ងៃ 22 - 31)
                 </option>
+                <option value="custom" className="bg-emerald-50 text-emerald-950 font-bold py-1">
+                  📅 ជ្រើសរើសចាប់ពីថ្ងៃណា ទៅថ្ងៃណា... (Custom Range)
+                </option>
               </select>
               <span className={`material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-[16px] pointer-events-none ${
-                activeSheet.startsWith('2026_M') && selectedYearSheetWeek !== 'full' ? 'text-white' : 'text-on-surface-variant'
+                (isCustomDateActive || selectedYearSheetWeek === 'custom' || (activeSheet.startsWith('2026_M') && selectedYearSheetWeek !== 'full'))
+                  ? 'text-white'
+                  : 'text-on-surface-variant'
               }`}>
                 expand_more
               </span>
             </div>
+
+            {/* Inline Custom Date Range Pickers: Always shown when custom mode is on, or accessible via quick button */}
+            {(isCustomDateActive || selectedYearSheetWeek === 'custom') ? (
+              <div className="flex items-center gap-1.5 bg-emerald-50/95 border-2 border-emerald-500/70 rounded-xl px-2.5 py-1 shadow-xs">
+                <span className="text-[11px] font-bold text-emerald-900 flex items-center gap-0.5 shrink-0">
+                  <span className="material-symbols-outlined text-[14px] text-emerald-700">calendar_today</span>
+                  <span>ចាប់ពី:</span>
+                </span>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => {
+                    setCustomStartDate(e.target.value);
+                    setIsCustomDateActive(true);
+                  }}
+                  className="h-7 px-1.5 rounded-lg border border-emerald-300 text-xs text-on-surface bg-white font-mono focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+                  title="កាលបរិច្ឆេទចាប់ផ្ដើម"
+                />
+                <span className="text-[11px] font-bold text-emerald-900 shrink-0">➔ ដល់:</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => {
+                    setCustomEndDate(e.target.value);
+                    setIsCustomDateActive(true);
+                  }}
+                  className="h-7 px-1.5 rounded-lg border border-emerald-300 text-xs text-on-surface bg-white font-mono focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+                  title="កាលបរិច្ឆេទបញ្ចប់"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomDateActive(false);
+                    setSelectedYearSheetWeek('full');
+                    setCustomStartDate('');
+                    setCustomEndDate('');
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-surface-container hover:bg-error-container hover:text-error text-on-surface text-[11px] font-bold flex items-center gap-0.5 transition-colors cursor-pointer shrink-0"
+                  title="បិទការជ្រើសរើសចន្លោះកាលបរិច្ឆេទ"
+                >
+                  <span>✕ បិទ</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const mNumStr = String(selectedYearSheetMonth).padStart(2, '0');
+                  const mObj = KHMER_MONTHS.find((m) => m.value === selectedYearSheetMonth);
+                  setSelectedYearSheetWeek('custom');
+                  setIsCustomDateActive(true);
+                  const targetSheet = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
+                  handleSelectSheet(targetSheet);
+                  if (!customStartDate) setCustomStartDate(`2026-${mNumStr}-01`);
+                  if (!customEndDate) {
+                    const maxDays = selectedYearSheetMonth === '2' ? '28' : ['4', '6', '9', '11'].includes(selectedYearSheetMonth) ? '30' : '31';
+                    setCustomEndDate(`2026-${mNumStr}-${maxDays}`);
+                  }
+                }}
+                className="h-8 px-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-[11px] font-bold flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                title="ជ្រើសរើសចាប់ពីថ្ងៃណា ទៅថ្ងៃណា (Custom Date Range)"
+              >
+                <span className="material-symbols-outlined text-[15px] text-emerald-700">date_range</span>
+                <span>ពីថ្ងៃ... ដល់ថ្ងៃ...</span>
+              </button>
+            )}
           </div>
 
           {/* Any other custom user-created sheets (Week_5, ABA Transactions KHR, and 2026 sheets filtered out) */}
@@ -657,6 +773,10 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                       setSelectedYear('all');
                       setSelectedMonth('all');
                       setSelectedWeek('all');
+                      setCustomStartDate('');
+                      setCustomEndDate('');
+                      setIsCustomDateActive(false);
+                      setSelectedYearSheetWeek('full');
                     }}
                     className="px-2 py-0.5 rounded-lg bg-error-container/60 hover:bg-error-container text-error text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                   >
@@ -761,13 +881,63 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                 </div>
               </div>
 
+              {/* Custom Date Range Row (ចាប់ពីថ្ងៃណា ទៅថ្ងៃណា) */}
+              <div className="flex items-center gap-2 flex-wrap py-1 border-t border-surface-container-high/40">
+                <span className="text-[11px] font-bold text-on-surface-variant shrink-0 flex items-center gap-0.5">
+                  <span className="material-symbols-outlined text-[14px] text-emerald-700">date_range</span>
+                  <span>ចន្លោះកាលបរិច្ឆេទ (Custom):</span>
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] text-on-surface-variant font-medium">ចាប់ពី</span>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => {
+                      setCustomStartDate(e.target.value);
+                      setIsCustomDateActive(true);
+                    }}
+                    className="h-7 px-2 rounded-lg border border-surface-container-high text-xs text-on-surface bg-surface-container font-mono focus:ring-1 focus:ring-secondary outline-none cursor-pointer"
+                  />
+                  <span className="text-[11px] text-on-surface-variant font-medium">ដល់</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => {
+                      setCustomEndDate(e.target.value);
+                      setIsCustomDateActive(true);
+                    }}
+                    className="h-7 px-2 rounded-lg border border-surface-container-high text-xs text-on-surface bg-surface-container font-mono focus:ring-1 focus:ring-secondary outline-none cursor-pointer"
+                  />
+                  {(customStartDate || customEndDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomStartDate('');
+                        setCustomEndDate('');
+                        setIsCustomDateActive(false);
+                        setSelectedYearSheetWeek('full');
+                      }}
+                      className="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/60 hover:bg-error-container text-error transition-colors cursor-pointer"
+                      title="សម្អាតចន្លោះកាលបរិច្ឆេទ"
+                    >
+                      ✕ សម្អាត
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Active Filter Summary Banner */}
               {isPeriodFilterActive && (
                 <div className="mt-1 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex flex-wrap items-center justify-between gap-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-[16px] text-emerald-700">check_circle</span>
                     <span>
-                      កំពុងចម្រាញ់៖ <strong>{getPeriodFilterSummary(selectedYear, selectedMonth, selectedWeek)}</strong>
+                      កំពុងចម្រាញ់៖{' '}
+                      <strong>
+                        {isCustomDateActive && (customStartDate || customEndDate)
+                          ? `ចាប់ពី ${customStartDate || 'ដើមដំបូង'} ដល់ ${customEndDate || 'បច្ចុប្បន្ន'}`
+                          : getPeriodFilterSummary(selectedYear, selectedMonth, selectedWeek)}
+                      </strong>
                     </span>
                     <span className="px-1.5 py-0.5 rounded-md bg-emerald-200/90 font-mono text-[10px] font-bold">
                       {filteredRows.length} / {rows.length} ជួរ
