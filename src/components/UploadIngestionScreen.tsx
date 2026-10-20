@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Transaction, AppSettings } from '../types.ts';
 import { compressAndPrepareImage } from '../utils/imageUtils.ts';
+import { parseDateDetails, KHMER_MONTHS } from '../utils/dateFilters.ts';
 
 interface UploadIngestionScreenProps {
   settings: AppSettings;
@@ -45,6 +46,29 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
   const [activeSheet, setActiveSheet] = useState<string>('All data');
   const [showCreateSheetModal, setShowCreateSheetModal] = useState<boolean>(false);
   const [newSheetNameInput, setNewSheetNameInput] = useState<string>('');
+
+  // Remembered insertion date (ថ្ងៃបញ្ចូលទិន្នន័យ)
+  const [entryDate, setEntryDate] = useState<string>(() => {
+    try {
+      const remembered = localStorage.getItem('khema_remembered_entry_date');
+      if (remembered && /^\d{4}-\d{2}-\d{2}$/.test(remembered)) {
+        return remembered;
+      }
+    } catch (e) {}
+    return new Date().toISOString().split('T')[0];
+  });
+
+  const handleEntryDateChange = (val: string) => {
+    setEntryDate(val);
+    try {
+      localStorage.setItem('khema_remembered_entry_date', val);
+    } catch (e) {}
+  };
+
+  const entryDetails = parseDateDetails(entryDate);
+  const entryKhmerMonth = KHMER_MONTHS.find((m) => Number(m.value) === entryDetails.month)?.short || 'តុលា';
+  const entryMonthSheet = `${entryDetails.year}_M${String(entryDetails.month).padStart(2, '0')}_${entryKhmerMonth}`;
+  const entryWeekSheet = `${entryDetails.year}_M${String(entryDetails.month).padStart(2, '0')}_Week${entryDetails.week}`;
 
   const fetchSheetsList = () => {
     fetch('/api/excel-sheets')
@@ -500,7 +524,8 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
       vendorKh: d.vendor,
       category: d.coaCategory.split('-')[1]?.trim() || 'សម្ភារៈ',
       categoryCode: d.coaCategory,
-      date: d.date,
+      date: d.date, // Preserved paper receipt date
+      entryDate: entryDate, // Remembered insertion date for auto routing
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       amountUSD: d.amountUSD,
       amountKHR: d.amountKHR,
@@ -559,9 +584,10 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
     }
 
     const newTx = buildTransaction(finalData, receiptImage);
+    newTx.entryDate = entryDate;
     
-    // Pass activeSheet with transaction
-    (newTx as any).sheet = activeSheet;
+    // Pass target sheet with transaction (routes to weekSheet by entryDate)
+    (newTx as any).sheet = entryWeekSheet || activeSheet;
     onSaveTransaction(newTx);
 
     // Also remove from batch queue if present
@@ -572,9 +598,9 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
       setActiveIndex(nextIdx);
       setReceiptImage(remaining[nextIdx].dataUrl);
       setData(remaining[nextIdx].extractedData);
-      setSavedSuccessMsg(`បានកត់ត្រាវិក្កយបត្រ «${finalData.vendor}» ចូល Sheet «${activeSheet}» ជោគជ័យ!`);
+      setSavedSuccessMsg(`បានកត់ត្រាវិក្កយបត្រ «${finalData.vendor}» ចូល Sheet «All data • ${entryMonthSheet} • ${entryWeekSheet}» ជោគជ័យ!`);
     } else {
-      setSavedSuccessMsg(`បានកត់ត្រាវិក្កយបត្រចូល Sheet «${activeSheet}» ជោគជ័យ!`);
+      setSavedSuccessMsg(`បានកត់ត្រាវិក្កយបត្រចូល Sheet «All data • ${entryMonthSheet} • ${entryWeekSheet}» ជោគជ័យ!`);
       resetForm();
     }
 
@@ -614,9 +640,12 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
       };
     });
 
-    const txsToSave: Transaction[] = readyItems.map((item) =>
-      buildTransaction(item.extractedData, item.dataUrl)
-    );
+    const txsToSave: Transaction[] = readyItems.map((item) => {
+      const tx = buildTransaction(item.extractedData, item.dataUrl);
+      tx.entryDate = entryDate;
+      (tx as any).sheet = entryWeekSheet || activeSheet;
+      return tx;
+    });
 
     // Save batch to server with current active sheet
     try {
@@ -625,7 +654,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transactions: txsToSave,
-          sheet: activeSheet,
+          sheet: entryWeekSheet || activeSheet,
         }),
       });
     } catch (e) {
@@ -639,7 +668,7 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
       txsToSave.forEach((tx) => onSaveTransaction(tx));
     }
 
-    setSavedSuccessMsg(`បានកត់ត្រាវិក្កយបត្រទាំង ${txsToSave.length} ចូលក្នុង Sheet «${activeSheet}» ជោគជ័យ!`);
+    setSavedSuccessMsg(`បានកត់ត្រាវិក្កយបត្រទាំង ${txsToSave.length} ចូលក្នុង Sheet «All data • ${entryMonthSheet} • ${entryWeekSheet}» ជោគជ័យ!`);
     setSavedSuccess(true);
 
     // Reset batch state
@@ -690,38 +719,56 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
           </button>
         </div>
 
-        {/* Interactive Sheet Selector Card */}
-        <div className="w-full bg-surface-container-lowest rounded-2xl p-2.5 sm:p-3 shadow-xs border-2 border-emerald-600/30 flex items-center justify-between gap-2">
+        {/* Interactive Sheet & Remembered Entry Date Card */}
+        <div className="w-full bg-surface-container-lowest rounded-2xl p-2.5 sm:p-3 shadow-xs border-2 border-emerald-600/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
-              📊
+              📅
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-label-sm text-[11px] text-on-surface-variant font-medium truncate">
-                រក្សាទុកទៅកាន់ Sheet (រាល់ថ្ងៃ/សប្តាហ៍)៖
-              </span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <select
-                  value={activeSheet}
-                  onChange={(e) => handleSelectSheet(e.target.value)}
-                  className="bg-surface-container-low text-emerald-800 font-bold text-xs rounded-lg px-2.5 py-1 border border-emerald-600/40 outline-none focus:border-emerald-600 cursor-pointer shadow-2xs"
-                >
-                  {sheets.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-[11px] text-emerald-700 font-semibold hidden sm:inline">
-                  (បានកំណត់សម្រាប់រក្សាទុក)
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-label-sm text-[11px] text-on-surface-variant font-medium">
+                  ថ្ងៃបញ្ចូលទិន្នន័យ (ចងចាំអូតូ)៖
+                </span>
+                <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  💾 ចងចាំស្រាប់
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <input
+                  type="date"
+                  value={entryDate}
+                  onChange={(e) => handleEntryDateChange(e.target.value)}
+                  className="bg-surface-container-low text-emerald-800 font-bold text-xs rounded-lg px-2.5 py-1 border border-emerald-600/40 outline-none focus:border-emerald-600 cursor-pointer shadow-2xs font-mono"
+                  title="កាលបរិច្ឆេទនៃការបញ្ចូលវិក្កយបត្រ (ចងចាំទុកអូតូសម្រាប់វិក្កយបត្របន្ទាប់)"
+                />
+                <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 flex-wrap">
+                  <span>➔ រក្សាទុកស្វ័យប្រវត្តិចូល៖</span>
+                  <span className="font-bold bg-emerald-50 px-1.5 py-0.5 rounded text-emerald-800">{entryMonthSheet}</span>
+                  <span>•</span>
+                  <span className="font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[11px] shadow-2xs">{entryWeekSheet}</span>
                 </span>
               </div>
             </div>
           </div>
 
-          <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
-            ✓ កំពុងប្រើ
-          </span>
+          <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+            <span className="text-[11px] text-on-surface-variant font-medium">Sheet បច្ចុប្បន្ន៖</span>
+            <select
+              value={activeSheet}
+              onChange={(e) => handleSelectSheet(e.target.value)}
+              className="bg-surface-container-low text-emerald-800 font-bold text-xs rounded-lg px-2.5 py-1 border border-emerald-600/40 outline-none focus:border-emerald-600 cursor-pointer shadow-2xs max-w-[160px] truncate"
+            >
+              {sheets.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+              ✓ កំពុងប្រើ
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1100,11 +1147,16 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
               )}
             </div>
 
-            {/* Date field */}
+            {/* Paper Date field (preserved in Excel) */}
             <div className="p-space-sm rounded-xl bg-surface-container-low border border-surface-container-high/40">
-              <span className="font-label-sm text-label-sm text-on-surface-variant block mb-1">
-                កាលបរិច្ឆេទ (Date)
-              </span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  កាលបរិច្ឆេទលើក្រដាស (Date លើវិក្កយបត្រ)
+                </span>
+                <span className="text-[10px] text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded font-semibold">
+                  📄 រក្សាទុកក្នុង Excel Date
+                </span>
+              </div>
               {isEditing ? (
                 <input
                   type="date"
@@ -1122,13 +1174,56 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
                       );
                     }
                   }}
-                  className="w-full bg-surface-container-lowest border border-surface-container-high rounded-lg px-2.5 py-1 text-sm font-semibold outline-none focus:border-secondary"
+                  className="w-full bg-surface-container-lowest border border-surface-container-high rounded-lg px-2.5 py-1 text-sm font-semibold outline-none focus:border-secondary font-mono"
                 />
               ) : (
-                <span className="font-headline-sm text-headline-sm text-on-surface font-semibold block">
+                <span className="font-headline-sm text-headline-sm text-on-surface font-semibold block font-mono">
                   {data.date}
                 </span>
               )}
+            </div>
+
+            {/* Remembered Entry Date field (for automatic sheet routing) */}
+            <div className="p-space-sm rounded-xl bg-surface-container-low border border-emerald-500/40">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-label-sm text-label-sm text-emerald-900 font-bold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[15px] text-emerald-700">bookmark</span>
+                  <span>ថ្ងៃបញ្ចូលទិន្នន័យ (Entry Date)</span>
+                </span>
+                <span className="text-[10px] text-white bg-emerald-700 px-1.5 py-0.2 rounded font-bold shadow-2xs">
+                  💾 បានចងចាំទុកអូតូ
+                </span>
+              </div>
+              <input
+                type="date"
+                value={entryDate}
+                onChange={(e) => handleEntryDateChange(e.target.value)}
+                className="w-full bg-surface-container-lowest border border-emerald-600/50 rounded-lg px-2.5 py-1 text-sm font-bold text-emerald-900 outline-none focus:border-emerald-600 font-mono shadow-2xs"
+                title="កាលបរិច្ឆេទបញ្ចូលទិន្នន័យ (ចងចាំអូតូសម្រាប់រក្សាទុកទៅតាម Sheet សប្ដាហ៍ និងខែ)"
+              />
+            </div>
+
+            {/* Dynamic Auto-Routing Destination Banner */}
+            <div className="col-span-1 md:col-span-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-700 text-[20px]">auto_awesome</span>
+                <span className="text-xs font-bold text-emerald-950">
+                  រក្សាទុកស្វ័យប្រវត្តិតាមថ្ងៃបញ្ចូល ({entryDate}) ចូល Sheet៖
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-700 text-white font-mono text-[11px] font-bold shadow-2xs">
+                  All data
+                </span>
+                <span className="text-emerald-700 font-bold">•</span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-bold text-[11px] border border-emerald-300">
+                  {entryMonthSheet}
+                </span>
+                <span className="text-emerald-700 font-bold">•</span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-800 text-white font-bold text-[11px] shadow-2xs">
+                  {entryWeekSheet}
+                </span>
+              </div>
             </div>
 
             {/* Total USD */}

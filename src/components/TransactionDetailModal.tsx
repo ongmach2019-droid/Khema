@@ -88,9 +88,26 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           {/* Key metadata grid */}
           <div className="bg-surface-container-low/60 rounded-xl p-3 flex flex-col gap-2.5 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-on-surface-variant">កាលបរិច្ឆេទ & ម៉ោង:</span>
-              <span className="font-semibold text-on-surface">
+              <span className="text-on-surface-variant">កាលបរិច្ឆេទលើក្រដាស (Date):</span>
+              <span className="font-semibold text-on-surface font-mono">
                 {transaction.date} {transaction.time ? `• ${transaction.time}` : ''}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-variant flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-emerald-700">bookmark</span>
+                <span>ថ្ងៃបញ្ចូលទិន្នន័យ (Entry Date):</span>
+              </span>
+              <span className="font-bold text-emerald-800 font-mono bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {transaction.entryDate || transaction.date}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-variant">រក្សាទុកក្នុង Sheet:</span>
+              <span className="font-bold text-secondary font-mono bg-secondary/10 px-2 py-0.5 rounded">
+                {transaction.sheet || 'All data'}
               </span>
             </div>
 

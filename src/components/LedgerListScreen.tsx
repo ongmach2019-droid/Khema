@@ -87,7 +87,7 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     const txSheet = getTxSheet(tx);
     const matchesSheet = selectedSheetFilter === 'all' || txSheet === selectedSheetFilter;
 
-    const matchesPeriod = matchesPeriodFilter(tx.date, 'all', selectedTxMonth, selectedTxWeek);
+    const matchesPeriod = matchesPeriodFilter(tx.entryDate || tx.date, 'all', selectedTxMonth, selectedTxWeek);
 
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -565,6 +565,11 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
                       <span className="text-on-surface-variant font-body-sm text-[12px]">
                         {tx.date}
                       </span>
+                      {tx.entryDate && tx.entryDate !== tx.date && (
+                        <span className="text-emerald-700 font-label-sm text-[10px] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-mono" title={`ថ្ងៃកត់ត្រា/បញ្ចូល៖ ${tx.entryDate}`}>
+                          បញ្ចូល: {tx.entryDate}
+                        </span>
+                      )}
                       {tx.ref && (
                         <span className="text-on-surface-variant/70 font-mono text-[10px]">
                           {tx.ref}

@@ -389,6 +389,76 @@ function sanitizeTransaction(tx: any): any {
   };
 }
 
+const KHMER_MONTH_NAMES: Record<number, string> = {
+  1: 'មករា',
+  2: 'កុម្ភៈ',
+  3: 'មីនា',
+  4: 'មេសា',
+  5: 'ឧសភា',
+  6: 'មិថុនា',
+  7: 'កក្កដា',
+  8: 'សីហា',
+  9: 'កញ្ញា',
+  10: 'តុលា',
+  11: 'វិច្ឆិកា',
+  12: 'ធ្នូ',
+};
+
+function parseDateDetails(dateStr?: string) {
+  if (!dateStr) return { year: 2026, month: 10, day: 15, week: 3 };
+  const s = String(dateStr).trim();
+  let y = 2026;
+  let m = 10;
+  let d = 15;
+
+  const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymd) {
+    y = parseInt(ymd[1], 10);
+    m = parseInt(ymd[2], 10);
+    d = parseInt(ymd[3], 10);
+  } else {
+    const dmyWord = s.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,})[-/\s](\d{4})/);
+    if (dmyWord) {
+      d = parseInt(dmyWord[1], 10);
+      y = parseInt(dmyWord[3], 10);
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const foundIdx = monthNames.findIndex((mn) => dmyWord[2].toLowerCase().startsWith(mn));
+      m = foundIdx !== -1 ? foundIdx + 1 : 10;
+    } else {
+      const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (dmy) {
+        d = parseInt(dmy[1], 10);
+        m = parseInt(dmy[2], 10);
+        y = parseInt(dmy[3], 10);
+      } else {
+        const parsed = new Date(s);
+        if (!isNaN(parsed.getTime())) {
+          y = parsed.getFullYear();
+          m = parsed.getMonth() + 1;
+          d = parsed.getDate();
+        }
+      }
+    }
+  }
+
+  let week = 1;
+  if (d <= 7) week = 1;
+  else if (d <= 14) week = 2;
+  else if (d <= 21) week = 3;
+  else week = 4;
+
+  return { year: y, month: m, day: d, week };
+}
+
+function getSheetsForEntryDate(dateStr?: string): { monthSheet: string; weekSheet: string; year: number; month: number; week: number } {
+  const dt = parseDateDetails(dateStr);
+  const khmerMonth = KHMER_MONTH_NAMES[dt.month] || 'តុលា';
+  const mm = String(dt.month).padStart(2, '0');
+  const monthSheet = `${dt.year}_M${mm}_${khmerMonth}`;
+  const weekSheet = `${dt.year}_M${mm}_Week${dt.week}`;
+  return { monthSheet, weekSheet, year: dt.year, month: dt.month, week: dt.week };
+}
+
 function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: number, jvNoStr: string) {
   const isIncome = tx.type === 'income';
   const khrAmount = Number(tx.amountKHR) || (Number(tx.amountUSD) === 1.83 ? 7500 : (Number(tx.amountUSD) === 1.22 ? 5000 : Math.round(Number(tx.amountUSD || 0) * 4100)));
@@ -396,9 +466,14 @@ function convertTransactionToExcelRow(tx: any, rowNumber: number, entryNo: numbe
   const vendorClean = cleanKhmerString(tx.vendor || tx.vendorKh, 'ខេមា គ្លីនិក & ដេនថល');
   const descClean = cleanKhmerString(tx.description || tx.category || (tx.items && tx.items.length ? tx.items.map((i: any) => i.name).join(', ') : ''), 'សម្ភារៈប្រើប្រាស់');
 
+  // Preserve the paper invoice date in Excel Date column, and record entryDate
+  const paperDate = tx.date || new Date().toISOString().split('T')[0];
+  const entryDate = tx.entryDate || paperDate;
+
   return {
     no: rowNumber,
-    date: tx.date || new Date().toISOString().split('T')[0],
+    date: paperDate,
+    entryDate: entryDate,
     source: 'GL-JE',
     entryNo: entryNo,
     jvNo: jvNoStr,
@@ -418,6 +493,8 @@ function excelRowToTransaction(r: any, idx: number): any {
   const usd = khr === 5000 ? 1.22 : (khr === 7500 ? 1.83 : parseFloat((khr / 4100).toFixed(2)));
   const entryVal = Number(r.entryNo) || (57559 + idx);
   const jvVal = r.jvNo || `JV${String(605 + idx).padStart(5, '0')}`;
+  const paperDate = r.date || new Date().toISOString().split('T')[0];
+  const entryDate = r.entryDate || paperDate;
 
   return {
     id: `tx-${entryVal}-${jvVal}`,
@@ -428,7 +505,8 @@ function excelRowToTransaction(r: any, idx: number): any {
     vendorKh: cleanKhmerString(r.vendor, 'ខេមា គ្លីនិក & ដេនថល'),
     category: cleanKhmerString(r.description, 'សម្ភារៈប្រើប្រាស់'),
     categoryCode: '6010 - សម្ភារៈប្រើប្រាស់',
-    date: r.date || new Date().toISOString().split('T')[0],
+    date: paperDate,
+    entryDate: entryDate,
     time: '10:00 AM',
     amountUSD: usd,
     amountKHR: khr,
@@ -572,24 +650,35 @@ app.post('/api/excel-sheets/select', (req, res) => {
   }
 });
 
-// POST /api/save-transaction - append transaction to shared JSON store, active Excel sheet, and Google Sheets
+// POST /api/save-transaction - append transaction to shared JSON store, auto-routed to Month & Week sheets by entryDate, plus All data
 app.post('/api/save-transaction', (req, res) => {
   try {
     const newTx = req.body;
-    const current = getStoredTransactions();
-    const filtered = current.filter((t: any) => t.id !== newTx.id);
-    const updated = [newTx, ...filtered];
-    saveStoredTransactions(updated);
-
-    // Append to active sheet in khema_excel_sheets.json
     const store = getStoredSheets();
-    const sheet = (req.body.sheet as string) || store.activeSheet || 'All data';
-    store.activeSheet = sheet;
-    if (!store.sheets.includes(sheet)) {
-      store.sheets.push(sheet);
+
+    // 1. Determine entryDate (ថ្ងៃបញ្ចូល/កត់ត្រា) and calculate target Month & Week sheets
+    const entryDate = newTx.entryDate || newTx.date || new Date().toISOString().split('T')[0];
+    newTx.entryDate = entryDate;
+    const { monthSheet, weekSheet } = getSheetsForEntryDate(entryDate);
+    const explicitSheet = (req.body.sheet as string) || store.activeSheet || 'All data';
+
+    // Target sheets to automatically populate:
+    const targetSheets = new Set<string>(['All data']);
+    if (monthSheet) targetSheets.add(monthSheet);
+    if (weekSheet) targetSheets.add(weekSheet);
+    if (explicitSheet && explicitSheet !== 'All data') targetSheets.add(explicitSheet);
+
+    for (const s of targetSheets) {
+      if (!store.sheets.includes(s)) {
+        store.sheets.push(s);
+      }
+      if (!store.sheetRows[s]) {
+        store.sheetRows[s] = [];
+      }
     }
 
-    // Continuous entry & JV numbering across all sheets
+    // 2. Continuous entry & JV numbering across all sheets
+    const current = getStoredTransactions();
     let maxEntry = 57558;
     let maxJv = 604;
     for (const s of Object.keys(store.sheetRows || {})) {
@@ -613,23 +702,46 @@ app.post('/api/save-transaction', (req, res) => {
       }
     }
 
-    const existingRows = store.sheetRows[sheet] || [];
-    const newExcelRow = convertTransactionToExcelRow(
-      newTx,
-      existingRows.length + 1,
-      maxEntry + 1,
-      `JV${String(maxJv + 1).padStart(5, '0')}`
-    );
-    const combined = [...existingRows, newExcelRow].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)); const total = combined.length; combined.forEach((r, idx) => { r.no = total - idx; }); store.sheetRows[sheet] = combined;
-    saveStoredSheets(store);
+    const assignedEntry = maxEntry + 1;
+    const assignedJv = `JV${String(maxJv + 1).padStart(5, '0')}`;
+    newTx.entryNo = assignedEntry;
+    newTx.jvNo = assignedJv;
+    newTx.sheet = weekSheet || explicitSheet || 'All data';
 
-    // Best-effort Python Excel bridge
-    try {
-      const payload = JSON.stringify(store.sheetRows[sheet]);
-      runPythonCommand(`excel_bridge.py save_all_excel_rows - "${sheet}"`, payload);
-    } catch (e) {
-      // Non-fatal if Python is unavailable
+    // Save to master transactions list
+    const filtered = current.filter((t: any) => t.id !== newTx.id);
+    const updated = [newTx, ...filtered];
+    saveStoredTransactions(updated);
+
+    // 3. Insert converted row into all target sheets (All data, monthSheet, weekSheet, explicitSheet)
+    for (const s of targetSheets) {
+      const existingRows = store.sheetRows[s] || [];
+      const newExcelRow = convertTransactionToExcelRow(
+        newTx,
+        existingRows.length + 1,
+        assignedEntry,
+        assignedJv
+      );
+      const cleanRows = existingRows.filter(
+        (r: any) => Number(r.entryNo) !== assignedEntry && r.jvNo !== assignedJv
+      );
+      const combined = [newExcelRow, ...cleanRows].sort(
+        (a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)
+      );
+      const total = combined.length;
+      combined.forEach((r, idx) => {
+        r.no = total - idx;
+      });
+      store.sheetRows[s] = combined;
+
+      // Sync to Python Excel bridge
+      try {
+        const payload = JSON.stringify(store.sheetRows[s]);
+        runPythonCommand(`excel_bridge.py save_all_excel_rows - "${s}"`, payload);
+      } catch (e) {}
     }
+
+    saveStoredSheets(store);
 
     // Also forward to Google Sheets Webhook if configured
     const webhookUrl = req.body.googleSheetWebhookUrl || getGoogleSheetWebhookUrl();
@@ -639,20 +751,27 @@ app.post('/api/save-transaction', (req, res) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'add_transaction',
-          transaction: req.body,
+          transaction: newTx,
         }),
         redirect: 'follow',
       }).catch((e) => console.warn('Google Sheets background sync error:', e));
     }
 
-    return res.json({ success: true, data: newTx, sheet });
+    return res.json({
+      success: true,
+      data: newTx,
+      sheet: weekSheet || explicitSheet || 'All data',
+      monthSheet,
+      weekSheet,
+      targetSheets: Array.from(targetSheets),
+    });
   } catch (err: any) {
     console.error('Failed to save transaction:', err);
     return res.status(500).json({ error: 'Could not save transaction' });
   }
 });
 
-// POST /api/save-batch-transactions - batch save multiple scanned receipts
+// POST /api/save-batch-transactions - batch save multiple scanned receipts with auto-routing by entryDate
 app.post('/api/save-batch-transactions', (req, res) => {
   try {
     const transactions = Array.isArray(req.body.transactions) ? req.body.transactions : [];
@@ -660,21 +779,11 @@ app.post('/api/save-batch-transactions', (req, res) => {
       return res.json({ success: true, savedCount: 0 });
     }
 
-    const current = getStoredTransactions();
-    const newIds = new Set(transactions.map((t: any) => t.id));
-    const filtered = current.filter((t: any) => !newIds.has(t.id));
-    const updated = [...transactions, ...filtered];
-    saveStoredTransactions(updated);
-
-    // Append to active sheet in khema_excel_sheets.json
     const store = getStoredSheets();
-    const sheet = (req.body.sheet as string) || store.activeSheet || 'All data';
-    store.activeSheet = sheet;
-    if (!store.sheets.includes(sheet)) {
-      store.sheets.push(sheet);
-    }
+    const explicitSheet = (req.body.sheet as string) || store.activeSheet || 'All data';
 
     // Continuous entry & JV numbering across all sheets
+    const current = getStoredTransactions();
     let currEntry = 57558;
     let currJv = 604;
     for (const s of Object.keys(store.sheetRows || {})) {
@@ -698,28 +807,77 @@ app.post('/api/save-batch-transactions', (req, res) => {
       }
     }
 
-    const existingRows = store.sheetRows[sheet] || [];
-    const newRows: any[] = [];
+    // Prepare container for sheets that will receive rows
+    const newlyAddedBySheet: Record<string, any[]> = {};
+    const ensureSheet = (s: string) => {
+      if (!store.sheets.includes(s)) store.sheets.push(s);
+      if (!store.sheetRows[s]) store.sheetRows[s] = [];
+      if (!newlyAddedBySheet[s]) newlyAddedBySheet[s] = [];
+    };
+
+    ensureSheet('All data');
+    if (explicitSheet && explicitSheet !== 'All data') ensureSheet(explicitSheet);
+
     for (let i = 0; i < transactions.length; i++) {
       currEntry += 1;
       currJv += 1;
-      newRows.push(
-        convertTransactionToExcelRow(
-          transactions[i],
-          existingRows.length + newRows.length + 1,
-          currEntry,
-          `JV${String(currJv).padStart(5, '0')}`
-        )
-      );
-    }
-    const combined = [...existingRows, ...newRows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)); const total = combined.length; combined.forEach((r, idx) => { r.no = total - idx; }); store.sheetRows[sheet] = combined;
-    saveStoredSheets(store);
+      const tx = transactions[i];
+      const entryDate = tx.entryDate || tx.date || new Date().toISOString().split('T')[0];
+      tx.entryDate = entryDate;
+      tx.entryNo = currEntry;
+      tx.jvNo = `JV${String(currJv).padStart(5, '0')}`;
 
-    // Sync with Python Excel bridge
-    try {
-      const payload = JSON.stringify(store.sheetRows[sheet]);
-      runPythonCommand(`excel_bridge.py save_all_excel_rows - "${sheet}"`, payload);
-    } catch (e) {}
+      const { monthSheet, weekSheet } = getSheetsForEntryDate(entryDate);
+      tx.sheet = weekSheet || explicitSheet || 'All data';
+      if (monthSheet) ensureSheet(monthSheet);
+      if (weekSheet) ensureSheet(weekSheet);
+
+      const row = convertTransactionToExcelRow(
+        tx,
+        0,
+        currEntry,
+        tx.jvNo
+      );
+
+      const targetSheets = new Set<string>(['All data']);
+      if (monthSheet) targetSheets.add(monthSheet);
+      if (weekSheet) targetSheets.add(weekSheet);
+      if (explicitSheet && explicitSheet !== 'All data') targetSheets.add(explicitSheet);
+
+      for (const s of targetSheets) {
+        newlyAddedBySheet[s].push(row);
+      }
+    }
+
+    // Save updated transactions list
+    const newIds = new Set(transactions.map((t: any) => t.id));
+    const filtered = current.filter((t: any) => !newIds.has(t.id));
+    const updated = [...transactions, ...filtered];
+    saveStoredTransactions(updated);
+
+    // Commit rows for all affected sheets
+    for (const s of Object.keys(newlyAddedBySheet)) {
+      const existing = store.sheetRows[s] || [];
+      const newRows = newlyAddedBySheet[s];
+      const newEntryNos = new Set(newRows.map((r) => r.entryNo));
+      const cleanExisting = existing.filter((r) => !newEntryNos.has(r.entryNo));
+      const combined = [...newRows, ...cleanExisting].sort(
+        (a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)
+      );
+      const total = combined.length;
+      combined.forEach((r, idx) => {
+        r.no = total - idx;
+      });
+      store.sheetRows[s] = combined;
+
+      // Sync with Python Excel bridge
+      try {
+        const payload = JSON.stringify(store.sheetRows[s]);
+        runPythonCommand(`excel_bridge.py save_all_excel_rows - "${s}"`, payload);
+      } catch (e) {}
+    }
+
+    saveStoredSheets(store);
 
     // Forward to Google Sheets Webhook if configured
     const webhookUrl = req.body.googleSheetWebhookUrl || getGoogleSheetWebhookUrl();
@@ -735,7 +893,7 @@ app.post('/api/save-batch-transactions', (req, res) => {
       }).catch((e) => console.warn('Google Sheets background sync error:', e));
     }
 
-    return res.json({ success: true, savedCount: transactions.length, sheet });
+    return res.json({ success: true, savedCount: transactions.length, sheet: explicitSheet });
   } catch (err: any) {
     console.error('Failed to save batch transactions:', err);
     return res.status(500).json({ error: 'Could not save batch transactions' });
@@ -802,17 +960,39 @@ app.get('/api/excel-rows', (req, res) => {
   }
 });
 
-// POST /api/save-excel-table - bulk save edited spreadsheet rows
+// POST /api/save-excel-table - bulk save edited spreadsheet rows with bi-directional All data sync
 app.post('/api/save-excel-table', (req, res) => {
   try {
     const store = getStoredSheets();
     const rows = Array.isArray(req.body) ? req.body : (req.body.rows || []);
     const targetSheet = (req.body.sheet as string) || store.activeSheet || 'All data';
 
-    const sortedInput = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)); const total = sortedInput.length; sortedInput.forEach((r, idx) => { r.no = total - idx; }); store.sheetRows[targetSheet] = sortedInput;
+    const sortedInput = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
+    const total = sortedInput.length;
+    sortedInput.forEach((r, idx) => { r.no = total - idx; });
+    store.sheetRows[targetSheet] = sortedInput;
     if (!store.sheets.includes(targetSheet)) {
       store.sheets.push(targetSheet);
     }
+
+    // Sync modified/added rows to 'All data' if targetSheet is a specific sheet
+    if (targetSheet !== 'All data') {
+      const allRows = store.sheetRows['All data'] || [];
+      const rowMap = new Map<number, any>();
+      for (const r of allRows) {
+        if (r.entryNo) rowMap.set(Number(r.entryNo), r);
+      }
+      for (const r of sortedInput) {
+        if (r.entryNo) rowMap.set(Number(r.entryNo), r);
+      }
+      const combinedAll = Array.from(rowMap.values()).sort(
+        (a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)
+      );
+      const allTotal = combinedAll.length;
+      combinedAll.forEach((r, idx) => { r.no = allTotal - idx; });
+      store.sheetRows['All data'] = combinedAll;
+    }
+
     saveStoredSheets(store);
 
     // Sync with khema_transactions so Recent Transactions also updates immediately!
@@ -846,6 +1026,28 @@ app.post('/api/update-transaction', (req, res) => {
     const next = current.map((t: any) => (t.id === updatedTx.id ? { ...t, ...updatedTx } : t));
     saveStoredTransactions(next);
 
+    // Also update row in Excel sheets if matching entryNo or jvNo
+    const store = getStoredSheets();
+    const targetEntry = Number(updatedTx.entryNo);
+    const targetJv = String(updatedTx.jvNo || updatedTx.ref || '');
+    if (targetEntry || targetJv) {
+      for (const s of Object.keys(store.sheetRows || {})) {
+        store.sheetRows[s] = (store.sheetRows[s] || []).map((r: any) => {
+          if ((targetEntry && Number(r.entryNo) === targetEntry) || (targetJv && r.jvNo === targetJv)) {
+            return {
+              ...r,
+              vendor: updatedTx.vendor || r.vendor,
+              description: updatedTx.category || updatedTx.description || r.description,
+              date: updatedTx.date || r.date,
+              credit: updatedTx.amountKHR ? Number(updatedTx.amountKHR) : r.credit,
+            };
+          }
+          return r;
+        });
+      }
+      saveStoredSheets(store);
+    }
+
     try {
       const payload = JSON.stringify(req.body);
       runPythonCommand('excel_bridge.py update_transaction -', payload);
@@ -861,10 +1063,27 @@ app.post('/api/update-transaction', (req, res) => {
 // POST /api/delete-transaction - delete a specific transaction
 app.post('/api/delete-transaction', (req, res) => {
   try {
-    const { id } = req.body;
+    const { id, entryNo, jvNo } = req.body;
     const current = getStoredTransactions();
     const next = current.filter((t: any) => t.id !== id);
     saveStoredTransactions(next);
+
+    // Remove from all excel sheets
+    const store = getStoredSheets();
+    const targetEntry = Number(entryNo);
+    const targetJv = String(jvNo || '');
+    if (targetEntry || targetJv) {
+      for (const s of Object.keys(store.sheetRows || {})) {
+        store.sheetRows[s] = (store.sheetRows[s] || []).filter((r: any) => {
+          if (targetEntry && Number(r.entryNo) === targetEntry) return false;
+          if (targetJv && r.jvNo === targetJv) return false;
+          return true;
+        });
+        const total = store.sheetRows[s].length;
+        store.sheetRows[s].forEach((r: any, idx: number) => { r.no = total - idx; });
+      }
+      saveStoredSheets(store);
+    }
 
     try {
       const payload = JSON.stringify(req.body);
@@ -1095,54 +1314,7 @@ function escapeCsv(val: any): string {
   return s;
 }
 
-function parseDateDetails(dateStr?: string): { year: number; month: number; day: number; week: number } {
-  if (!dateStr) return { year: 2026, month: 10, day: 15, week: 3 };
-  const s = String(dateStr).trim();
-  let y = 2026;
-  let m = 1;
-  let d = 1;
 
-  // Format 1: YYYY-MM-DD or YYYY/MM/DD
-  const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (ymd) {
-    y = parseInt(ymd[1], 10);
-    m = parseInt(ymd[2], 10);
-    d = parseInt(ymd[3], 10);
-  } else {
-    // Format 2: DD-MMM-YYYY (e.g. 15-Oct-2026)
-    const dmyWord = s.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,})[-/\s](\d{4})/);
-    if (dmyWord) {
-      d = parseInt(dmyWord[1], 10);
-      y = parseInt(dmyWord[3], 10);
-      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-      const foundIdx = monthNames.findIndex((mn) => dmyWord[2].toLowerCase().startsWith(mn));
-      m = foundIdx !== -1 ? foundIdx + 1 : 1;
-    } else {
-      // Format 3: DD/MM/YYYY or DD-MM-YYYY
-      const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-      if (dmy) {
-        d = parseInt(dmy[1], 10);
-        m = parseInt(dmy[2], 10);
-        y = parseInt(dmy[3], 10);
-      } else {
-        const parsed = new Date(s);
-        if (!isNaN(parsed.getTime())) {
-          y = parsed.getFullYear();
-          m = parsed.getMonth() + 1;
-          d = parsed.getDate();
-        }
-      }
-    }
-  }
-
-  let week = 1;
-  if (d <= 7) week = 1;
-  else if (d <= 14) week = 2;
-  else if (d <= 21) week = 3;
-  else week = 4;
-
-  return { year: y, month: m, day: d, week };
-}
 
 function filterRowsByPeriod(rows: any[], year?: string, month?: string, week?: string) {
   if ((!year || year === 'all') && (!month || month === 'all') && (!week || week === 'all')) {

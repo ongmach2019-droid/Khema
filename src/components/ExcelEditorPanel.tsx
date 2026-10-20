@@ -182,6 +182,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   const handleAddNewRow = () => {
     const today = new Date();
     const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${today.toLocaleString('default', { month: 'short' })}-${today.getFullYear()}`;
+    const rememberedEntry = localStorage.getItem('khema_remembered_entry_date') || today.toISOString().split('T')[0];
     const maxEntry = rows.reduce((max, r) => Math.max(max, Number(r.entryNo) || 0), 57558);
     const maxJv = rows.reduce((max, r) => {
       const nums = (r.jvNo || '').match(/\d+/g);
@@ -191,6 +192,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     const newRow: ExcelRow = {
       no: rows.length + 1,
       date: formattedDate,
+      entryDate: rememberedEntry,
       source: 'GL-JE',
       entryNo: maxEntry + 1,
       jvNo: `JV${String(maxJv + 1).padStart(5, '0')}`,
@@ -917,14 +919,22 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                             {row.no || (idx + 1)}
                           </td>
                           <td className="py-1 px-2">
-                            <input
-                              type="text"
-                              value={row.date || ''}
-                              onChange={(e) =>
-                                handleCellChange(actualIdx, 'date', e.target.value)
-                              }
-                              className="w-24 px-1.5 py-0.5 rounded bg-transparent hover:bg-surface-container focus:bg-white border border-transparent focus:border-secondary outline-none font-mono"
-                            />
+                            <div className="flex flex-col">
+                              <input
+                                type="text"
+                                value={row.date || ''}
+                                onChange={(e) =>
+                                  handleCellChange(actualIdx, 'date', e.target.value)
+                                }
+                                className="w-24 px-1.5 py-0.5 rounded bg-transparent hover:bg-surface-container focus:bg-white border border-transparent focus:border-secondary outline-none font-mono"
+                                title="កាលបរិច្ឆេទលើក្រដាស (Date)"
+                              />
+                              {row.entryDate && row.entryDate !== row.date && (
+                                <span className="text-[9px] text-emerald-700 font-mono px-1 truncate" title={`ថ្ងៃកត់ត្រា/បញ្ចូល៖ ${row.entryDate}`}>
+                                  កត់ត្រា៖ {row.entryDate}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-1.5 px-2 font-mono text-on-surface-variant">
                             {row.source || 'GL-JE'}

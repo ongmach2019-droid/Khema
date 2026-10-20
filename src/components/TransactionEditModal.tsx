@@ -20,6 +20,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
   const [category, setCategory] = useState<string>('');
   const [categoryCode, setCategoryCode] = useState<string>('');
   const [date, setDate] = useState<string>('');
+  const [entryDate, setEntryDate] = useState<string>('');
   const [amountUSD, setAmountUSD] = useState<number>(0);
   const [amountKHR, setAmountKHR] = useState<number>(0);
   const [status, setStatus] = useState<'paid' | 'pending'>('paid');
@@ -33,6 +34,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
       setCategory(transaction.category || '');
       setCategoryCode(transaction.categoryCode || '6010 - សម្ភារៈប្រើប្រាស់');
       setDate(transaction.date || '');
+      setEntryDate(transaction.entryDate || transaction.date || '');
       setAmountUSD(transaction.amountUSD || 0);
       setAmountKHR(transaction.amountKHR || Math.round((transaction.amountUSD || 0) * 4000));
       setStatus(transaction.status || 'paid');
@@ -63,6 +65,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
         category,
         categoryCode,
         date,
+        entryDate,
         amountUSD,
         amountKHR,
         status,
@@ -173,27 +176,42 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
           {/* Date and Status */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="font-semibold text-on-surface">កាលបរិច្ឆេទ (Date)</label>
+              <label className="font-semibold text-on-surface">កាលបរិច្ឆេទលើក្រដាស (Date)</label>
               <input
                 type="text"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="h-10 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-mono outline-none focus:border-secondary text-xs"
                 placeholder="15-Sep-2026"
+                title="កាលបរិច្ឆេទលើក្រដាសវិក្កយបត្រ (រក្សាទុកក្នុង Excel Date)"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="font-semibold text-on-surface">ស្ថានភាពទូទាត់ (Status)</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as 'paid' | 'pending')}
-                className="h-10 px-2 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-medium outline-none focus:border-secondary text-xs"
-              >
-                <option value="paid">✅ បានបង់រួច (Paid)</option>
-                <option value="pending">⏳ នៅជំពាក់ (Pending)</option>
-              </select>
+              <label className="font-semibold text-on-surface flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-emerald-700">bookmark</span>
+                <span>ថ្ងៃបញ្ចូល (Entry Date)</span>
+              </label>
+              <input
+                type="date"
+                value={entryDate}
+                onChange={(e) => setEntryDate(e.target.value)}
+                className="h-10 px-3 rounded-xl bg-surface-container-low border border-emerald-500/50 text-emerald-900 font-mono font-bold outline-none focus:border-emerald-600 text-xs"
+                title="ថ្ងៃកត់ត្រាបញ្ចូល (កំណត់ Sheet សប្ដាហ៍ និងខែ)"
+              />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-semibold text-on-surface">ស្ថានភាពទូទាត់ (Status)</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as 'paid' | 'pending')}
+              className="h-10 px-2 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-medium outline-none focus:border-secondary text-xs"
+            >
+              <option value="paid">✅ បានបង់រួច (Paid)</option>
+              <option value="pending">⏳ នៅជំពាក់ (Pending)</option>
+            </select>
           </div>
 
           {/* Category / Description */}

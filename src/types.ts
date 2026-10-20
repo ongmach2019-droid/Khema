@@ -17,7 +17,8 @@ export interface Transaction {
   vendorKh: string;
   category: string;
   categoryCode: string;
-  date: string;
+  date: string; // កាលបរិច្ឆេទលើក្រដាស (Date from paper receipt)
+  entryDate?: string; // ថ្ងៃបញ្ចូលទិន្នន័យ (Insertion/Posting date for routing)
   time?: string;
   amountUSD: number;
   amountKHR: number;
@@ -35,7 +36,8 @@ export interface Transaction {
 
 export interface ExcelRow {
   no: number;
-  date: string;
+  date: string; // កាលបរិច្ឆេទលើក្រដាស (Date from paper receipt)
+  entryDate?: string; // ថ្ងៃបញ្ចូល (Insertion date)
   source: string;
   entryNo: number;
   jvNo: string;
