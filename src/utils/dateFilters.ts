@@ -100,6 +100,7 @@ export function parseDateDetails(dateStr?: string): DateDetails {
  * Converts any date string to YYYY-MM-DD for reliable comparison
  */
 export function toComparableDate(dateStr?: string): string {
+  if (!dateStr || !String(dateStr).trim()) return '';
   const dt = parseDateDetails(dateStr);
   const mm = String(dt.month).padStart(2, '0');
   const dd = String(dt.day).padStart(2, '0');
@@ -107,18 +108,38 @@ export function toComparableDate(dateStr?: string): string {
 }
 
 /**
- * Checks if a date falls between startDate and endDate (inclusive)
+ * Checks if a single date string falls between startDate and endDate (inclusive)
  */
 export function isDateInRange(dateStr?: string, startDate?: string, endDate?: string): boolean {
   if (!startDate && !endDate) return true;
+  if (!dateStr || !String(dateStr).trim()) return false;
   const comp = toComparableDate(dateStr);
-  if (startDate && comp < startDate) return false;
-  if (endDate && comp > endDate) return false;
+  const startComp = startDate ? toComparableDate(startDate) : undefined;
+  const endComp = endDate ? toComparableDate(endDate) : undefined;
+  if (startComp && comp < startComp) return false;
+  if (endComp && comp > endComp) return false;
   return true;
 }
 
 /**
- * Filter items by period (year, month, week) or custom date range
+ * Checks if a transaction row falls within startDate and endDate.
+ * Matches if EITHER entryDate (កត់ត្រា) OR date (វិក្កយបត្រ) falls in the range.
+ */
+export function isRowInDateRange(
+  row: { date?: string; entryDate?: string } | undefined,
+  startDate?: string,
+  endDate?: string
+): boolean {
+  if (!startDate && !endDate) return true;
+  if (!row) return false;
+  const entryMatch = row.entryDate ? isDateInRange(row.entryDate, startDate, endDate) : false;
+  const paperMatch = row.date ? isDateInRange(row.date, startDate, endDate) : false;
+  return entryMatch || paperMatch;
+}
+
+/**
+ * Filter items by period (year, month, week) or custom date range.
+ * Considers both paper date (dateStr) and system entry date (entryDateStr).
  */
 export function matchesPeriodFilter(
   dateStr: string | undefined,
@@ -126,17 +147,28 @@ export function matchesPeriodFilter(
   month: string,
   week: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  entryDateStr?: string
 ): boolean {
   if (startDate || endDate) {
-    return isDateInRange(dateStr, startDate, endDate);
+    const entryMatch = entryDateStr ? isDateInRange(entryDateStr, startDate, endDate) : false;
+    const paperMatch = dateStr ? isDateInRange(dateStr, startDate, endDate) : false;
+    return entryMatch || paperMatch;
   }
   if (year === 'all' && month === 'all' && week === 'all') return true;
-  const dt = parseDateDetails(dateStr);
-  if (year !== 'all' && String(dt.year) !== String(year)) return false;
-  if (month !== 'all' && String(dt.month) !== String(month)) return false;
-  if (week !== 'all' && String(dt.week) !== String(week)) return false;
-  return true;
+
+  const checkPeriod = (dStr?: string) => {
+    if (!dStr || !String(dStr).trim()) return false;
+    const dt = parseDateDetails(dStr);
+    if (year !== 'all' && String(dt.year) !== String(year)) return false;
+    if (month !== 'all' && String(dt.month) !== String(month)) return false;
+    if (week !== 'all' && String(dt.week) !== String(week)) return false;
+    return true;
+  };
+
+  const paperMatches = checkPeriod(dateStr);
+  const entryMatches = checkPeriod(entryDateStr);
+  return entryMatches || paperMatches;
 }
 
 /**

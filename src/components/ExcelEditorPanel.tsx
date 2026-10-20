@@ -6,6 +6,7 @@ import {
   getPeriodFilterSummary,
   toComparableDate,
   isDateInRange,
+  isRowInDateRange,
   KHMER_MONTHS,
   KHMER_WEEKS,
 } from '../utils/dateFilters.ts';
@@ -304,9 +305,9 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   // 1. Filter rows by period (Year, Month, Week) OR custom date range (ចាប់ពីថ្ងៃណា ទៅថ្ងៃណា)
   const periodFilteredRows = rows.filter((r) => {
     if (isCustomDateActive && (customStartDate || customEndDate)) {
-      return isDateInRange(r.date || r.entryDate, customStartDate, customEndDate);
+      return isRowInDateRange(r, customStartDate, customEndDate);
     }
-    return matchesPeriodFilter(r.date, selectedYear, selectedMonth, selectedWeek);
+    return matchesPeriodFilter(r.date, selectedYear, selectedMonth, selectedWeek, undefined, undefined, r.entryDate);
   });
 
   // 2. Filter rows by search term
@@ -490,8 +491,12 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                   if (newW === 'custom') {
                     setSelectedYearSheetWeek('custom');
                     setIsCustomDateActive(true);
-                    const targetSheet = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
-                    handleSelectSheet(targetSheet);
+                    const targetSheet = activeSheet === 'All data'
+                      ? 'All data'
+                      : `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
+                    if (targetSheet !== activeSheet) {
+                      handleSelectSheet(targetSheet);
+                    }
                     if (!customStartDate) {
                       setCustomStartDate(`2026-${mNumStr}-01`);
                     }
@@ -595,8 +600,12 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                   const mObj = KHMER_MONTHS.find((m) => m.value === selectedYearSheetMonth);
                   setSelectedYearSheetWeek('custom');
                   setIsCustomDateActive(true);
-                  const targetSheet = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
-                  handleSelectSheet(targetSheet);
+                  const targetSheet = activeSheet === 'All data'
+                    ? 'All data'
+                    : `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
+                  if (targetSheet !== activeSheet) {
+                    handleSelectSheet(targetSheet);
+                  }
                   if (!customStartDate) setCustomStartDate(`2026-${mNumStr}-01`);
                   if (!customEndDate) {
                     const maxDays = selectedYearSheetMonth === '2' ? '28' : ['4', '6', '9', '11'].includes(selectedYearSheetMonth) ? '30' : '31';

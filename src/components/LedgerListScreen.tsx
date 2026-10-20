@@ -91,12 +91,13 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
     const matchesSheet = selectedSheetFilter === 'all' || txSheet === selectedSheetFilter;
 
     const matchesPeriod = matchesPeriodFilter(
-      tx.entryDate || tx.date,
+      tx.date,
       'all',
       selectedTxMonth,
       selectedTxWeek,
       isCustomTxDateActive ? customTxStartDate : undefined,
-      isCustomTxDateActive ? customTxEndDate : undefined
+      isCustomTxDateActive ? customTxEndDate : undefined,
+      tx.entryDate
     );
 
     const q = searchQuery.toLowerCase().trim();

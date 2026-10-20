@@ -1278,7 +1278,7 @@ function groupRowsByCategory(rows: any[]): CategoryGroup[] {
         items: [],
         totalCredit: 0,
         totalDebit: 0,
-        latestDate: r.date || '',
+        latestDate: r.entryDate || r.date || '',
         latestEntryNo: Number(r.entryNo) || 57559,
         latestJvNo: r.jvNo || 'JV00001',
         vendors: [],
@@ -1293,8 +1293,9 @@ function groupRowsByCategory(rows: any[]): CategoryGroup[] {
     if (vendor && !g.vendors.includes(vendor)) {
       g.vendors.push(vendor);
     }
-    if (r.date && (!g.latestDate || String(r.date) > String(g.latestDate))) {
-      g.latestDate = r.date;
+    const effectiveDate = r.entryDate || r.date;
+    if (effectiveDate && (!g.latestDate || String(effectiveDate) > String(g.latestDate))) {
+      g.latestDate = effectiveDate;
     }
     if (Number(r.entryNo) && Number(r.entryNo) > g.latestEntryNo) {
       g.latestEntryNo = Number(r.entryNo);
@@ -1317,10 +1318,22 @@ function escapeCsv(val: any): string {
 
 
 function toComparableDate(dateStr?: string): string {
+  if (!dateStr || !String(dateStr).trim()) return '';
   const dt = parseDateDetails(dateStr);
   const mm = String(dt.month).padStart(2, '0');
   const dd = String(dt.day).padStart(2, '0');
   return `${dt.year}-${mm}-${dd}`;
+}
+
+function isDateInRange(dateStr?: string, startDate?: string, endDate?: string): boolean {
+  if (!startDate && !endDate) return true;
+  if (!dateStr || !String(dateStr).trim()) return false;
+  const comp = toComparableDate(dateStr);
+  const startComp = startDate ? toComparableDate(startDate) : undefined;
+  const endComp = endDate ? toComparableDate(endDate) : undefined;
+  if (startComp && comp < startComp) return false;
+  if (endComp && comp > endComp) return false;
+  return true;
 }
 
 function filterRowsByPeriod(
@@ -1342,22 +1355,21 @@ function filterRowsByPeriod(
   }
   return rows.filter((r) => {
     if (startDate || endDate) {
-      const comp = toComparableDate(r.date || r.entryDate);
-      if (startDate && comp < startDate) return false;
-      if (endDate && comp > endDate) return false;
+      const entryMatches = r.entryDate ? isDateInRange(r.entryDate, startDate, endDate) : false;
+      const paperMatches = r.date ? isDateInRange(r.date, startDate, endDate) : false;
+      return entryMatches || paperMatches;
+    }
+    const checkPeriod = (dStr?: string) => {
+      if (!dStr || !String(dStr).trim()) return false;
+      const dt = parseDateDetails(dStr);
+      if (year && year !== 'all' && String(dt.year) !== String(year)) return false;
+      if (month && month !== 'all' && String(dt.month) !== String(month)) return false;
+      if (week && week !== 'all' && String(dt.week) !== String(week)) return false;
       return true;
-    }
-    const details = parseDateDetails(r.date || r.entryDate);
-    if (year && year !== 'all' && String(details.year) !== String(year)) {
-      return false;
-    }
-    if (month && month !== 'all' && String(details.month) !== String(month)) {
-      return false;
-    }
-    if (week && week !== 'all' && String(details.week) !== String(week)) {
-      return false;
-    }
-    return true;
+    };
+    const paperMatches = checkPeriod(r.date);
+    const entryMatches = checkPeriod(r.entryDate);
+    return entryMatches || paperMatches;
   });
 }
 
