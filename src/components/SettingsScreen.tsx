@@ -84,7 +84,7 @@ function doPost(e) {
 
 function getTargetSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("ABA Transactions KHR");
+  var sheet = ss.getSheetByName("All data") || ss.getSheetByName("ABA Transactions KHR");
   if (!sheet) {
     sheet = ss.getSheets()[0];
   }

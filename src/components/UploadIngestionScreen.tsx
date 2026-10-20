@@ -41,8 +41,8 @@ export const UploadIngestionScreen: React.FC<UploadIngestionScreenProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [sheets, setSheets] = useState<string[]>(['Week_5', 'ABA Transactions KHR', 'Week_3']);
-  const [activeSheet, setActiveSheet] = useState<string>('Week_5');
+  const [sheets, setSheets] = useState<string[]>(['All data']);
+  const [activeSheet, setActiveSheet] = useState<string>('All data');
   const [showCreateSheetModal, setShowCreateSheetModal] = useState<boolean>(false);
   const [newSheetNameInput, setNewSheetNameInput] = useState<string>('');
 

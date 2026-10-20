@@ -37,15 +37,23 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   const [selectedTxMonth, setSelectedTxMonth] = useState<string>('all');
   const [selectedTxWeek, setSelectedTxWeek] = useState<string>('all');
   const [serverSheets, setServerSheets] = useState<string[]>([]);
-  const [serverActiveSheet, setServerActiveSheet] = useState<string>('Week_5');
+  const [serverActiveSheet, setServerActiveSheet] = useState<string>('All data');
 
   const fetchServerSheets = () => {
     fetch('/api/excel-sheets')
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          if (Array.isArray(data.sheets)) setServerSheets(data.sheets);
-          if (data.activeSheet) setServerActiveSheet(data.activeSheet);
+          if (Array.isArray(data.sheets)) {
+            const cleanSheets = data.sheets.filter(
+              (s: string) => s !== 'Week_5' && s !== 'Week_42_2026' && s !== 'Week_3' && s !== 'ABA Transactions KHR'
+            );
+            setServerSheets(cleanSheets);
+          }
+          if (data.activeSheet) {
+            const act = (data.activeSheet === 'Week_5' || data.activeSheet === 'ABA Transactions KHR') ? 'All data' : data.activeSheet;
+            setServerActiveSheet(act);
+          }
         }
       })
       .catch(() => {});
@@ -56,11 +64,17 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   }, []);
 
   const getTxSheet = (t: Transaction): string => {
-    return (t as any).sheet || (t.date && t.date.includes('2026-10') ? 'Week_5' : 'Week_3');
+    const s = (t as any).sheet;
+    if (!s || s === 'Week_5' || s === 'ABA Transactions KHR' || s === 'Week_3') return 'All data';
+    return s;
   };
 
   const availableSheets = Array.from(
-    new Set([...serverSheets, ...transactions.map(getTxSheet).filter(Boolean)])
+    new Set([
+      'All data',
+      ...serverSheets.filter((s) => s !== 'Week_5' && s !== 'ABA Transactions KHR' && s !== 'Week_3' && s !== 'Week_42_2026' && !s.startsWith('2026_M')),
+      ...transactions.map(getTxSheet).filter((s) => s !== 'Week_5' && s !== 'ABA Transactions KHR' && s !== 'Week_3' && !s.startsWith('2026_M')),
+    ])
   );
 
   // Filter transactions
@@ -104,7 +118,7 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
   const handleExport = (targetSheet?: string, format: 'gl' | 'csv' | 'raw' = 'gl') => {
     const sheetToExport =
       targetSheet ||
-      (selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet || 'Week_5');
+      (selectedSheetFilter !== 'all' ? selectedSheetFilter : serverActiveSheet || 'All data');
     const periodParams = `&year=2026&month=${encodeURIComponent(selectedTxMonth)}&week=${encodeURIComponent(selectedTxWeek)}`;
     const url = format === 'csv'
       ? `/api/download-gl-csv?sheet=${encodeURIComponent(sheetToExport)}${periodParams}&t=${Date.now()}`
@@ -359,24 +373,32 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
       </div>
 
       {/* Filter by Sheet Pills */}
-      {availableSheets.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2.5 mb-1 pt-0.5">
-          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px] text-emerald-600">tab</span>
-            <span>Sheet:</span>
-          </span>
-          <button
-            onClick={() => setSelectedSheetFilter('all')}
-            className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
-              selectedSheetFilter === 'all'
-                ? 'bg-secondary text-white shadow-2xs'
-                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-            }`}
-            type="button"
-          >
-            ទាំងអស់ ({transactions.length})
-          </button>
-          {availableSheets.map((s) => {
+      <div className="flex flex-wrap items-center gap-2 mb-2 p-2 rounded-xl bg-surface-container-low/80 border border-surface-container-high/60">
+        <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px] text-emerald-600">tab</span>
+          <span>Sheet:</span>
+        </span>
+
+        {/* All data button */}
+        <button
+          onClick={() => {
+            setSelectedSheetFilter('all');
+            setServerActiveSheet('All data');
+          }}
+          className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+            selectedSheetFilter === 'all' || selectedSheetFilter === 'All data'
+              ? 'bg-emerald-700 text-white shadow-2xs font-bold'
+              : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+          }`}
+          type="button"
+        >
+          <span>📊 All data ({transactions.length})</span>
+        </button>
+
+        {/* Custom user sheets (if any exist beyond All data) */}
+        {availableSheets
+          .filter((s) => s !== 'All data')
+          .map((s) => {
             const count = transactions.filter((t) => getTxSheet(t) === s).length;
             return (
               <button
@@ -390,9 +412,9 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
                     body: JSON.stringify({ sheetName: s }),
                   }).catch(() => {});
                 }}
-                className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
                   selectedSheetFilter === s
-                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    ? 'bg-secondary text-white font-bold shadow-2xs'
                     : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
                 }`}
                 type="button"
@@ -402,8 +424,7 @@ export const LedgerListScreen: React.FC<LedgerListScreenProps> = ({
               </button>
             );
           })}
-        </div>
-      )}
+      </div>
 
       {/* Month & Week Filter Pills for Receipts List */}
       <div className="flex flex-col gap-1 mb-2.5 p-2 rounded-xl bg-surface-container-low/70 border border-surface-container-high/50">

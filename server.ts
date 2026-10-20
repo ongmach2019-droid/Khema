@@ -338,10 +338,10 @@ interface ExcelStore {
 
 function getStoredSheets(): ExcelStore {
   const defaultStore: ExcelStore = {
-    activeSheet: 'ABA Transactions KHR',
-    sheets: ['ABA Transactions KHR'],
+    activeSheet: 'All data',
+    sheets: ['All data'],
     sheetRows: {
-      'ABA Transactions KHR': [],
+      'All data': [],
     },
   };
   try {
@@ -439,7 +439,7 @@ function excelRowToTransaction(r: any, idx: number): any {
     iconName: r.vendor && r.vendor.includes('កាហ្វេ') ? 'local_cafe' : (r.vendor && r.vendor.includes('ដឹកជញ្ជូន') ? 'local_shipping' : 'receipt_long'),
     aiExplanation: cleanKhmerString(r.description, 'វិក្កយបត្រចំណាយទូទៅ'),
     ocrConfidence: 98,
-    sheet: r.sheet || (r.date && String(r.date).includes('2026-10') ? 'Week_5' : 'Week_3'),
+    sheet: r.sheet || 'All data',
   };
 }
 
@@ -583,7 +583,7 @@ app.post('/api/save-transaction', (req, res) => {
 
     // Append to active sheet in khema_excel_sheets.json
     const store = getStoredSheets();
-    const sheet = (req.body.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
+    const sheet = (req.body.sheet as string) || store.activeSheet || 'All data';
     store.activeSheet = sheet;
     if (!store.sheets.includes(sheet)) {
       store.sheets.push(sheet);
@@ -668,7 +668,7 @@ app.post('/api/save-batch-transactions', (req, res) => {
 
     // Append to active sheet in khema_excel_sheets.json
     const store = getStoredSheets();
-    const sheet = (req.body.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
+    const sheet = (req.body.sheet as string) || store.activeSheet || 'All data';
     store.activeSheet = sheet;
     if (!store.sheets.includes(sheet)) {
       store.sheets.push(sheet);
@@ -746,7 +746,7 @@ app.post('/api/save-batch-transactions', (req, res) => {
 app.get('/api/excel-rows', (req, res) => {
   try {
     const store = getStoredSheets();
-    const targetSheet = (req.query.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
+    const targetSheet = (req.query.sheet as string) || store.activeSheet || 'All data';
 
     // 1. Check stored JSON sheetRows first
     const cachedRows = store.sheetRows[targetSheet] || [];
@@ -776,8 +776,8 @@ app.get('/api/excel-rows', (req, res) => {
       return res.json({ success: true, sheet: targetSheet, data: sorted });
     }
 
-    // 3. Fallback: ONLY for default 'ABA Transactions KHR' sheet when no other sheets exist
-    if (targetSheet === 'ABA Transactions KHR' && (!store.sheets || store.sheets.length <= 1)) {
+    // 3. Fallback: ONLY for default 'All data' sheet when no other sheets exist
+    if ((targetSheet === 'All data' || targetSheet === 'ABA Transactions KHR') && (!store.sheets || store.sheets.length <= 1)) {
       const txs = getStoredTransactions();
       if (txs.length > 0) {
         const generatedRows = txs.map((tx: any, idx: number) => {
@@ -798,7 +798,7 @@ app.get('/api/excel-rows', (req, res) => {
     return res.json({ success: true, sheet: targetSheet, data: [] });
   } catch (err: any) {
     console.error('Failed to get Excel rows:', err);
-    return res.json({ success: true, sheet: 'ABA Transactions KHR', data: [] });
+    return res.json({ success: true, sheet: 'All data', data: [] });
   }
 });
 
@@ -807,7 +807,7 @@ app.post('/api/save-excel-table', (req, res) => {
   try {
     const store = getStoredSheets();
     const rows = Array.isArray(req.body) ? req.body : (req.body.rows || []);
-    const targetSheet = (req.body.sheet as string) || store.activeSheet || 'ABA Transactions KHR';
+    const targetSheet = (req.body.sheet as string) || store.activeSheet || 'All data';
 
     const sortedInput = [...rows].sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0)); const total = sortedInput.length; sortedInput.forEach((r, idx) => { r.no = total - idx; }); store.sheetRows[targetSheet] = sortedInput;
     if (!store.sheets.includes(targetSheet)) {
@@ -883,10 +883,10 @@ app.post('/api/clear-all-transactions', (_req, res) => {
   try {
     saveStoredTransactions([]);
     const resetStore: ExcelStore = {
-      activeSheet: 'ABA Transactions KHR',
-      sheets: ['ABA Transactions KHR'],
+      activeSheet: 'All data',
+      sheets: ['All data'],
       sheetRows: {
-        'ABA Transactions KHR': [],
+        'All data': [],
       },
     };
     saveStoredSheets(resetStore);
@@ -1169,16 +1169,15 @@ function generateExcelWorkbook(
   period?: { year?: string; month?: string; week?: string }
 ): { buffer: Buffer; targetSheet: string } {
   const store = getStoredSheets();
-  const txs = getStoredTransactions();
-  const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'Week_5';
+  const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'All data';
 
   const getRowsForSheet = (sheetName: string) => {
     let rows = store.sheetRows[sheetName] || [];
     if (rows.length === 0) {
-      if (sheetName === 'ABA Transactions KHR') {
+      if (sheetName === 'All data' || sheetName === 'ABA Transactions KHR') {
         const allRows: any[] = [];
         for (const s of Object.keys(store.sheetRows || {})) {
-          if (s !== 'ABA Transactions KHR') {
+          if (s !== 'All data' && s !== 'ABA Transactions KHR') {
             allRows.push(...(store.sheetRows[s] || []));
           }
         }
@@ -1377,7 +1376,7 @@ app.get('/api/download-excel', (req, res) => {
 app.get('/api/download-gl-csv', (req, res) => {
   try {
     const store = getStoredSheets();
-    const targetSheet = ((req.query.sheet as string) && (req.query.sheet as string).trim()) || store.activeSheet || 'Week_5';
+    const targetSheet = ((req.query.sheet as string) && (req.query.sheet as string).trim()) || store.activeSheet || 'All data';
     const year = (req.query.year as string) || '';
     const month = (req.query.month as string) || '';
     const week = (req.query.week as string) || '';

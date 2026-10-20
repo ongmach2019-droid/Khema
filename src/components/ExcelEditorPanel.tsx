@@ -19,8 +19,8 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(true); // Open by default so table is immediately visible!
   const [rows, setRows] = useState<ExcelRow[]>([]);
-  const [sheets, setSheets] = useState<string[]>(['ABA Transactions KHR']);
-  const [activeSheet, setActiveSheet] = useState<string>('ABA Transactions KHR');
+  const [sheets, setSheets] = useState<string[]>(['All data']);
+  const [activeSheet, setActiveSheet] = useState<string>('All data');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>('');
@@ -33,7 +33,8 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedWeek, setSelectedWeek] = useState<string>('all');
-  const [selectedYearSheetMonth, setSelectedYearSheetMonth] = useState<string>('10'); // Default to Month 10 for 2026 sheet navigator
+  const [selectedYearSheetMonth, setSelectedYearSheetMonth] = useState<string>('10'); // Default to Month 10
+  const [selectedYearSheetWeek, setSelectedYearSheetWeek] = useState<string>('full'); // 'full' or '1'..'4'
 
   // New Sheet Modal
   const [showNewSheetModal, setShowNewSheetModal] = useState<boolean>(false);
@@ -46,9 +47,14 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
       const res = await fetch('/api/excel-sheets');
       const data = await res.json();
       if (data.success && Array.isArray(data.sheets)) {
-        setSheets(data.sheets);
+        const cleanSheets = data.sheets.filter(
+          (s: string) => s !== 'Week_5' && s !== 'Week_42_2026' && s !== 'Week_3' && s !== 'ABA Transactions KHR'
+        );
+        const finalSheets = cleanSheets.includes('All data') ? cleanSheets : ['All data', ...cleanSheets];
+        setSheets(finalSheets);
         if (data.activeSheet) {
-          setActiveSheet(data.activeSheet);
+          const act = (data.activeSheet === 'Week_5' || data.activeSheet === 'ABA Transactions KHR') ? 'All data' : data.activeSheet;
+          setActiveSheet(act);
         }
       }
     } catch (err) {
@@ -83,6 +89,22 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     fetchSheets();
     fetchExcelRows();
   }, []);
+
+  // Keep 2026 Month and Week dropdowns in sync with activeSheet
+  useEffect(() => {
+    if (activeSheet.startsWith('2026_M')) {
+      const match = activeSheet.match(/^2026_M(\d{2})(_Week(\d))?/);
+      if (match) {
+        const m = String(parseInt(match[1], 10));
+        setSelectedYearSheetMonth(m);
+        if (match[3]) {
+          setSelectedYearSheetWeek(match[3]);
+        } else {
+          setSelectedYearSheetWeek('full');
+        }
+      }
+    }
+  }, [activeSheet]);
 
   // Switch sheet
   const handleSelectSheet = async (sheetName: string) => {
@@ -358,115 +380,141 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
           </button>
         </div>
 
-        {/* Row 3: Sheet Tabs & 2026 Navigator */}
-        <div className="flex flex-col gap-1.5 pt-0.5">
-          {/* Main / Primary Sheets */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] text-on-surface-variant font-bold shrink-0 mr-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px] text-emerald-600">tab</span>
-              <span>Sheets មេ:</span>
-            </span>
-            {sheets
-              .filter((sheet) => !sheet.startsWith('2026_M'))
-              .map((sheet) => {
-                const isActive = sheet === activeSheet;
-                return (
-                  <button
-                    key={sheet}
-                    type="button"
-                    onClick={() => handleSelectSheet(sheet)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
-                      isActive
-                        ? 'bg-secondary text-white shadow-xs font-bold'
-                        : 'bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-secondary'
-                    }`}
-                  >
-                    <span>{sheet}</span>
-                    {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                    )}
-                  </button>
-                );
-              })}
-          </div>
+        {/* Row 3: Sheet Selector with 'All data' & 2026 Month / Week Dropdowns */}
+        <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-surface-container-high/60">
+          <span className="text-[11px] text-on-surface-variant font-bold shrink-0 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[15px] text-emerald-600">tab</span>
+            <span>Sheet:</span>
+          </span>
 
-          {/* 2026 Year & Month Sheets Navigator */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-surface-container-high/40">
-            <span className="text-[11px] text-emerald-800 font-bold shrink-0 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              <span className="material-symbols-outlined text-[13px] text-emerald-600">calendar_month</span>
+          {/* 1. All data button (Replaces ABA Transactions KHR) */}
+          <button
+            type="button"
+            onClick={() => handleSelectSheet('All data')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+              activeSheet === 'All data' || activeSheet === 'ABA Transactions KHR'
+                ? 'bg-emerald-700 text-white ring-2 ring-emerald-500/50 shadow-sm'
+                : 'bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-emerald-700 border border-surface-container-high'
+            }`}
+            title="បង្ហាញទិន្នន័យទាំងអស់ (All data)"
+          >
+            <span className="text-[13px]">📊</span>
+            <span>All data</span>
+            {(activeSheet === 'All data' || activeSheet === 'ABA Transactions KHR') && (
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            )}
+          </button>
+
+          {/* Divider */}
+          <span className="text-surface-container-high">|</span>
+
+          {/* 2. 2026 Year Section with 12 Months Dropdown & 4 Weeks Dropdown */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-bold text-emerald-900 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px] text-emerald-700">calendar_month</span>
               <span>ឆ្នាំ 2026:</span>
             </span>
 
-            {/* Month Select for 2026 Sheets */}
-            <select
-              value={selectedYearSheetMonth}
-              onChange={(e) => {
-                const mNum = e.target.value;
-                setSelectedYearSheetMonth(mNum);
-                const mObj = KHMER_MONTHS.find((m) => m.value === mNum);
-                const targetMonthSheet = `2026_M${String(mNum).padStart(2, '0')}_${mObj ? mObj.short : ''}`;
-                if (sheets.includes(targetMonthSheet)) {
-                  handleSelectSheet(targetMonthSheet);
-                }
-              }}
-              className="h-7 px-2 rounded-lg bg-surface-container text-xs font-bold text-on-surface border border-surface-container-high outline-none focus:ring-1 focus:ring-secondary cursor-pointer"
-            >
-              {KHMER_MONTHS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  ខែ {m.num} - {m.label}
+            {/* Dropdown 1: ខែទាំង ១២ (All 12 Months) */}
+            <div className="relative">
+              <select
+                value={selectedYearSheetMonth}
+                onChange={(e) => {
+                  const newM = e.target.value;
+                  setSelectedYearSheetMonth(newM);
+                  const mNumStr = String(newM).padStart(2, '0');
+                  const mObj = KHMER_MONTHS.find((m) => m.value === newM);
+                  const targetSheet = selectedYearSheetWeek === 'full'
+                    ? `2026_M${mNumStr}_${mObj ? mObj.short : ''}`
+                    : `2026_M${mNumStr}_Week${selectedYearSheetWeek}`;
+                  handleSelectSheet(targetSheet);
+                }}
+                className={`h-8 pl-2 pr-7 rounded-xl text-xs font-bold outline-none cursor-pointer transition-all appearance-none border ${
+                  activeSheet.startsWith('2026_M')
+                    ? 'bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                    : 'bg-surface-container text-on-surface border-surface-container-high hover:border-secondary'
+                }`}
+                title="ជ្រើសរើសខែក្នុងចំណោមខែទាំង ១២"
+              >
+                {KHMER_MONTHS.map((m) => (
+                  <option key={m.value} value={m.value} className="bg-white text-on-surface font-semibold py-1">
+                    ខែទី {m.num} - {m.label}
+                  </option>
+                ))}
+              </select>
+              <span className={`material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-[16px] pointer-events-none ${
+                activeSheet.startsWith('2026_M') ? 'text-white' : 'text-on-surface-variant'
+              }`}>
+                expand_more
+              </span>
+            </div>
+
+            {/* Dropdown 2: ៤ សប្ដាហ៍ក្នុងខែនោះ (4 Weeks in that month) */}
+            <div className="relative">
+              <select
+                value={selectedYearSheetWeek}
+                onChange={(e) => {
+                  const newW = e.target.value;
+                  setSelectedYearSheetWeek(newW);
+                  const mNumStr = String(selectedYearSheetMonth).padStart(2, '0');
+                  const mObj = KHMER_MONTHS.find((m) => m.value === selectedYearSheetMonth);
+                  const targetSheet = newW === 'full'
+                    ? `2026_M${mNumStr}_${mObj ? mObj.short : ''}`
+                    : `2026_M${mNumStr}_Week${newW}`;
+                  handleSelectSheet(targetSheet);
+                }}
+                className={`h-8 pl-2 pr-7 rounded-xl text-xs font-bold outline-none cursor-pointer transition-all appearance-none border ${
+                  activeSheet.startsWith('2026_M') && selectedYearSheetWeek !== 'full'
+                    ? 'bg-secondary text-white border-secondary shadow-xs'
+                    : 'bg-surface-container text-on-surface border-surface-container-high hover:border-secondary'
+                }`}
+                title="ជ្រើសរើសសប្ដាហ៍ក្នុងខែនេះ (4 សប្ដាហ៍)"
+              >
+                <option value="full" className="bg-white text-on-surface font-semibold py-1">
+                  សន្លឹកពេញមួយខែ (Full Month)
                 </option>
-              ))}
-            </select>
-
-            {/* Quick Week Sheets for Selected Month */}
-            {(() => {
-              const mNumStr = String(selectedYearSheetMonth).padStart(2, '0');
-              const mObj = KHMER_MONTHS.find((m) => m.value === selectedYearSheetMonth);
-              const monthSheetName = `2026_M${mNumStr}_${mObj ? mObj.short : ''}`;
-              const isMonthActive = activeSheet === monthSheetName;
-
-              return (
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                  {/* Full Month Sheet button */}
-                  <button
-                    type="button"
-                    onClick={() => handleSelectSheet(monthSheetName)}
-                    className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold shrink-0 transition-all flex items-center gap-1 cursor-pointer ${
-                      isMonthActive
-                        ? 'bg-emerald-700 text-white font-bold shadow-xs'
-                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
-                    }`}
-                    title={`បើក Sheet ប្រចាំខែពេញ៖ ${monthSheetName}`}
-                  >
-                    <span>សន្លឹកខែពេញ</span>
-                    {isMonthActive && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                  </button>
-
-                  {/* 4 Weeks */}
-                  {[1, 2, 3, 4].map((wk) => {
-                    const weekSheetName = `2026_M${mNumStr}_Week${wk}`;
-                    const isWkActive = activeSheet === weekSheetName;
-                    const wkLabel = wk === 1 ? 'W1 (1-7)' : wk === 2 ? 'W2 (8-14)' : wk === 3 ? 'W3 (15-21)' : 'W4 (22-31)';
-                    return (
-                      <button
-                        key={weekSheetName}
-                        type="button"
-                        onClick={() => handleSelectSheet(weekSheetName)}
-                        className={`h-7 px-2 rounded-lg text-[10px] font-semibold shrink-0 transition-all cursor-pointer ${
-                          isWkActive
-                            ? 'bg-secondary text-white font-bold shadow-xs'
-                            : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
-                        }`}
-                        title={`បើកសន្លឹក៖ ${weekSheetName}`}
-                      >
-                        {wkLabel}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+                <option value="1" className="bg-white text-on-surface font-semibold py-1">
+                  សប្ដាហ៍ទី ១ (Week 1: ថ្ងៃ 1 - 7)
+                </option>
+                <option value="2" className="bg-white text-on-surface font-semibold py-1">
+                  សប្ដាហ៍ទី ២ (Week 2: ថ្ងៃ 8 - 14)
+                </option>
+                <option value="3" className="bg-white text-on-surface font-semibold py-1">
+                  សប្ដាហ៍ទី ៣ (Week 3: ថ្ងៃ 15 - 21)
+                </option>
+                <option value="4" className="bg-white text-on-surface font-semibold py-1">
+                  សប្ដាហ៍ទី ៤ (Week 4: ថ្ងៃ 22 - 31)
+                </option>
+              </select>
+              <span className={`material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-[16px] pointer-events-none ${
+                activeSheet.startsWith('2026_M') && selectedYearSheetWeek !== 'full' ? 'text-white' : 'text-on-surface-variant'
+              }`}>
+                expand_more
+              </span>
+            </div>
           </div>
+
+          {/* Any other custom user-created sheets (Week_5, ABA Transactions KHR, and 2026 sheets filtered out) */}
+          {sheets
+            .filter((s) => s !== 'All data' && s !== 'ABA Transactions KHR' && s !== 'Week_5' && s !== 'Week_42_2026' && s !== 'Week_3' && !s.startsWith('2026_M'))
+            .map((sheet) => {
+              const isActive = sheet === activeSheet;
+              return (
+                <button
+                  key={sheet}
+                  type="button"
+                  onClick={() => handleSelectSheet(sheet)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isActive
+                      ? 'bg-secondary text-white font-bold shadow-xs'
+                      : 'bg-surface-container-low text-on-surface hover:bg-surface-container'
+                  }`}
+                >
+                  <span>{sheet}</span>
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>}
+                </button>
+              );
+            })}
         </div>
       </div>
 
