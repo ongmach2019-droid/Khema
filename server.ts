@@ -1159,7 +1159,7 @@ app.post('/api/google-sheet-sync', async (req, res) => {
 // GET /api/google-sheet-config - retrieve shared webhook and sheet URL for all devices
 app.get('/api/google-sheet-config', (_req, res) => {
   let webhookUrl = getGoogleSheetWebhookUrl();
-  let sheetUrl = 'https://docs.google.com/spreadsheets/d/1yo4JVj4G-YrDqtu5s4EdSCwQn0UGTF4m/edit?usp=sharing';
+  let sheetUrl = 'https://docs.google.com/spreadsheets/d/1MZzitc4LeZDaRlJpmj-gwBJzSdbp7C8CKdgMu_hhm1w/edit';
   if (fs.existsSync(GOOGLE_SHEET_CONFIG_FILE)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(GOOGLE_SHEET_CONFIG_FILE, 'utf-8'));
@@ -1209,6 +1209,212 @@ app.post('/api/update-google-sheet-config', (req, res) => {
     return res.json({ success: true, message: 'Google Sheet configuration saved successfully' });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Helper: import raw rows list (from Google Sheet or Excel/CSV) into store and sync across all sheets
+function importRawRowsIntoStore(rawRows: any[], defaultEntryDate = '2026-10-20') {
+  const store = getStoredSheets();
+  const normalizedRows: any[] = [];
+
+  for (let idx = 0; idx < rawRows.length; idx++) {
+    const r = rawRows[idx];
+    if (!r || typeof r !== 'object') continue;
+
+    const rawNo = r['No.'] ?? r['no'] ?? r['No'] ?? (idx + 1);
+    const rawDate = r['Date'] ?? r['date'] ?? '2026-09-15';
+    const rawEntryDate = r['Entry Date'] ?? r['entryDate'] ?? defaultEntryDate;
+    const rawSource = r['Source'] ?? r['source'] ?? 'GL-JE';
+    const rawEntryNo = Number(r['Entry No'] ?? r['entryNo']) || (57559 + idx);
+    const rawJv = String(r['JV No'] ?? r['jvNo'] ?? r['Reference'] ?? r['reference'] ?? `JV${String(605 + idx).padStart(5, '0')}`).trim();
+    const rawRef = String(r['Reference'] ?? r['reference'] ?? '').trim();
+    const rawClass = String(r['Class'] ?? r['class'] ?? 'KHEMA88888').trim();
+    const rawVendor = cleanKhmerString(r['Vendor / Customer / Employee'] ?? r['vendor'] ?? r['vendorKh'], 'អ្នកលក់ទូទៅ');
+    const rawDesc = cleanKhmerString(r['Description'] ?? r['description'] ?? r['category'], 'ថ្លៃសេវាទូទៅ');
+    const rawDebit = Number(r['Debit'] ?? r['debit'] ?? 0) || 0;
+    const rawCredit = Number(r['Credit'] ?? r['credit'] ?? 0) || 0;
+
+    normalizedRows.push({
+      no: Number(rawNo) || (idx + 1),
+      date: String(rawDate).trim(),
+      entryDate: String(rawEntryDate).trim(),
+      source: rawSource,
+      entryNo: rawEntryNo,
+      jvNo: rawJv,
+      reference: rawRef,
+      class: rawClass,
+      vendor: rawVendor,
+      description: rawDesc,
+      debit: rawDebit,
+      credit: rawCredit,
+      balance: null,
+    });
+  }
+
+  // Sort descending by entryNo
+  normalizedRows.sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
+  const total = normalizedRows.length;
+  normalizedRows.forEach((r, i) => {
+    r.no = total - i;
+  });
+
+  // 1. Save to All data
+  store.sheetRows['All data'] = normalizedRows;
+
+  // 2. Route rows to Month & Week sheets according to their entryDate
+  for (const r of normalizedRows) {
+    const { monthSheet, weekSheet } = getSheetsForEntryDate(r.entryDate);
+    if (!store.sheets.includes(monthSheet)) store.sheets.push(monthSheet);
+    if (!store.sheets.includes(weekSheet)) store.sheets.push(weekSheet);
+
+    if (!store.sheetRows[monthSheet]) store.sheetRows[monthSheet] = [];
+    if (!store.sheetRows[weekSheet]) store.sheetRows[weekSheet] = [];
+
+    if (!store.sheetRows[monthSheet].some((x: any) => Number(x.entryNo) === Number(r.entryNo))) {
+      store.sheetRows[monthSheet].push({ ...r });
+    }
+    if (!store.sheetRows[weekSheet].some((x: any) => Number(x.entryNo) === Number(r.entryNo))) {
+      store.sheetRows[weekSheet].push({ ...r });
+    }
+  }
+
+  // Sort and re-number each sheet
+  for (const s of Object.keys(store.sheetRows)) {
+    const sRows = store.sheetRows[s];
+    if (Array.isArray(sRows) && sRows.length > 0) {
+      sRows.sort((a, b) => (Number(b.entryNo) || 0) - (Number(a.entryNo) || 0));
+      const sTot = sRows.length;
+      sRows.forEach((row, i) => { row.no = sTot - i; });
+      try {
+        const payload = JSON.stringify(sRows);
+        runPythonCommand(`excel_bridge.py save_all_excel_rows - "${s}"`, payload);
+      } catch (e) {}
+    }
+  }
+
+  saveStoredSheets(store);
+
+  // 3. Convert all rows to Transaction objects and save khema_transactions.json
+  const txs = normalizedRows.map((r, idx) => ({
+    id: `tx-${r.entryNo}-${r.jvNo || idx}`,
+    ref: r.reference || r.jvNo,
+    entryNo: r.entryNo,
+    jvNo: r.jvNo,
+    vendor: r.vendor,
+    vendorKh: r.vendor,
+    category: r.description,
+    categoryCode: '6010 - សម្ភារៈប្រើប្រាស់',
+    date: r.date,
+    entryDate: r.entryDate,
+    time: '10:00 AM',
+    amountUSD: Math.round(((Number(r.credit) || 0) / 4100) * 100) / 100,
+    amountKHR: Number(r.credit) || 0,
+    vatUSD: 0,
+    type: Number(r.debit) > 0 ? 'income' : 'expense',
+    status: 'paid',
+    statusTextKh: 'បានបង់',
+    iconName: 'receipt_long',
+    aiExplanation: r.description,
+    ocrConfidence: 98,
+    sheet: 'All data',
+    description: r.description,
+  }));
+  saveStoredTransactions(txs);
+
+  return { importedCount: normalizedRows.length, allDataCount: normalizedRows.length };
+}
+
+// POST /api/sync-google-sheet-now - fetch data from Google Sheet and import all rows
+app.post('/api/sync-google-sheet-now', async (req, res) => {
+  try {
+    let sheetUrl = (req.body.sheetUrl as string) || '';
+    if (!sheetUrl && fs.existsSync(GOOGLE_SHEET_CONFIG_FILE)) {
+      try {
+        const cfg = JSON.parse(fs.readFileSync(GOOGLE_SHEET_CONFIG_FILE, 'utf-8'));
+        if (cfg.sheetUrl) sheetUrl = cfg.sheetUrl.trim();
+      } catch (e) {}
+    }
+    if (!sheetUrl) {
+      sheetUrl = 'https://docs.google.com/spreadsheets/d/1MZzitc4LeZDaRlJpmj-gwBJzSdbp7C8CKdgMu_hhm1w/edit';
+    }
+
+    const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_\-]+)/);
+    if (!match) {
+      return res.status(400).json({ success: false, error: 'ទម្រង់តំណភ្ជាប់ Google Sheet មិនត្រឹមត្រូវ' });
+    }
+    const sheetId = match[1];
+    const defaultEntryDate = (req.body.entryDate as string) || '2026-10-20';
+
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+    const response = await fetch(exportUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 KhemaAILedger/1.0',
+      },
+      redirect: 'follow',
+    });
+
+    if (response.status === 401 || response.status === 403 || response.url.includes('accounts.google.com')) {
+      return res.status(401).json({
+        success: false,
+        requiresShare: true,
+        error: 'Google Sheet មិនទាន់បានបើកសិទ្ធិមើលជាសាធារណៈ (Anyone with the link) ទេ។',
+        sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+      });
+    }
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: `Google Sheet error: HTTP ${response.status}`,
+      });
+    }
+
+    const csvText = await response.text();
+    if (!csvText || csvText.includes('<!DOCTYPE html>')) {
+      return res.status(401).json({
+        success: false,
+        requiresShare: true,
+        error: 'Google Sheet តម្រូវឱ្យមានសិទ្ធិចូលមើលជាសាធារណៈ (Anyone with the link)។',
+        sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+      });
+    }
+
+    const wb = XLSX.read(csvText, { type: 'string' });
+    const firstSheet = wb.SheetNames[0];
+    const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet]);
+
+    if (!rawRows || rawRows.length === 0) {
+      return res.status(400).json({ success: false, error: 'គ្មានទិន្នន័យក្នុង Google Sheet នេះទេ' });
+    }
+
+    const result = importRawRowsIntoStore(rawRows, defaultEntryDate);
+    return res.json({
+      success: true,
+      count: result.importedCount,
+      message: `បាន Sync ចំនួន ${result.importedCount} ជួរពី Google Sheet ចូល All data ដោយជោគជ័យ!`,
+    });
+  } catch (err: any) {
+    console.error('Sync Google Sheet error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Sync Google Sheet failed' });
+  }
+});
+
+// POST /api/import-sheet-data - import parsed rows directly from client or uploaded Excel/CSV file
+app.post('/api/import-sheet-data', (req, res) => {
+  try {
+    const { rows, defaultEntryDate } = req.body;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'ទិន្នន័យជួរទទេ មិនអាចនាំចូលបានទេ' });
+    }
+    const result = importRawRowsIntoStore(rows, defaultEntryDate || '2026-10-20');
+    return res.json({
+      success: true,
+      count: result.importedCount,
+      message: `បាននាំចូលទិន្នន័យចំនួន ${result.importedCount} ជួរចូល All data ដោយជោគជ័យ!`,
+    });
+  } catch (err: any) {
+    console.error('Import sheet data error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Import failed' });
   }
 });
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { ExcelRow } from '../types.ts';
 import {
   parseDateDetails,
@@ -20,12 +21,20 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   onDataSaved,
   onRefreshParent,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState<boolean>(true); // Open by default so table is immediately visible!
   const [rows, setRows] = useState<ExcelRow[]>([]);
   const [sheets, setSheets] = useState<string[]>(['All data']);
   const [activeSheet, setActiveSheet] = useState<string>('All data');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isSyncingGoogle, setIsSyncingGoogle] = useState<boolean>(false);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [showGoogleShareHelpModal, setShowGoogleShareHelpModal] = useState<boolean>(false);
+  const [googleSheetShareUrl, setGoogleSheetShareUrl] = useState<string>(
+    'https://docs.google.com/spreadsheets/d/1MZzitc4LeZDaRlJpmj-gwBJzSdbp7C8CKdgMu_hhm1w/edit'
+  );
+  const [filterBasis, setFilterBasis] = useState<'entryDate' | 'paperDate'>('entryDate');
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -293,6 +302,88 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
     }
   };
 
+  // Handle importing Excel / CSV file
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const sheetName =
+        wb.SheetNames.find(
+          (s) =>
+            s.toLowerCase().includes('all') ||
+            s.toLowerCase().includes('aba') ||
+            s.toLowerCase().includes('sheet1')
+        ) || wb.SheetNames[0];
+      const parsedRows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+
+      if (!parsedRows || parsedRows.length === 0) {
+        alert('ឯកសារនេះមិនមានទិន្នន័យជួរឡើយ!');
+        return;
+      }
+
+      const res = await fetch('/api/import-sheet-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rows: parsedRows,
+          defaultEntryDate: '2026-10-20',
+        }),
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setSaveSuccessMsg(`បាននាំចូលទិន្នន័យ ${resData.count} ជួរចូល All data ដោយជោគជ័យ!`);
+        setTimeout(() => setSaveSuccessMsg(''), 4500);
+        fetchExcelRows('All data');
+        if (onRefreshParent) onRefreshParent();
+        if (onDataSaved) onDataSaved();
+      } else {
+        alert(resData.error || 'ការនាំចូលបានបរាជ័យ');
+      }
+    } catch (err: any) {
+      console.error('Import file error:', err);
+      alert('មានបញ្ហាក្នុងការអានឯកសារ៖ ' + err.message);
+    } finally {
+      setIsImporting(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Handle immediate sync with Google Sheet
+  const handleSyncGoogleSheetNow = async () => {
+    setIsSyncingGoogle(true);
+    try {
+      const res = await fetch('/api/sync-google-sheet-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheetUrl: googleSheetShareUrl,
+          entryDate: '2026-10-20',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaveSuccessMsg(`បាន Sync ទិន្នន័យ ${data.count} ជួរពី Google Sheet ជោគជ័យ!`);
+        setTimeout(() => setSaveSuccessMsg(''), 4500);
+        fetchExcelRows('All data');
+        if (onRefreshParent) onRefreshParent();
+        if (onDataSaved) onDataSaved();
+      } else if (data.requiresShare) {
+        setGoogleSheetShareUrl(data.sheetUrl || googleSheetShareUrl);
+        setShowGoogleShareHelpModal(true);
+      } else {
+        alert(data.error || 'Sync ពី Google Sheet មិនបានជោគជ័យ');
+      }
+    } catch (err: any) {
+      console.error('Sync Google Sheet error:', err);
+      alert('ការភ្ជាប់ទៅ Google Sheet មានបញ្ហា៖ ' + err.message);
+    } finally {
+      setIsSyncingGoogle(false);
+    }
+  };
+
   const handleSort = (field: keyof ExcelRow) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -303,11 +394,21 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
   };
 
   // 1. Filter rows by period (Year, Month, Week) OR custom date range (ចាប់ពីថ្ងៃណា ទៅថ្ងៃណា)
+  // Strictly filter by entryDate (ថ្ងៃកត់ត្រា/បញ្ចូល) when filterBasis === 'entryDate', NOT paper date!
   const periodFilteredRows = rows.filter((r) => {
     if (isCustomDateActive && (customStartDate || customEndDate)) {
-      return isRowInDateRange(r, customStartDate, customEndDate);
+      return isRowInDateRange(r, customStartDate, customEndDate, filterBasis);
     }
-    return matchesPeriodFilter(r.date, selectedYear, selectedMonth, selectedWeek, undefined, undefined, r.entryDate);
+    return matchesPeriodFilter(
+      r.date,
+      selectedYear,
+      selectedMonth,
+      selectedWeek,
+      undefined,
+      undefined,
+      r.entryDate,
+      filterBasis
+    );
   });
 
   // 2. Filter rows by search term
@@ -401,6 +502,40 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
             </span>
             <span>CSV</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
+            title="នាំចូលឯកសារ Excel (.xlsx) ឬ CSV ដែលទាញយកពី Google Sheet ចូល All data ភ្លាមៗ"
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {isImporting ? 'hourglass_top' : 'file_upload'}
+            </span>
+            <span>{isImporting ? 'កំពុងនាំចូល...' : '📥 នាំចូល Excel'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSyncGoogleSheetNow}
+            disabled={isSyncingGoogle}
+            className="h-9 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all whitespace-nowrap shrink-0 disabled:opacity-50 cursor-pointer"
+            title="ទាញយក និង Sync ទិន្នន័យ ៥៤ ជួរពី Google Sheet ចូល All data ដោយស្វ័យប្រវត្តិ"
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {isSyncingGoogle ? 'sync' : 'cloud_sync'}
+            </span>
+            <span>{isSyncingGoogle ? 'កំពុង Sync...' : '🔄 Sync Google Sheet'}</span>
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportFile}
+            className="hidden"
+          />
         </div>
 
         {/* Row 3: Sheet Selector with 'All data' & 2026 Month / Week Dropdowns */}
@@ -765,14 +900,43 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
             {/* 3. Date / Period Filter Bar (ចម្រាញ់ ១ខែ ឫ ១សប្ដាហ៍) */}
             <div className="my-2 p-2.5 rounded-xl bg-surface-container-low/90 border border-secondary/20 flex flex-col gap-2">
               <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-surface-container-high/50">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="material-symbols-outlined text-[17px] text-emerald-700">filter_alt</span>
                   <span className="text-xs font-bold text-on-surface">
-                    ចម្រាញ់ទិន្នន័យតាមកាលបរិច្ឆេទ (Filter 1 ខែ / 1 សប្ដាហ៍)
+                    ចម្រាញ់ទិន្នន័យតាមកាលបរិច្ឆេទ
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                     {filteredRows.length} ជួរ
                   </span>
+
+                  {/* Filter Basis Selector: ថ្ងៃកត់ត្រា (Default) vs ថ្ងៃលើក្រដាស */}
+                  <div className="flex items-center gap-1 bg-surface-container px-1.5 py-0.5 rounded-lg border border-surface-container-high text-[10px] ml-1">
+                    <span className="text-on-surface-variant font-medium">ចម្រាញ់តាម៖</span>
+                    <button
+                      type="button"
+                      onClick={() => setFilterBasis('entryDate')}
+                      className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                        filterBasis === 'entryDate'
+                          ? 'bg-emerald-700 text-white shadow-2xs'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                      title="ចម្រាញ់តាមថ្ងៃកត់ត្រា/បញ្ចូល (មិនយកតាមកាលបរិច្ឆេទលើក្រដាសទេ)"
+                    >
+                      🎯 ថ្ងៃកត់ត្រា (Default)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilterBasis('paperDate')}
+                      className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        filterBasis === 'paperDate'
+                          ? 'bg-secondary text-white font-bold shadow-2xs'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                      title="ចម្រាញ់តាមកាលបរិច្ឆេទលើក្រដាសវិក្កយបត្រ"
+                    >
+                      📄 ថ្ងៃលើក្រដាស
+                    </button>
+                  </div>
                 </div>
 
                 {isPeriodFilterActive && (
@@ -938,7 +1102,7 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
               {/* Active Filter Summary Banner */}
               {isPeriodFilterActive && (
                 <div className="mt-1 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex flex-wrap items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="material-symbols-outlined text-[16px] text-emerald-700">check_circle</span>
                     <span>
                       កំពុងចម្រាញ់៖{' '}
@@ -950,6 +1114,9 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                     </span>
                     <span className="px-1.5 py-0.5 rounded-md bg-emerald-200/90 font-mono text-[10px] font-bold">
                       {filteredRows.length} / {rows.length} ជួរ
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-white border border-emerald-300 text-emerald-800 font-bold shadow-2xs">
+                      {filterBasis === 'entryDate' ? '🎯 តាមថ្ងៃកត់ត្រា/បញ្ចូល (មិនយកតាមក្រដាស)' : '📄 តាមថ្ងៃលើក្រដាស'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 font-mono text-[11px]">
@@ -1274,6 +1441,83 @@ export const ExcelEditorPanel: React.FC<ExcelEditorPanelProps> = ({
                     <span>បង្កើត Sheet</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Sheet Public Sharing Guide Modal */}
+      {showGoogleShareHelpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-surface-container-lowest rounded-3xl p-6 max-w-lg w-full border border-surface-container-high shadow-2xl flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-surface-container-high pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📗</span>
+                <div>
+                  <h3 className="font-bold text-on-surface text-base">របៀបទាញយកទិន្នន័យ ៥៤ ជួរពី Google Sheet</h3>
+                  <p className="text-[11px] text-on-surface-variant font-mono truncate max-w-xs">{googleSheetShareUrl}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGoogleShareHelpModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 text-xs text-on-surface leading-relaxed">
+              <p className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl text-amber-900">
+                ⚠️ Google Sheet របស់លោកអ្នកបច្ចុប្បន្នស្ថិតក្នុងកម្រិត <strong>«បានកម្រិត (Restricted)»</strong>។ ដើម្បីឱ្យប្រព័ន្ធអាចទាញយកទិន្នន័យ ៥៤ ជួរចូល All data បាន សូមជ្រើសរើសជម្រើសមួយក្នុងចំណោមពីរខាងក្រោម៖
+              </p>
+
+              <div className="flex flex-col gap-2 bg-emerald-50/80 p-3.5 rounded-2xl border border-emerald-200">
+                <div className="font-bold text-emerald-800 text-[13px] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[17px] text-emerald-700">share</span>
+                  <span>វិធីទី ១៖ បើកសិទ្ធិមើល (Share) — ងាយស្រួលបំផុត (ចំណាយពេល ១០ វិនាទី)</span>
+                </div>
+                <ol className="list-decimal pl-5 space-y-1.5 text-on-surface-variant text-[11px]">
+                  <li>ចុចប៊ូតុង <strong>[បើក Google Sheet]</strong> ខាងក្រោម</li>
+                  <li>ចុចប៊ូតុង <strong>[ចែករំលែក (Share)]</strong> ពណ៌ខៀវនៅជ្រុងខាងលើស្តាំនៃ Google Sheet</li>
+                  <li>នៅត្រង់ <em>«កម្រិតចូលប្រើទូទៅ (General access)»</em> សូមប្តូរពី <em>«បានកម្រិត (Restricted)»</em> ទៅជា <strong>«អ្នកដែលមានតំណភ្ជាប់ (Anyone with the link)»</strong> អាចមើលបាន (Viewer)</li>
+                  <li>ចុច <strong>[រួចរាល់ (Done)]</strong> ហើយត្រឡប់មកកម្មវិធីនេះវិញ រួចចុច <strong>[🔄 Sync ឥឡូវនេះ]</strong>!</li>
+                </ol>
+              </div>
+
+              <div className="flex flex-col gap-2 bg-blue-50/80 p-3.5 rounded-2xl border border-blue-200">
+                <div className="font-bold text-blue-800 text-[13px] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[17px] text-blue-700">download</span>
+                  <span>វិធីទី ២៖ ទាញយក Excel ពី Google Sheet រួចចុច «នាំចូល (Import)»</span>
+                </div>
+                <ol className="list-decimal pl-5 space-y-1.5 text-on-surface-variant text-[11px]">
+                  <li>ក្នុង Google Sheet ចុចម៉ឺនុយ <strong>ឯកសារ (File)</strong> &gt; <strong>ទាញយក (Download)</strong> &gt; <strong>Microsoft Excel (.xlsx)</strong></li>
+                  <li>រួចត្រឡប់មកកម្មវិធីនេះ ចុចប៊ូតុង <strong>«📥 នាំចូល Excel»</strong> ខាងលើដើម្បីបញ្ចូល ៥៤ ជួរភ្លាមៗ!</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-surface-container-high">
+              <a
+                href={googleSheetShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-surface-container text-secondary font-bold text-xs flex items-center gap-1 hover:bg-surface-container-high transition-all"
+              >
+                <span>បើក Google Sheet</span>
+                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGoogleShareHelpModal(false);
+                  handleSyncGoogleSheetNow();
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">sync</span>
+                <span>ខ្ញុំបាន Share រួចហើយ - Sync ឥឡូវនេះ</span>
               </button>
             </div>
           </div>

@@ -125,8 +125,14 @@ export function isDateInRange(dateStr?: string, startDate?: string, endDate?: st
  * Returns the effective filter date for a row.
  * Strictly prioritizes entryDate (ថ្ងៃខែខាងក្រោម / ថ្ងៃកត់ត្រា) over paper date (ថ្ងៃខែខាងលើ).
  */
-export function getRowEffectiveDate(row?: { date?: string; entryDate?: string } | null): string {
+export function getRowEffectiveDate(
+  row?: { date?: string; entryDate?: string } | null,
+  filterBasis: 'entryDate' | 'paperDate' = 'entryDate'
+): string {
   if (!row) return '';
+  if (filterBasis === 'paperDate') {
+    return (row.date && String(row.date).trim()) || (row.entryDate && String(row.entryDate).trim()) || '';
+  }
   const entry = row.entryDate && String(row.entryDate).trim();
   if (entry) return entry;
   return (row.date && String(row.date).trim()) || '';
@@ -134,16 +140,17 @@ export function getRowEffectiveDate(row?: { date?: string; entryDate?: string } 
 
 /**
  * Checks if a transaction row falls within startDate and endDate.
- * Catches by entryDate (ថ្ងៃខែខាងក្រោម / ថ្ងៃកត់ត្រា) when present, NOT the upper paper date.
+ * Strictly catches by entryDate (ថ្ងៃខែខាងក្រោម / ថ្ងៃកត់ត្រា) when present, NOT the upper paper date.
  */
 export function isRowInDateRange(
   row: { date?: string; entryDate?: string } | undefined,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  filterBasis: 'entryDate' | 'paperDate' = 'entryDate'
 ): boolean {
   if (!startDate && !endDate) return true;
   if (!row) return false;
-  const effectiveDate = getRowEffectiveDate(row);
+  const effectiveDate = getRowEffectiveDate(row, filterBasis);
   return isDateInRange(effectiveDate, startDate, endDate);
 }
 
@@ -158,9 +165,12 @@ export function matchesPeriodFilter(
   week: string,
   startDate?: string,
   endDate?: string,
-  entryDateStr?: string
+  entryDateStr?: string,
+  filterBasis: 'entryDate' | 'paperDate' = 'entryDate'
 ): boolean {
-  const effectiveDate = (entryDateStr && String(entryDateStr).trim()) || (dateStr && String(dateStr).trim()) || '';
+  const effectiveDate = filterBasis === 'paperDate'
+    ? (dateStr && String(dateStr).trim()) || (entryDateStr && String(entryDateStr).trim()) || ''
+    : (entryDateStr && String(entryDateStr).trim()) || (dateStr && String(dateStr).trim()) || '';
 
   if (startDate || endDate) {
     return isDateInRange(effectiveDate, startDate, endDate);
