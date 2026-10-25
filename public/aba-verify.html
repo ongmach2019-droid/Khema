@@ -280,7 +280,15 @@ var iso = d => d ? d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'
 
 var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-var dmy = d => String(d.getDate()).padStart(2,'0') + '-' + MON[d.getMonth()] + '-' + d.getFullYear();
+var dmy = d => {
+    if(!d) return '';
+    if(typeof d === 'string') {
+        var dp = pd(d);
+        if(dp) d = dp;
+        else return d;
+    }
+    return (d instanceof Date && !isNaN(d)) ? String(d.getDate()).padStart(2,'0') + '-' + MON[d.getMonth()] + '-' + d.getFullYear() : String(d||'');
+};
 
 var esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -482,13 +490,25 @@ function ingestAcc(t) {
 
     var fk = {}; t.h.forEach(k => { fk[k] = 1 });
 
-    var kn = pick(fk, ['name','ឈ្មោះ']), ka = pick(fk, ['acc','aba']), ke = pick(fk, ['entry']);
+    var kn = pick(fk, ['name','ឈ្មោះ']), ka = pick(fk, ['acc','aba']), ke = pick(fk, ['customer id','customer','entry','code']);
+    var kc = pick(fk, ['class id','class']), kb = pick(fk, ['cash/bank','bank account','bank']);
 
     t.rows.forEach(x => {
 
-        var a = {entry: String(x[ke]||'').trim(), name: String(x[kn]||'').trim(), acct: String(x[ka]||'').replace(/\D/g,'')};
+        var a = {
+            raw: x,
+            entry: String(x[ke]||'').trim(),
+            name: String(x[kn]||'').trim(),
+            acct: String(x[ka]||'').replace(/\D/g,''),
+            customerId: String(x[pick(fk, ['customer id','customer','code'])] || '').trim(),
+            classId: String(x[kc]||'').trim(),
+            bankAcc: String(x[kb]||'').trim()
+        };
 
-        if(a.name && a.acct.length >= 6) { ACC = ACC.filter(o => o.acct !== a.acct); ACC.push(a); }
+        if(a.name && (a.acct.length >= 6 || a.entry || a.customerId)) {
+            ACC = ACC.filter(o => o.acct ? o.acct !== a.acct : o.name !== a.name);
+            ACC.push(a);
+        }
 
     });
 
@@ -512,7 +532,7 @@ $('fDebt').onchange = e => {
 
                 if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice|inv|វិក័យ/i)) ingestAcc(t);
 
-                else if(hasH(t, /customer/i) && hasH(t, /entry/i) && !hasH(t, /invoice|inv|វិក័យ/i)) {
+                else if(hasH(t, /entry/i) && (hasH(t, /customer/i) || hasH(t, /type/i) || hasH(t, /cash|bank/i) || hasH(t, /prefix/i)) && !hasH(t, /invoice|inv|វិក័យ|វិក្កយ/i)) {
                     var enKey = t.h.find(h => /entry/i.test(h)) || 'Entry No';
                     t.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
                 } 
@@ -843,16 +863,87 @@ function mkWB(s1, s2) { var wb = XLSX.utils.book_new(); XLSX.utils.book_append_s
 
 function buildOR(items) {
 
-    var cur = $('cur').value, rate = +$('rate').value || 1, s1 = [['Entry No','Type','Date (dd-MMM-YYYY)','Prefix','Customer ID','Cash/Bank Account ID','Received By','Class ID','Reference','Remark','Payment Method','Payment Reference','Currency ID','Exchange Rate']], s2 = [['Entry No','Invoice No/Account ID','Job No','Description','Discount','Receive to Cash Acc./Amount']], seen = {};
+    var cur = $('cur').value || 'USD', rate = +$('rate').value || 1;
+    var s1 = [[
+        'Entry No',
+        'Type',
+        'Date (dd-MMM-YYYY)',
+        'Prefix',
+        'Customer ID',
+        'Cash/Bank Account ID',
+        'Received By',
+        'Class ID',
+        'Reference',
+        'Remark',
+        'Payment Method',
+        'Payment Reference',
+        'Currency ID',
+        'Exchange Rate'
+    ]];
+    var s2 = [[
+        'Entry No',
+        'Invoice No/Account ID',
+        'Job No',
+        'Description',
+        'Discount',
+        'Receive to Cash Acc./Amount'
+    ]];
+    var seen = {};
 
     items.forEach(x => {
 
-        var v = x.v, e = String(v.entry || x.n), ds = dmy(x.D.lastD), h;
+        var v = x.v, e = String(v.entry || x.n), h = HDR[e] || {};
 
-        if(!seen[e]) { seen[e] = 1; h = HDR[e] || {}; s1.push([e, h['Type']||'Apply to Sale Invoice', ds, h['Prefix']||'DEFAULT', h['Customer ID']||x.n||'', h['Cash/Bank Account ID']||'', h['Received By']||'', h['Class ID']||'', h['Reference']||'', 'ABA: '+ds, h['Payment Method']||'', h['Payment Reference']||'', cur, rate]); }
+        if(!seen[e]) {
+            seen[e] = 1;
+
+            var acc = ACC.find(a => (a.entry && (a.entry === e || a.customerId === e)) || (a.name && (a.name === x.n || x.n.indexOf(a.name) > -1 || a.name.indexOf(x.n) > -1)));
+
+            var hDate = h['Date (dd-MMM-YYYY)'] || h['Date'] || h['date'] || v.date || (x.D && x.D.lastD) || new Date();
+            var entryDateStr = dmy(hDate);
+
+            var type = h['Type'] || h['type'] || 'Apply to Sale Invoice';
+            var prefix = h['Prefix'] || h['prefix'] || 'DEFAULT';
+            var custId = h['Customer ID'] || h['Customer'] || h['customer id'] || (acc && (acc.customerId || acc.entry)) || x.n || '';
+            var bankAcc = h['Cash/Bank Account ID'] || h['Cash/Bank Account'] || h['Bank Account ID'] || (acc && acc.bankAcc) || $('bank').value || '';
+            var recBy = h['Received By'] || '';
+            var classId = h['Class ID'] || h['Class'] || (acc && acc.classId) || 'KHEMA88888';
+            var ref = h['Reference'] || '';
+            var remark = h['Remark'] || ('ABA: ' + entryDateStr);
+            var payMethod = h['Payment Method'] || '';
+            var payRef = h['Payment Reference'] || '';
+            var curId = h['Currency ID'] || cur;
+            var exRate = h['Exchange Rate'] || rate;
+
+            s1.push([
+                e,
+                type,
+                entryDateStr,
+                prefix,
+                custId,
+                bankAcc,
+                recBy,
+                classId,
+                ref,
+                remark,
+                payMethod,
+                payRef,
+                curId,
+                exRate
+            ]);
+        }
 
         var invNo = v.inv;
-        s2.push([e, invNo, '', v.desc||'', 0, Math.round(v.pp*100)/100]);
+        var amt = Math.round((v.pp > 0 ? v.pp : v.amt) * 100) / 100;
+
+        s2.push([
+            e,
+            invNo,
+            '',
+            v.desc || '',
+            0,
+            amt
+        ]);
 
     });
 
@@ -878,7 +969,8 @@ function buildJV(items) {
 
 function exportX(n) {
 
-    var D = res.docs[n], list = D.inv.filter(v => sel[v.id] && v.pp > 0);
+    var D = res.docs[n], list = D.inv.filter(v => (sel[v.id] ? true : v.pp > 0));
+    if(!list.length) list = D.inv;
 
     if(!list.length) { alert('សូមធិចជ្រើសវិក័យបត្រយ៉ាងហោចណាស់មួយ'); return; }
 
@@ -890,11 +982,36 @@ function exportX(n) {
 
 $('exAll').onclick = () => {
 
-    var it = []; if(res) res.names.forEach(n => { var D = res.docs[n]; D.inv.forEach(v => { if(v.pp > 0) it.push({n: n, D: D, v: v}); }); });
+    var it = [];
+    var hasAnyChecked = Object.keys(sel).some(k => sel[k]);
 
-    if(!it.length) { alert('មិនមានវិក័យបត្រដែលបានសងទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
+    if(res) {
+        res.names.forEach(n => {
+            var D = res.docs[n];
+            D.inv.forEach(v => {
+                var shouldExport = hasAnyChecked ? sel[v.id] : (v.pp > 0);
+                if(shouldExport) {
+                    it.push({n: n, D: D, v: v});
+                }
+            });
+        });
+    }
 
-    var f = $('fmt').value; saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
+    if(!it.length && res) {
+        res.names.forEach(n => {
+            var D = res.docs[n];
+            D.inv.forEach(v => {
+                if(v.pp > 0 || v.pb > 0 || !hasAnyChecked) {
+                    it.push({n: n, D: D, v: v});
+                }
+            });
+        });
+    }
+
+    if(!it.length) { alert('មិនមានវិក័យបត្រដែលត្រូវទាញយកទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
+
+    var f = $('fmt').value;
+    saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
 
 };
 
