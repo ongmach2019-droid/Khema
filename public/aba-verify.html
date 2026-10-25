@@ -585,11 +585,11 @@ function ingestAcc(t) {
     var kn = pick(fk, ['customer name','doctor name','doctor','name','ឈ្មោះ','party']);
     if(!kn) kn = pick(fk, ['customer id','customer no','customer','entry no','entry','code']);
 
-    var ka = pick(fk, ['acc','aba','bank account','cash/bank']);
+    var ka = pick(fk, ['accound aba','aba account','aba acc','account no','aba no','aba','bank acc','acct','acc']);
     var ke = pick(fk, ['entry no','entry','source entry no','jv no','jv','code']);
     var kcid = pick(fk, ['customer id','customer no','customer','code']);
     var kc = pick(fk, ['class id','class']);
-    var kb = pick(fk, ['cash/bank account id','cash/bank account','bank account id','bank account','bank']);
+    var kb = pick(fk, ['cash/bank account id','cash/bank account','bank account id','bank account','bank','cash/bank']);
 
     t.rows.forEach(x => {
 
@@ -603,6 +603,15 @@ function ingestAcc(t) {
         if(!nameVal && custVal) nameVal = custVal;
         if(!nameVal && entryVal) nameVal = entryVal;
 
+        if(!entryVal && !nameVal && !custVal) return;
+
+        // If HDR has additional metadata for this entry, merge it
+        if(entryVal && HDR[entryVal]) {
+            if(!custVal) custVal = String(HDR[entryVal]['Customer ID'] || HDR[entryVal]['Customer'] || '').trim();
+            if(!classVal) classVal = String(HDR[entryVal]['Class ID'] || HDR[entryVal]['Class'] || '').trim();
+            if(!bankVal) bankVal = String(HDR[entryVal]['Cash/Bank Account ID'] || HDR[entryVal]['Cash/Bank Account'] || '').trim();
+        }
+
         var a = {
             raw: x,
             entry: entryVal,
@@ -613,13 +622,18 @@ function ingestAcc(t) {
             bankAcc: bankVal
         };
 
-        if(a.name || a.entry || a.customerId) {
-            ACC = ACC.filter(o => {
-                if(a.entry && o.entry && o.entry === a.entry) return false;
-                if(a.customerId && o.customerId && o.customerId === a.customerId) return false;
-                if(a.name && o.name && o.name === a.name) return false;
-                return true;
-            });
+        var existing = ACC.find(o => (entryVal && o.entry && o.entry === entryVal) ||
+                                     (custVal && o.customerId && o.customerId === custVal) ||
+                                     (nameVal && o.name && o.name.toLowerCase() === nameVal.toLowerCase()));
+
+        if(existing) {
+            if(nameVal && (!existing.name || /^(OR\d+|C\d+|DEFAULT|\d+)$/i.test(existing.name))) existing.name = nameVal;
+            if(!existing.entry && entryVal) existing.entry = entryVal;
+            if(!existing.customerId && custVal) existing.customerId = custVal;
+            if(accVal && (!existing.acct || accVal.length >= 6 || String(x[ka]).includes(' '))) existing.acct = accVal;
+            if(!existing.bankAcc && bankVal) existing.bankAcc = bankVal;
+            if(!existing.classId && classVal) existing.classId = classVal;
+        } else {
             ACC.push(a);
         }
 
@@ -679,11 +693,16 @@ $('fDebt').onchange = e => {
                 else if(hasH(t, /entry/i) && (hasH(t, /customer/i) || hasH(t, /type/i) || hasH(t, /cash|bank/i) || hasH(t, /prefix/i)) && !hasH(t, /invoice|inv|វិក័យ|វិក្កយ/i)) {
                     var enKey = t.h.find(h => /entry/i.test(h)) || 'Entry No';
                     t.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
-                    if(!ACC.length) ingestAcc(t);
+                    ingestAcc(t);
                 } 
 
                 else if(!dt && hasH(t, /invoice|inv|វិក័យ|វិក្កយ|bill|doc/i)) dt = t;
 
+            });
+
+            // Also ingest any additional account sheets (e.g. Sheet3 with accound aba)
+            ts.forEach(t => {
+                if(t !== dt && (hasH(t, /acc|aba/i) || hasH(t, /^name$|ឈ្មោះ/i))) ingestAcc(t);
             });
 
             if(!dt) dt = ts.slice().sort((a,b) => b.rows.length - a.rows.length)[0];
@@ -717,19 +736,23 @@ $('fAcc').onchange = e => {
 
     readWB(f, wb => {
         var ts = sheetsOf(wb);
-        var t = ts.find(t => (hasH(t, /acc|aba/i) && hasH(t, /name|ឈ្មោះ|customer|entry/i)) || (hasH(t, /entry/i) && hasH(t, /customer/i)));
-        if(!t) t = ts[0];
-        if(t) {
+        if(ts && ts.length) {
             ACC = [];
-            ingestAcc(t);
+            ACC_INVOICES = [];
 
-            // Also check for invoice sheet (e.g. SHEET2)
-            var invSheet = ts.find(s => s !== t && (hasH(s, /invoice|inv|វិក័យ|វិក្កយ/i) || hasH(s, /receive to cash/i)));
-            if(invSheet) {
-                ingestAccInvoices(invSheet);
-            } else {
-                ACC_INVOICES = [];
-            }
+            ts.forEach(s => {
+                if(hasH(s, /entry/i) && (hasH(s, /customer/i) || hasH(s, /type/i) || hasH(s, /cash|bank/i) || hasH(s, /prefix/i)) && !hasH(s, /invoice|inv|វិក័យ|វិក្កយ/i)) {
+                    var enKey = s.h.find(h => /entry/i.test(h)) || 'Entry No';
+                    s.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
+                    ingestAcc(s);
+                }
+                if(hasH(s, /acc|aba/i) || hasH(s, /^name$|ឈ្មោះ/i)) {
+                    if(!hasH(s, /receive to cash/i)) ingestAcc(s);
+                }
+                if(hasH(s, /invoice|inv|វិក័យ|វិក្កយ/i) || hasH(s, /receive to cash/i)) {
+                    ingestAccInvoices(s);
+                }
+            });
 
             $('delAcc').style.display = 'inline-block';
             $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(f.name) + '</span><br>' + ACC.length + ' គណនី';
@@ -955,7 +978,6 @@ function run() {
 
     // 2. Attach debts to docs
     debts.forEach(d => {
-        if(d.date && d.date > to) return;
         var targetDoc = null;
 
         if(d.entry) {
@@ -1172,7 +1194,8 @@ function render() {
 
             D.inv.forEach(v => {
                 var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : ((v.pb + v.pp) > 0 ? '<span class="wa">សងមួយផ្នែក</span>' : '<span class="er">មិនទាន់</span>');
-                h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (v.pp > 0 ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>';
+                var hasPaid = (v.pp > 0) || (v.pb > 0) || (v.paidInOR != null && v.paidInOR > 0);
+                h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (hasPaid ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>';
             });
 
             h += '</table></div>';
@@ -1230,7 +1253,7 @@ document.addEventListener('click', e => {
 
     var t = e.target, n;
 
-    if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0) sel[v.id] = true; }); render(); }
+    if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) sel[v.id] = true; }); render(); }
 
     if(n = t.dataset.cl) { res.docs[n].inv.forEach(v => { sel[v.id] = false; }); render(); }
 
@@ -1248,9 +1271,18 @@ pbs.forEach(b => {
 
         pbs.forEach(x => x.classList.remove('on')); b.classList.add('on');
 
-        var n = +b.dataset.d, to = $('dTo').value ? new Date($('dTo').value) : new Date(); $('dTo').value = iso(to);
+        var n = +b.dataset.d;
 
-        if(n) { var f = new Date(to); f.setDate(f.getDate() - n + 1); $('dFrom').value = iso(f); } else $('dFrom').value = '';
+        if(n) {
+            var to = $('dTo').value ? new Date($('dTo').value) : new Date();
+            $('dTo').value = iso(to);
+            var f = new Date(to);
+            f.setDate(f.getDate() - n + 1);
+            $('dFrom').value = iso(f);
+        } else {
+            $('dFrom').value = '';
+            $('dTo').value = '';
+        }
 
         run();
 
@@ -1258,7 +1290,8 @@ pbs.forEach(b => {
 
 });
 
-$('dTo').value = iso(new Date());
+$('dFrom').value = '';
+$('dTo').value = '';
 
 $('go').onclick = () => run();
 
@@ -1385,7 +1418,8 @@ function buildOR(items) {
         }
 
         var invNo = v.inv;
-        var amt = Math.round((v.amt != null && v.amt > 0 ? v.amt : (v.pp || 0)) * 100) / 100;
+        var paid = (v.pp != null && v.pp > 0) ? v.pp : ((v.pb != null && v.pb > 0) ? v.pb : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : (v.amt || 0)));
+        var amt = Math.round(paid * 100) / 100;
 
         s2.push([
             e,
@@ -1408,7 +1442,9 @@ function buildJV(items) {
 
     items.forEach((x, i) => {
 
-        var v = x.v, k = i+1, ds = dmy(x.D.lastD || v.date), rm = 'Payment from ' + x.n + ' (' + v.inv + ')', a = Math.round((v.amt != null && v.amt > 0 ? v.amt : (v.pp || 0))*100)/100;
+        var v = x.v, k = i+1, ds = dmy(x.D.lastD || v.date), rm = 'Payment from ' + x.n + ' (' + v.inv + ')';
+        var paid = (v.pp != null && v.pp > 0) ? v.pp : ((v.pb != null && v.pb > 0) ? v.pb : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : (v.amt || 0)));
+        var a = Math.round(paid * 100) / 100;
 
         s1.push([k, ds, '', v.entry||'', v.inv, rm, cur, rate]); s2.push([k, ds, '', bank, '', rm, a, 0, '', 0, 0]); s2.push([k, ds, '', x.n, '', rm, 0, a, '', 0, 0]);
 
@@ -1420,7 +1456,7 @@ function buildJV(items) {
 
 function exportX(n) {
 
-    var D = res.docs[n], list = D.inv.filter(v => (sel[v.id] ? true : (v.pp > 0 || v.pb > 0)));
+    var D = res.docs[n], list = D.inv.filter(v => (sel[v.id] ? true : ((v.pp != null && v.pp > 0) || (v.pb != null && v.pb > 0) || (v.paidInOR != null && v.paidInOR > 0))));
     if(!list.length) list = D.inv;
 
     if(!list.length) { alert('សូមធិចជ្រើសវិក័យបត្រយ៉ាងហោចណាស់មួយ'); return; }
@@ -1440,7 +1476,8 @@ $('exAll').onclick = () => {
         res.names.forEach(n => {
             var D = res.docs[n];
             D.inv.forEach(v => {
-                if(v.pp > 0 || v.pb > 0 || (D.paidTotal > 0 && v.amt > 0 && (D.rem <= 0.005 || v.rem <= 0.005))) {
+                var paid = (v.pp != null && v.pp > 0) ? v.pp : ((v.pb != null && v.pb > 0) ? v.pb : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : 0));
+                if(paid > 0) {
                     it.push({n: n, D: D, v: v});
                 }
             });
@@ -1453,7 +1490,7 @@ $('exAll').onclick = () => {
         });
     }
 
-    if(!it.length) { alert('មិនមានវិក័យបត្រដែលត្រូវទាញយកទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
+    if(!it.length) { alert('មិនមានវិក័យបត្រដែលបានសងទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
 
     var f = $('fmt').value;
     saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
