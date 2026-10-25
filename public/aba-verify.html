@@ -316,7 +316,34 @@ var KEYS = {
 
     aba: { date: ['date','កាល'], text: ['description','remark','detail','narr','particular','ពិពណ៌នា'], ref: ['reference','ref'], cr: ['money in','cash in','credit','received','deposit','ចូល'], am: ['amount'] },
 
-    debt: { inv: ['entry no','document','invoice','reference','jv no','វិក័យបត្រ'], date: ['date','កាល'], party: ['vendor','customer','employee','doctor','ពេទ្យ','name','ឈ្មោះ'], cr: ['amount','credit','ចំនួន'], db: ['debit'], bal: ['balance'], entry: ['entry no'], desc: ['description'] }
+    debt: {
+        inv: [
+            'invoice no',
+            'inv no',
+            'invoice number',
+            'invoice #',
+            'invoice',
+            'inv',
+            'លេខវិក្កយបត្រ',
+            'វិក្កយបត្រ',
+            'លេខវិក័យបត្រ',
+            'វិក័យបត្រ',
+            'bill no',
+            'bill',
+            'doc no',
+            'document no',
+            'document',
+            'reference',
+            'ref'
+        ],
+        date: ['date','កាល'],
+        party: ['customer name','customer id','customer','vendor name','vendor','employee','doctor','ពេទ្យ','name','ឈ្មោះ','party'],
+        cr: ['receive to cash','cash acc','amount','credit','ចំនួន','total'],
+        db: ['debit'],
+        bal: ['balance'],
+        entry: ['entry no','entry','source entry no','jv no','jv'],
+        desc: ['description','desc','particular','ពិពណ៌នា']
+    }
 
 };
 
@@ -324,7 +351,7 @@ var LBL = {
 
     aba: {date: 'កាលបរិច្ឆេទ', text: 'ពិពណ៌នា', ref: 'Reference', cr: 'ប្រាក់ចូល (Credit)', am: 'Amount (បើគ្មាន Credit)'},
 
-    debt: {inv: 'លេខវិក័យបត្រ', date: 'កាលបរិច្ឆេទ', party: 'ឈ្មោះគ្រូពេទ្យ', cr: 'ចំនួន', db: 'Debit', bal: 'Balance', entry: 'Entry No', desc: 'Description'}
+    debt: {inv: 'លេខវិក័យបត្រ (Invoice No)', date: 'កាលបរិច្ឆេទ', party: 'ឈ្មោះគ្រូពេទ្យ', cr: 'ចំនួនទឹកប្រាក់', db: 'Debit', bal: 'Balance', entry: 'Entry No', desc: 'Description'}
 
 };
 
@@ -400,7 +427,26 @@ function smart(kind, t) {
 
     } else {
 
-        if(!m.inv) { c = ci.filter(x => x.v.filter(y => /^[A-Za-z]{1,6}[-\s]?[A-Za-z0-9\-]*\d{3,}$/.test(String(y).trim())).length/x.n > 0.6 && !used(x.h))[0]; if(c) m.inv = c.h; }
+        // Safety: Ensure m.inv is NOT equal to m.entry if another invoice column exists
+        if(m.inv && m.entry && m.inv === m.entry) {
+            var alt = t.h.find(h => h !== m.entry && /inv|វិក័យ|វិក្កយ|bill|doc/i.test(h));
+            if(!alt) {
+                var ivc = ci.find(x => x.h !== m.entry && x.v.filter(y => /^[A-Za-z]{1,6}[-\s]?[A-Za-z0-9\-]*\d{2,}$/.test(String(y).trim())).length / x.n > 0.4);
+                if(ivc) alt = ivc.h;
+            }
+            if(alt) m.inv = alt; else m.inv = '';
+        }
+
+        // If invoice column is still missing, auto-detect by header keywords or cell patterns
+        if(!m.inv) {
+            var invH = t.h.find(h => /inv|វិក័យ|វិក្កយ|bill|doc/i.test(h) && (!m.entry || h !== m.entry));
+            if(invH) {
+                m.inv = invH;
+            } else {
+                c = ci.filter(x => x.v.filter(y => /^[A-Za-z]{1,6}[-\s]?[A-Za-z0-9\-]*\d{3,}$/.test(String(y).trim())).length/x.n > 0.5 && (!m.entry || x.h !== m.entry))[0];
+                if(c) m.inv = c.h;
+            }
+        }
 
         if(!m.db && !m.cr && !m.bal) { c = ci.filter(x => x.num > 0.6 && x.dt < 0.3 && !used(x.h)).pop(); if(c) m.cr = c.h; }
 
@@ -464,17 +510,24 @@ $('fDebt').onchange = e => {
 
             ts.forEach(t => {
 
-                if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice/i)) ingestAcc(t);
+                if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice|inv|វិក័យ/i)) ingestAcc(t);
 
-                else if(hasH(t, /customer id/i) && hasH(t, /entry no/i) && !hasH(t, /invoice/i)) { t.rows.forEach(x => { var en = String(x['Entry No']||'').trim(); if(en) HDR[en] = x; }); } 
+                else if(hasH(t, /customer/i) && hasH(t, /entry/i) && !hasH(t, /invoice|inv|វិក័យ/i)) {
+                    var enKey = t.h.find(h => /entry/i.test(h)) || 'Entry No';
+                    t.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
+                } 
 
-                else if(!dt && hasH(t, /invoice/i)) dt = t;
+                else if(!dt && hasH(t, /invoice|inv|វិក័យ|វិក្កយ|bill|doc/i)) dt = t;
 
             });
 
             if(!dt) dt = ts.slice().sort((a,b) => b.rows.length - a.rows.length)[0];
 
-            if(dt) { dt.name = f.name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, ''); dt.m = smart('debt', dt); if(!dt.m.date) dt.m.date = dt.m.entry || dt.m.inv || dt.h[0]; got[k] = dt; }
+            if(dt) {
+                dt.name = f.name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, '');
+                dt.m = smart('debt', dt);
+                got[k] = dt;
+            }
 
             cnt++; if(cnt === n) { FILES = got.filter(Boolean); run(); }
 
@@ -528,15 +581,37 @@ function build() {
 
             var v = m.db ? num(x[m.db]) : (num(x[m.cr]) || num(x[m.bal])), en = m.entry ? String(x[m.entry]||'').trim() : '';
 
-            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || en || pf, inv = String(m.inv ? (x[m.inv]||'') : '').trim();
+            // Invoice No detection
+            var inv = String(m.inv ? (x[m.inv]||'') : '').trim();
 
-            if(!(v > 0) || !p) return; if(m.inv && !inv) return;
+            // Intelligent fallback: if inv is empty or was identical to Entry No
+            if(!inv || (en && inv === en)) {
+                for(var k in x) {
+                    if(k !== m.entry && x[k] != null) {
+                        var val = String(x[k]).trim();
+                        if(/^INV[\s\-_]?[A-Za-z0-9\-]*\d+/i.test(val) || (/^[A-Za-z]{1,6}[-\s]?[A-Za-z0-9\-]*\d{3,}$/.test(val) && val !== en)) {
+                            inv = val;
+                            break;
+                        }
+                    }
+                }
+            }
 
+            var hParty = HDR[en] ? (HDR[en]['Customer ID'] || HDR[en]['Customer Name'] || HDR[en]['Customer'] || '') : '';
+            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || accBy(hParty) || hParty || en || pf;
+
+            if(!(v > 0) || !p) return;
             if(!inv) inv = t.name + '-' + (i+1);
 
             t.used++; names[p] = 1;
 
-            debts.push({id: fi*100000+i, inv: inv, date: pd(x[m.date]), party: p, amt: v, entry: en, desc: m.desc ? String(x[m.desc]||'') : ''});
+            var dVal = pd(x[m.date]);
+            if(!dVal && en && HDR[en]) {
+                var hDateCol = pick(HDR[en], ['date', 'កាល']);
+                if(hDateCol) dVal = pd(HDR[en][hDateCol]);
+            }
+
+            debts.push({id: fi*100000+i, inv: inv, date: dVal, party: p, amt: v, entry: en, desc: m.desc ? String(x[m.desc]||'') : ''});
 
         });
 
@@ -774,9 +849,10 @@ function buildOR(items) {
 
         var v = x.v, e = String(v.entry || x.n), ds = dmy(x.D.lastD), h;
 
-        if(!seen[e]) { seen[e] = 1; h = HDR[e] || {}; s1.push([e, h['Type']||'Apply to Sale Invoice', ds, h['Prefix']||'DEFAULT', h['Customer ID']||'', h['Cash/Bank Account ID']||'', h['Received By']||'', h['Class ID']||'', h['Reference']||'', 'ABA: '+ds, h['Payment Method']||'', h['Payment Reference']||'', cur, rate]); }
+        if(!seen[e]) { seen[e] = 1; h = HDR[e] || {}; s1.push([e, h['Type']||'Apply to Sale Invoice', ds, h['Prefix']||'DEFAULT', h['Customer ID']||x.n||'', h['Cash/Bank Account ID']||'', h['Received By']||'', h['Class ID']||'', h['Reference']||'', 'ABA: '+ds, h['Payment Method']||'', h['Payment Reference']||'', cur, rate]); }
 
-        s2.push([e, v.inv, '', v.desc||'', 0, Math.round(v.pp*100)/100]);
+        var invNo = v.inv;
+        s2.push([e, invNo, '', v.desc||'', 0, Math.round(v.pp*100)/100]);
 
     });
 
