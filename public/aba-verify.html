@@ -106,11 +106,35 @@ summary:hover{background:var(--bg)}
 
 <div class="row">
 
-<div class="up"><b>១. តារាង ABA</b><span class="mu">Credit, ពិពណ៌នា</span><input type="file" id="fAba" accept=".xlsx,.xls,.csv"><div class="mu" id="sAba"></div></div>
+<div class="up" style="position:relative">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+    <b>១. តារាង ABA</b>
+    <button type="button" id="delAba" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
+  </div>
+  <span class="mu">Credit, ពិពណ៌នា</span>
+  <input type="file" id="fAba" accept=".xlsx,.xls,.csv">
+  <div class="mu" id="sAba" style="margin-top:4px"></div>
+</div>
 
-<div class="up"><b>២. តារាងវិក័យបត្រ</b><span class="mu">ជ្រើសបានច្រើនឯកសារ</span><input type="file" id="fDebt" accept=".xlsx,.xls,.csv" multiple><div class="mu" id="sDebt"></div></div>
+<div class="up" style="position:relative">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+    <b>២. តារាងវិក័យបត្រ</b>
+    <button type="button" id="delDebt" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
+  </div>
+  <span class="mu">ជ្រើសបានច្រើនឯកសារ</span>
+  <input type="file" id="fDebt" accept=".xlsx,.xls,.csv" multiple>
+  <div class="mu" id="sDebt" style="margin-top:4px"></div>
+</div>
 
-<div class="up"><b>៣. គណនីគ្រូពេទ្យ</b><span class="mu">(ជម្រើស) Entry, Name, Acc</span><input type="file" id="fAcc" accept=".xlsx,.xls,.csv"><div class="mu" id="sAcc"></div></div>
+<div class="up" style="position:relative">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+    <b>៣. គណនីគ្រូពេទ្យ</b>
+    <button type="button" id="delAcc" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
+  </div>
+  <span class="mu">(ជម្រើស) Entry, Name, Acc</span>
+  <input type="file" id="fAcc" accept=".xlsx,.xls,.csv">
+  <div class="mu" id="sAcc" style="margin-top:4px"></div>
+</div>
 
 </div>
 
@@ -249,6 +273,62 @@ function saveSettings() {
 
 
 loadSettings();
+
+// ============================================================================
+// INDEXEDDB PERSISTENCE (Remember files across refresh)
+// ============================================================================
+var DB_NAME = 'AbaVerifyDB';
+var STORE_NAME = 'app_state';
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        var req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = e => {
+            var db = e.target.result;
+            if(!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+    });
+}
+
+function dbSet(key, val) {
+    return openDB().then(db => {
+        return new Promise((resolve, reject) => {
+            var tx = db.transaction(STORE_NAME, 'readwrite');
+            var store = tx.objectStore(STORE_NAME);
+            var req = store.put(val, key);
+            req.onsuccess = () => resolve();
+            req.onerror = e => reject(e.target.error);
+        });
+    }).catch(err => console.warn('dbSet error:', err));
+}
+
+function dbGet(key) {
+    return openDB().then(db => {
+        return new Promise((resolve, reject) => {
+            var tx = db.transaction(STORE_NAME, 'readonly');
+            var store = tx.objectStore(STORE_NAME);
+            var req = store.get(key);
+            req.onsuccess = e => resolve(e.target.result);
+            req.onerror = e => reject(e.target.error);
+        });
+    }).catch(err => { console.warn('dbGet error:', err); return null; });
+}
+
+function dbDel(key) {
+    return openDB().then(db => {
+        return new Promise((resolve, reject) => {
+            var tx = db.transaction(STORE_NAME, 'readwrite');
+            var store = tx.objectStore(STORE_NAME);
+            var req = store.delete(key);
+            req.onsuccess = () => resolve();
+            req.onerror = e => reject(e.target.error);
+        });
+    }).catch(err => console.warn('dbDel error:', err));
+}
 
 
 
@@ -477,12 +557,22 @@ function smart(kind, t) {
 $('fAba').onchange = e => {
 
     if(!e.target.files[0]) return;
+    var f = e.target.files[0];
 
-    readWB(e.target.files[0], wb => {
+    readWB(f, wb => {
 
         var t = sheetsOf(wb).sort((a,b) => b.rows.length - a.rows.length)[0];
 
-        if(t) { RAW.aba = t; RAW.aba.m = smart('aba', RAW.aba); M.aba = RAW.aba.m; assign = {}; run(); }
+        if(t) {
+            RAW.aba = t;
+            RAW.aba.m = smart('aba', RAW.aba);
+            M.aba = RAW.aba.m;
+            assign = {};
+            $('delAba').style.display = 'inline-block';
+            run();
+            $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(f.name) + '</span><br>' + aba.length + ' ប្រតិបត្តិការ';
+            dbSet('aba_state', { name: f.name, raw: RAW.aba, m: M.aba, count: aba.length });
+        }
 
     });
 
@@ -492,23 +582,44 @@ function ingestAcc(t) {
 
     var fk = {}; t.h.forEach(k => { fk[k] = 1 });
 
-    var kn = pick(fk, ['name','ឈ្មោះ']), ka = pick(fk, ['acc','aba']), ke = pick(fk, ['customer id','customer','entry','code']);
-    var kc = pick(fk, ['class id','class']), kb = pick(fk, ['cash/bank','bank account','bank']);
+    var kn = pick(fk, ['customer name','doctor name','doctor','name','ឈ្មោះ','party']);
+    if(!kn) kn = pick(fk, ['customer id','customer no','customer','entry no','entry','code']);
+
+    var ka = pick(fk, ['acc','aba','bank account','cash/bank']);
+    var ke = pick(fk, ['entry no','entry','source entry no','jv no','jv','code']);
+    var kcid = pick(fk, ['customer id','customer no','customer','code']);
+    var kc = pick(fk, ['class id','class']);
+    var kb = pick(fk, ['cash/bank account id','cash/bank account','bank account id','bank account','bank']);
 
     t.rows.forEach(x => {
 
+        var entryVal = String(x[ke]||'').trim();
+        var custVal = String(x[kcid]||'').trim();
+        var nameVal = String(x[kn]||'').trim();
+        var accVal = String(x[ka]||'').replace(/\D/g,'');
+        var classVal = String(x[kc]||'').trim();
+        var bankVal = String(x[kb]||'').trim();
+
+        if(!nameVal && custVal) nameVal = custVal;
+        if(!nameVal && entryVal) nameVal = entryVal;
+
         var a = {
             raw: x,
-            entry: String(x[ke]||'').trim(),
-            name: String(x[kn]||'').trim(),
-            acct: String(x[ka]||'').replace(/\D/g,''),
-            customerId: String(x[pick(fk, ['customer id','customer','code'])] || '').trim(),
-            classId: String(x[kc]||'').trim(),
-            bankAcc: String(x[kb]||'').trim()
+            entry: entryVal,
+            name: nameVal,
+            acct: accVal,
+            customerId: custVal,
+            classId: classVal,
+            bankAcc: bankVal
         };
 
-        if(a.name && (a.acct.length >= 6 || a.entry || a.customerId)) {
-            ACC = ACC.filter(o => o.acct ? o.acct !== a.acct : o.name !== a.name);
+        if(a.name || a.entry || a.customerId) {
+            ACC = ACC.filter(o => {
+                if(a.entry && o.entry && o.entry === a.entry) return false;
+                if(a.customerId && o.customerId && o.customerId === a.customerId) return false;
+                if(a.name && o.name && o.name === a.name) return false;
+                return true;
+            });
             ACC.push(a);
         }
 
@@ -537,6 +648,7 @@ $('fDebt').onchange = e => {
                 else if(hasH(t, /entry/i) && (hasH(t, /customer/i) || hasH(t, /type/i) || hasH(t, /cash|bank/i) || hasH(t, /prefix/i)) && !hasH(t, /invoice|inv|វិក័យ|វិក្កយ/i)) {
                     var enKey = t.h.find(h => /entry/i.test(h)) || 'Entry No';
                     t.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
+                    if(!ACC.length) ingestAcc(t);
                 } 
 
                 else if(!dt && hasH(t, /invoice|inv|វិក័យ|វិក្កយ|bill|doc/i)) dt = t;
@@ -551,7 +663,15 @@ $('fDebt').onchange = e => {
                 got[k] = dt;
             }
 
-            cnt++; if(cnt === n) { FILES = got.filter(Boolean); run(); }
+            cnt++;
+            if(cnt === n) {
+                FILES = got.filter(Boolean);
+                $('delDebt').style.display = 'inline-block';
+                var nStr = fs.map(x => x.name).join(', ');
+                run();
+                $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nStr) + '</span><br>' + FILES.length + ' ឯកសារ · ' + debts.length + ' វិក័យបត្រ';
+                dbSet('debt_state', { names: fs.map(x => x.name), files: FILES, hdr: HDR, count: debts.length });
+            }
 
         });
 
@@ -562,9 +682,52 @@ $('fDebt').onchange = e => {
 $('fAcc').onchange = e => {
 
     if(!e.target.files[0]) return;
+    var f = e.target.files[0];
 
-    readWB(e.target.files[0], wb => { var t = sheetsOf(wb).find(t => hasH(t, /acc|aba/i) && hasH(t, /name|ឈ្មោះ/i)); if(t) { ingestAcc(t); run(); } else { $('sAcc').textContent = 'រកមិនឃើញជួរ Name និង Account ABA'; } });
+    readWB(f, wb => {
+        var ts = sheetsOf(wb);
+        var t = ts.find(t => (hasH(t, /acc|aba/i) && hasH(t, /name|ឈ្មោះ|customer|entry/i)) || (hasH(t, /entry/i) && hasH(t, /customer/i)));
+        if(!t) t = ts[0];
+        if(t) {
+            ACC = [];
+            ingestAcc(t);
+            $('delAcc').style.display = 'inline-block';
+            $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(f.name) + '</span><br>' + ACC.length + ' គណនី';
+            run();
+            dbSet('acc_state', { name: f.name, acc: ACC, count: ACC.length });
+        } else {
+            $('sAcc').textContent = 'រកមិនឃើញជួរគណនី';
+        }
+    });
 
+};
+
+// Delete Handlers for 3 file boxes
+$('delAba').onclick = () => {
+    RAW.aba = null; M.aba = {}; aba = []; assign = {};
+    $('fAba').value = '';
+    $('sAba').innerHTML = '';
+    $('delAba').style.display = 'none';
+    dbDel('aba_state');
+    run();
+};
+
+$('delDebt').onclick = () => {
+    FILES = []; debts = []; HDR = {}; sel = {};
+    $('fDebt').value = '';
+    $('sDebt').innerHTML = '';
+    $('delDebt').style.display = 'none';
+    dbDel('debt_state');
+    run();
+};
+
+$('delAcc').onclick = () => {
+    ACC = [];
+    $('fAcc').value = '';
+    $('sAcc').innerHTML = '';
+    $('delAcc').style.display = 'none';
+    dbDel('acc_state');
+    run();
 };
 
 
@@ -653,7 +816,7 @@ function build() {
             }
 
             var hParty = HDR[en] ? (HDR[en]['Customer ID'] || HDR[en]['Customer Name'] || HDR[en]['Customer'] || '') : '';
-            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || accBy(hParty) || hParty || (en && !en.includes(',') && !en.startsWith('OR') ? en : '') || pf;
+            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || accBy(hParty) || hParty || (en && !en.includes(',') ? en : '') || pf;
             if(p && p.includes(',')) p = p.split(',')[0].trim();
 
             if(!en && p) {
@@ -706,15 +869,11 @@ function aliases(p) { var out = [p], m = p.match(/^([^(]*)\((.*)\)/); if(m) { ou
 function tok(n, txt) { var w = n.toLowerCase().split(/[\s()\/\-,]+/).filter(x => x.length >= 3 && !/^\d+$/.test(x)); var s = txt.toLowerCase(), c = w.filter(x => s.indexOf(x) > -1).length; return w.length >= 2 ? c >= 2 : (w.length === 1 && c === 1 && w[0].length >= 5); }
 
 function findDoc(A, docs, names) {
-
-    var n = A.name.toLowerCase().replace(/\s+/g,''), i, D;
-
-    if(n.length >= 3) for(i=0; i<names.length; i++) { D = docs[names[i]]; if(D.al.some(a => a.indexOf(n) > -1 || n.indexOf(a) > -1)) return D; }
-
-    if(A.entry) for(i=0; i<names.length; i++) { D = docs[names[i]]; if(D.inv.some(v => v.entry === A.entry || v.inv === A.entry)) return D; }
-
+    if(A.name && docs[A.name]) return docs[A.name];
+    var n = (A.name||'').toLowerCase().replace(/\s+/g,''), i, D;
+    if(n.length >= 3) for(i=0; i<names.length; i++) { D = docs[names[i]]; if(D.al && D.al.some(a => a.indexOf(n) > -1 || n.indexOf(a) > -1)) return D; }
+    if(A.entry) for(i=0; i<names.length; i++) { D = docs[names[i]]; if((D.entry && D.entry === A.entry) || (D.customerId && D.customerId === A.entry) || (D.inv && D.inv.some(v => v.entry === A.entry || v.inv === A.entry))) return D; }
     var tm = names.filter(p => tok(p, A.name) || tok(A.name, p)); return tm.length === 1 ? docs[tm[0]] : null;
-
 }
 
 function run() {
@@ -723,56 +882,145 @@ function run() {
 
     if(FILES.length && !debts.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">⚠️ រកមិនឃើញចំនួនទឹកប្រាក់ សូមពិនិត្យជួរឈរ</div>'; return; }
 
-    if(!debts.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">សូមផ្ទុកឯកសារ ABA និង វិក័យបត្រ</div>'; return; }
+    if(!debts.length && !aba.length && !ACC.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">សូមផ្ទុកឯកសារ ABA និង វិក័យបត្រ</div>'; return; }
 
-    var from = $('dFrom').value ? new Date($('dFrom').value) : null, to = $('dTo').value ? new Date($('dTo').value+'T23:59:59') : new Date(8.64e15), docs = {};
+    var from = $('dFrom').value ? new Date($('dFrom').value) : null, to = $('dTo').value ? new Date($('dTo').value+'T23:59:59') : new Date(8.64e15);
+    var docs = {}, names = [];
 
-    debts.forEach(d => { if(d.date && d.date > to) return; (docs[d.party] = docs[d.party] || {name: d.party, inv: [], pay: [], al: aliases(d.party)}).inv.push(d); });
+    // 1. Initialize docs with ALL accounts from ACC in exact order
+    if(ACC && ACC.length) {
+        ACC.forEach((a, idx) => {
+            var dn = String(a.name || a.customerId || a.entry || ('គណនី ' + (idx + 1))).trim();
+            if(!docs[dn]) {
+                docs[dn] = {
+                    name: dn,
+                    accItem: a,
+                    entry: a.entry || '',
+                    customerId: a.customerId || '',
+                    bankAcc: a.bankAcc || a.acct || '',
+                    inv: [],
+                    pay: [],
+                    al: aliases(dn)
+                };
+                names.push(dn);
+            } else {
+                docs[dn].accItem = docs[dn].accItem || a;
+                if(a.entry && !docs[dn].entry) docs[dn].entry = a.entry;
+                if(a.customerId && !docs[dn].customerId) docs[dn].customerId = a.customerId;
+                if((a.bankAcc || a.acct) && !docs[dn].bankAcc) docs[dn].bankAcc = a.bankAcc || a.acct;
+            }
+        });
+    }
 
-    var names = Object.keys(docs), unmatched = [];
+    // 2. Attach debts to docs
+    debts.forEach(d => {
+        if(d.date && d.date > to) return;
+        var targetDoc = null;
 
-    aba.forEach(t => {
+        if(d.entry) {
+            for(var i = 0; i < names.length; i++) {
+                var D = docs[names[i]];
+                if((D.entry && D.entry === d.entry) ||
+                   (D.customerId && D.customerId === d.entry) ||
+                   (D.accItem && (D.accItem.entry === d.entry || D.accItem.customerId === d.entry))) {
+                    targetDoc = D;
+                    break;
+                }
+            }
+        }
 
-        if(t.date > to) return;
+        if(!targetDoc && d.party && docs[d.party]) targetDoc = docs[d.party];
 
-        var low = t.text.toLowerCase().replace(/\s+/g,''), hit = assign[t.id] && docs[assign[t.id]] ? docs[assign[t.id]] : null;
+        if(!targetDoc && d.party) {
+            var low = d.party.toLowerCase().replace(/\s+/g, '');
+            for(var i = 0; i < names.length; i++) {
+                var D = docs[names[i]];
+                if(D.al && D.al.some(a => low.indexOf(a) > -1 || a.indexOf(low) > -1)) {
+                    targetDoc = D;
+                    break;
+                }
+            }
+        }
 
-        if(!hit && ACC.length) { for(var j=0; j<ACC.length && !hit; j++) { var A = ACC[j]; if(t.cells.some(c => c.replace(/\D/g,'').indexOf(A.acct) > -1)) hit = findDoc(A, docs, names); } }
+        if(!targetDoc) {
+            var pName = d.party || d.entry || 'គ្មានឈ្មោះ';
+            if(!docs[pName]) {
+                docs[pName] = {
+                    name: pName,
+                    entry: d.entry || '',
+                    customerId: '',
+                    bankAcc: '',
+                    inv: [],
+                    pay: [],
+                    al: aliases(pName)
+                };
+                names.push(pName);
+            }
+            targetDoc = docs[pName];
+        }
 
-        if(!hit) { for(var i=0; i<names.length && !hit; i++) { var D2 = docs[names[i]]; if(D2.al.some(a => low.indexOf(a) > -1) || D2.inv.some(v => { var k = v.inv.toLowerCase().replace(/\s+/g,''); return k.length >= 5 && low.indexOf(k) > -1; })) hit = D2; } }
-
-        if(!hit) { var tm = names.filter(n => tok(n, t.text)); if(tm.length === 1) hit = docs[tm[0]]; }
-
-        if(hit) hit.pay.push(t); else unmatched.push(t);
-
+        targetDoc.inv.push(d);
     });
 
-    var tot = {owed:0, paid:0, rem:0};
+    var unmatched = [];
+
+    // 3. Match ABA
+    aba.forEach(t => {
+        if(t.date > to) return;
+        var low = t.text.toLowerCase().replace(/\s+/g, ''), hit = assign[t.id] && docs[assign[t.id]] ? docs[assign[t.id]] : null;
+
+        if(!hit && ACC.length) {
+            for(var j = 0; j < ACC.length && !hit; j++) {
+                var A = ACC[j];
+                var accNum = (A.acct || A.bankAcc || '').replace(/\D/g, '');
+                if(accNum && accNum.length >= 4 && t.cells.some(c => c.replace(/\D/g, '').indexOf(accNum) > -1)) {
+                    hit = docs[A.name] || findDoc(A, docs, names);
+                }
+            }
+        }
+
+        if(!hit) {
+            for(var i = 0; i < names.length && !hit; i++) {
+                var D2 = docs[names[i]];
+                if(D2.al.some(a => low.indexOf(a) > -1) || D2.inv.some(v => { var k = v.inv.toLowerCase().replace(/\s+/g, ''); return k.length >= 5 && low.indexOf(k) > -1; })) hit = D2;
+            }
+        }
+
+        if(!hit) {
+            var tm = names.filter(n => tok(n, t.text));
+            if(tm.length === 1) hit = docs[tm[0]];
+        }
+
+        if(hit) hit.pay.push(t); else unmatched.push(t);
+    });
+
+    var tot = {owed: 0, paid: 0, rem: 0};
 
     names.forEach(n => {
+        var D = docs[n];
+        D.inv.sort((a, b) => (a.date || 0) - (b.date || 0));
 
-        var D = docs[n]; D.inv.sort((a,b) => (a.date||0) - (b.date||0));
-
-        var before=0, per=0, lastD=null;
-
-        D.pay.forEach(t => { if(from && t.date < from) before += t.amt; else { per += t.amt; if(!lastD || t.date > lastD) lastD = t.date; } });
+        var before = 0, per = 0, lastD = null;
+        D.pay.forEach(t => {
+            if(from && t.date < from) before += t.amt;
+            else { per += t.amt; if(!lastD || t.date > lastD) lastD = t.date; }
+        });
 
         D.before = before; D.per = per; D.lastD = lastD || to; D.owed = 0;
 
         D.inv.forEach(v => { var a = Math.min(v.amt, before); v.pb = a; before -= a; D.owed += v.amt; });
-
         D.inv.forEach(v => { var a = Math.min(v.amt - v.pb, per); v.pp = a; per -= a; v.rem = v.amt - v.pb - v.pp; });
 
-        D.extra = before + per; D.paidTotal = D.inv.reduce((s,v) => s + v.pb + v.pp, 0); 
-
-        D.paidPer = D.inv.reduce((s,v) => s + v.pp, 0); D.rem = D.owed - D.paidTotal;
+        D.extra = before + per;
+        D.paidTotal = D.inv.reduce((s, v) => s + v.pb + v.pp, 0);
+        D.paidPer = D.inv.reduce((s, v) => s + v.pp, 0);
+        D.rem = D.owed - D.paidTotal;
 
         tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
-
     });
 
-    res = {docs: docs, names: names, unmatched: unmatched, tot: tot, from: from}; render();
-
+    res = {docs: docs, names: names, unmatched: unmatched, tot: tot, from: from};
+    render();
 }
 
 
@@ -801,23 +1049,47 @@ function drawMap() {
 
 function render() {
 
-    var R = res, h = '<div class="card"><div class="kpis"><div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div><div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div><div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div><div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div></div></div>';
+    var R = res;
+    if(!R) return;
 
-    R.names.sort((a,b) => R.docs[b].rem - R.docs[a].rem).forEach(n => {
+    var h = '<div class="card"><div class="kpis"><div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div><div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div><div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div><div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div></div></div>';
 
-        var D = R.docs[n], full = D.rem <= 0.005, pct = Math.min(100, D.owed ? D.paidTotal/D.owed*100 : 0);
+    // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់)
+    R.names.forEach(n => {
 
-        var st = full ? '<span class="tag ok">សងគ្រប់</span>' : D.paidTotal > 0 ? '<span class="tag wa">សងខ្លះ</span>' : '<span class="tag er">មិនទាន់សង</span>';
+        var D = R.docs[n], hasInv = D.inv && D.inv.length > 0;
+        var full = hasInv && D.rem <= 0.005, pct = hasInv && D.owed > 0 ? Math.min(100, D.paidTotal / D.owed * 100) : 0;
 
-        h += '<details><summary><div><b>' + esc(n) + '</b> <span class="mu" style="margin-left:6px">ជំពាក់ ' + fmt(D.owed) + ' · នៅសល់ <b class="' + (full?'ok':'er') + '">' + fmt(D.rem) + '</b></span></div>' + st + '</summary><div class="bar"><i style="width:' + pct + '%"></i></div><div class="pad"><p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.per+D.paidPer-D.paidPer+0) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidPer) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p><div class="row" style="margin-bottom:8px"><button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button><button data-cl="' + esc(n) + '">✗ សម្អាត</button><button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button></div><div class="tw"><table><tr><th></th><th>វិក័យបត្រ</th><th>កាលបរិច្ឆេទ</th><th class="n">ចំនួន</th><th class="n">សងមុន</th><th class="n">សងពេលនេះ</th><th class="n">នៅសល់</th><th>ស្ថានភាព</th></tr>';
+        var st = !hasInv ? '<span class="tag mu">គ្មានបំណុល</span>' : (full ? '<span class="tag ok">សងគ្រប់</span>' : (D.paidTotal > 0 ? '<span class="tag wa">សងខ្លះ</span>' : '<span class="tag er">មិនទាន់សង</span>'));
 
-        D.inv.forEach(v => { var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : (v.pb+v.pp) > 0 ? '<span class="wa">សងខ្លះ</span>' : '<span class="er">មិនទាន់</span>'; h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (v.pp > 0 ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>'; });
+        var accSub = D.entry ? ' <span class="mu" style="font-weight:normal">(' + esc(D.entry) + ')</span>' : '';
 
-        h += '</table></div></div></details>';
+        h += '<details' + (hasInv ? ' open' : '') + '><summary><div><b>' + esc(n) + '</b>' + accSub + ' <span class="mu" style="margin-left:6px">ជំពាក់ ' + fmt(D.owed) + ' · នៅសល់ <b class="' + (full ? 'ok' : 'er') + '">' + fmt(D.rem) + '</b></span></div>' + st + '</summary>';
+
+        if(hasInv) {
+            h += '<div class="bar"><i style="width:' + pct + '%"></i></div>';
+        }
+
+        h += '<div class="pad">';
+
+        if(hasInv) {
+            h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.per + D.before) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidPer) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p><div class="row" style="margin-bottom:8px"><button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button><button data-cl="' + esc(n) + '">✗ សម្អាត</button><button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button></div><div class="tw"><table><tr><th></th><th>វិក័យបត្រ</th><th>កាលបរិច្ឆេទ</th><th class="n">ចំនួន</th><th class="n">សងមុន</th><th class="n">សងពេលនេះ</th><th class="n">នៅសល់</th><th>ស្ថានភាព</th></tr>';
+
+            D.inv.forEach(v => {
+                var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : ((v.pb + v.pp) > 0 ? '<span class="wa">សងខ្លះ</span>' : '<span class="er">មិនទាន់</span>');
+                h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (v.pp > 0 ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>';
+            });
+
+            h += '</table></div>';
+        } else {
+            h += '<div class="tw"><table><tr><td colspan="8" style="text-align:center;color:var(--mu);padding:15px">គ្មានវិក័យបត្រជំពាក់ទេ</td></tr></table></div>';
+        }
+
+        h += '</div></details>';
 
     });
 
-    if(R.unmatched.length) {
+    if(R.unmatched && R.unmatched.length) {
 
         h += '<div class="card"><h2>ABA រកមិនឃើញគ្រូពេទ្យ (' + R.unmatched.length + ')</h2><div class="tw"><table><tr><th>កាលបរិច្ឆេទ</th><th>ពិពណ៌នា</th><th class="n">ចំនួន</th><th>គ្រូពេទ្យ</th></tr>';
 
@@ -1123,6 +1395,47 @@ $('exUn').onclick = () => {
     saveWB(wb, 'ABA_unmatched_' + iso(new Date()) + '.xlsx');
 
 };
+
+function restoreSavedData() {
+    Promise.all([dbGet('acc_state'), dbGet('debt_state'), dbGet('aba_state')]).then(results => {
+        var accData = results[0];
+        var debtData = results[1];
+        var abaData = results[2];
+        var shouldRun = false;
+
+        if(accData && accData.acc && accData.acc.length) {
+            ACC = accData.acc;
+            $('delAcc').style.display = 'inline-block';
+            $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(accData.name || 'ឯកសារគណនី') + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + ACC.length + ' គណនី';
+            shouldRun = true;
+        }
+
+        if(debtData && debtData.files && debtData.files.length) {
+            FILES = debtData.files;
+            HDR = debtData.hdr || {};
+            $('delDebt').style.display = 'inline-block';
+            var nStr = (debtData.names && debtData.names.join(', ')) || FILES.map(x => x.name).join(', ');
+            $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nStr) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + FILES.length + ' ឯកសារ';
+            shouldRun = true;
+        }
+
+        if(abaData && abaData.raw) {
+            RAW.aba = abaData.raw;
+            M.aba = abaData.m || (RAW.aba && RAW.aba.m) || {};
+            $('delAba').style.display = 'inline-block';
+            $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(abaData.name || 'ឯកសារ ABA') + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+            shouldRun = true;
+        }
+
+        if(shouldRun) {
+            run();
+        }
+    }).catch(err => {
+        console.warn('restoreSavedData error:', err);
+    });
+}
+
+restoreSavedData();
 
 </script>
 
