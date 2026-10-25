@@ -398,7 +398,7 @@ var isDate = x => x instanceof Date || (typeof x === 'string' && (/^\d{1,4}[\/.\
 
 
 
-var debts=[], aba=[], assign={}, sel={}, res=null, ACC=[], FILES=[], HDR={};
+var debts=[], aba=[], assign={}, sel={}, res=null, ACC=[], ACC_INVOICES=[], FILES=[], HDR={};
 
 var RAW = {aba: null, debt: null}, M = {aba: {}, debt: {}};
 
@@ -629,6 +629,37 @@ function ingestAcc(t) {
 
 }
 
+function ingestAccInvoices(t) {
+    var fk = {}; t.h.forEach(k => { fk[k] = 1 });
+    var ke = pick(fk, ['entry no','entry','source entry no','code']);
+    var ki = pick(fk, ['invoice no','invoice','inv','លេខវិក្កយបត្រ','លេខវិក័យបត្រ','bill']);
+    var ka = pick(fk, ['receive to cash','cash acc','amount','credit','ចំនួន','total']);
+    var kd = pick(fk, ['description','desc','particular','ពិពណ៌នា']);
+    var kp = pick(fk, ['party','doctor','customer','name','ឈ្មោះ']);
+
+    ACC_INVOICES = [];
+    t.rows.forEach((x, i) => {
+        var inv = ki ? String(x[ki]||'').trim() : '';
+        var en = ke ? String(x[ke]||'').trim() : '';
+        var a = ka ? num(x[ka]) : 0;
+        var p = kp ? String(x[kp]||'').trim() : (accBy(en) || en);
+        var d = kd ? String(x[kd]||'').trim() : '';
+        if(isSummaryRow(x, inv)) return;
+        if(!inv && !en) return;
+        if(a > 0 || inv) {
+            ACC_INVOICES.push({
+                id: 900000 + i,
+                entry: en,
+                inv: inv || (en + '-' + (i+1)),
+                amt: a,
+                paid: a,
+                party: p,
+                desc: d
+            });
+        }
+    });
+}
+
 $('fDebt').onchange = e => {
 
     var fs = [].slice.call(e.target.files), n = fs.length, got = [], cnt = 0;
@@ -691,10 +722,19 @@ $('fAcc').onchange = e => {
         if(t) {
             ACC = [];
             ingestAcc(t);
+
+            // Also check for invoice sheet (e.g. SHEET2)
+            var invSheet = ts.find(s => s !== t && (hasH(s, /invoice|inv|វិក័យ|វិក្កយ/i) || hasH(s, /receive to cash/i)));
+            if(invSheet) {
+                ingestAccInvoices(invSheet);
+            } else {
+                ACC_INVOICES = [];
+            }
+
             $('delAcc').style.display = 'inline-block';
             $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(f.name) + '</span><br>' + ACC.length + ' គណនី';
             run();
-            dbSet('acc_state', { name: f.name, acc: ACC, count: ACC.length });
+            dbSet('acc_state', { name: f.name, acc: ACC, count: ACC.length, accInvoices: ACC_INVOICES });
         } else {
             $('sAcc').textContent = 'រកមិនឃើញជួរគណនី';
         }
@@ -723,6 +763,7 @@ $('delDebt').onclick = () => {
 
 $('delAcc').onclick = () => {
     ACC = [];
+    ACC_INVOICES = [];
     $('fAcc').value = '';
     $('sAcc').innerHTML = '';
     $('delAcc').style.display = 'none';
@@ -962,6 +1003,36 @@ function run() {
         targetDoc.inv.push(d);
     });
 
+    // If any account in docs has 0 invoices from debts, but has invoices in ACC_INVOICES (from Box 3), attach them!
+    if(ACC_INVOICES && ACC_INVOICES.length) {
+        names.forEach(n => {
+            var D = docs[n];
+            if(!D.inv || D.inv.length === 0) {
+                var matchedAccInvs = ACC_INVOICES.filter(ai => {
+                    if(D.entry && ai.entry && D.entry === ai.entry) return true;
+                    if(D.customerId && ai.entry && D.customerId === ai.entry) return true;
+                    if(D.name && ai.party && D.name === ai.party) return true;
+                    if(D.name && ai.entry && D.name === ai.entry) return true;
+                    return false;
+                });
+                if(matchedAccInvs.length > 0) {
+                    matchedAccInvs.forEach(ai => {
+                        D.inv.push({
+                            id: ai.id,
+                            inv: ai.inv,
+                            date: null,
+                            amt: ai.amt,
+                            paidInOR: ai.paid,
+                            party: D.name,
+                            entry: D.entry || ai.entry,
+                            desc: ai.desc
+                        });
+                    });
+                }
+            }
+        });
+    }
+
     var unmatched = [];
 
     // 3. Match ABA
@@ -1008,13 +1079,27 @@ function run() {
 
         D.before = before; D.per = per; D.lastD = lastD || to; D.owed = 0;
 
-        D.inv.forEach(v => { var a = Math.min(v.amt, before); v.pb = a; before -= a; D.owed += v.amt; });
-        D.inv.forEach(v => { var a = Math.min(v.amt - v.pb, per); v.pp = a; per -= a; v.rem = v.amt - v.pb - v.pp; });
+        D.inv.forEach(v => {
+            if(v.paidInOR != null && v.paidInOR > 0 && per === 0 && before === 0) {
+                v.pb = 0;
+                v.pp = v.paidInOR;
+                v.rem = Math.max(0, v.amt - v.pp);
+            } else {
+                var a = Math.min(v.amt, before);
+                v.pb = a;
+                before -= a;
+                var b = Math.min(v.amt - v.pb, per);
+                v.pp = b;
+                per -= b;
+                v.rem = Math.max(0, v.amt - v.pb - v.pp);
+            }
+            D.owed += v.amt;
+        });
 
         D.extra = before + per;
-        D.paidTotal = D.inv.reduce((s, v) => s + v.pb + v.pp, 0);
-        D.paidPer = D.inv.reduce((s, v) => s + v.pp, 0);
-        D.rem = D.owed - D.paidTotal;
+        D.paidTotal = D.inv.reduce((s, v) => s + (v.pb||0) + (v.pp||0), 0);
+        D.paidPer = D.inv.reduce((s, v) => s + (v.pp||0), 0);
+        D.rem = Math.max(0, D.owed - D.paidTotal);
 
         tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
     });
@@ -1054,17 +1139,27 @@ function render() {
 
     var h = '<div class="card"><div class="kpis"><div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div><div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div><div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div><div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div></div></div>';
 
-    // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់)
+    // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់) MATCHING EXACT IMAGE FORMAT
     R.names.forEach(n => {
 
         var D = R.docs[n], hasInv = D.inv && D.inv.length > 0;
-        var full = hasInv && D.rem <= 0.005, pct = hasInv && D.owed > 0 ? Math.min(100, D.paidTotal / D.owed * 100) : 0;
+        var full = D.rem <= 0.005;
+        var pct = D.owed > 0 ? Math.min(100, (D.paidTotal / D.owed) * 100) : (full ? 100 : 0);
 
-        var st = !hasInv ? '<span class="tag mu">គ្មានបំណុល</span>' : (full ? '<span class="tag ok">សងគ្រប់</span>' : (D.paidTotal > 0 ? '<span class="tag wa">សងខ្លះ</span>' : '<span class="tag er">មិនទាន់សង</span>'));
+        var st = full 
+            ? '<span class="tag ok">សងគ្រប់</span>' 
+            : (D.paidTotal > 0 
+                ? '<span class="tag wa">សងមួយផ្នែក</span>' 
+                : '<span class="tag er">មិនទាន់សង</span>');
 
-        var accSub = D.entry ? ' <span class="mu" style="font-weight:normal">(' + esc(D.entry) + ')</span>' : '';
+        var remHtml = D.rem > 0.005 ? '<b class="er">' + fmt(D.rem) + '</b>' : '<b class="ok">0</b>';
 
-        h += '<details' + (hasInv ? ' open' : '') + '><summary><div><b>' + esc(n) + '</b>' + accSub + ' <span class="mu" style="margin-left:6px">ជំពាក់ ' + fmt(D.owed) + ' · នៅសល់ <b class="' + (full ? 'ok' : 'er') + '">' + fmt(D.rem) + '</b></span></div>' + st + '</summary>';
+        h += '<details' + (hasInv ? ' open' : '') + '><summary>' +
+             '<div><b>' + esc(n) + '</b></div>' +
+             '<div class="row" style="gap:10px;align-items:center">' +
+             '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + ' · នៅសល់ ' + remHtml + '</span> ' +
+             st + '</div>' +
+             '</summary>';
 
         if(hasInv) {
             h += '<div class="bar"><i style="width:' + pct + '%"></i></div>';
@@ -1073,16 +1168,16 @@ function render() {
         h += '<div class="pad">';
 
         if(hasInv) {
-            h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.per + D.before) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidPer) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p><div class="row" style="margin-bottom:8px"><button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button><button data-cl="' + esc(n) + '">✗ សម្អាត</button><button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button></div><div class="tw"><table><tr><th></th><th>វិក័យបត្រ</th><th>កាលបរិច្ឆេទ</th><th class="n">ចំនួន</th><th class="n">សងមុន</th><th class="n">សងពេលនេះ</th><th class="n">នៅសល់</th><th>ស្ថានភាព</th></tr>';
+            h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p><div class="row" style="margin-bottom:8px"><button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button><button data-cl="' + esc(n) + '">✗ សម្អាត</button><button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button></div><div class="tw"><table><tr><th></th><th>វិក័យបត្រ</th><th>កាលបរិច្ឆេទ</th><th class="n">ចំនួន</th><th class="n">សងមុន</th><th class="n">សងពេលនេះ</th><th class="n">នៅសល់</th><th>ស្ថានភាព</th></tr>';
 
             D.inv.forEach(v => {
-                var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : ((v.pb + v.pp) > 0 ? '<span class="wa">សងខ្លះ</span>' : '<span class="er">មិនទាន់</span>');
+                var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : ((v.pb + v.pp) > 0 ? '<span class="wa">សងមួយផ្នែក</span>' : '<span class="er">មិនទាន់</span>');
                 h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (v.pp > 0 ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>';
             });
 
             h += '</table></div>';
         } else {
-            h += '<div class="tw"><table><tr><td colspan="8" style="text-align:center;color:var(--mu);padding:15px">គ្មានវិក័យបត្រជំពាក់ទេ</td></tr></table></div>';
+            h += '<div class="tw"><table><tr><td colspan="8" style="text-align:center;color:var(--ok);padding:15px;font-weight:600">✓ សងគ្រប់រួចរាល់ (គ្មានវិក័យបត្រជំពាក់ទេ)</td></tr></table></div>';
         }
 
         h += '</div></details>';
@@ -1405,6 +1500,7 @@ function restoreSavedData() {
 
         if(accData && accData.acc && accData.acc.length) {
             ACC = accData.acc;
+            ACC_INVOICES = accData.accInvoices || [];
             $('delAcc').style.display = 'inline-block';
             $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(accData.name || 'ឯកសារគណនី') + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + ACC.length + ' គណនី';
             shouldRun = true;
