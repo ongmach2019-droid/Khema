@@ -182,6 +182,8 @@ summary:hover{background:var(--bg)}
 
   <button class="p" id="exAll">⬇ Export ទាំងអស់ដែលបានសង</button>
 
+  <button id="exSel" style="display:none;background:#e8f0fe;border-color:var(--pr);color:var(--pr);font-weight:600">⬇ Export តាមការធិច (<span id="selNum">0</span>)</button>
+
   <button id="exUn">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
 
 </div>
@@ -573,21 +575,45 @@ $('fAcc').onchange = e => {
 
 // ============================================================================
 
+function isSummaryRow(x, inv) {
+    var str = Object.keys(x).map(k => String(x[k] == null ? '' : x[k]).trim()).filter(Boolean).join(' ').toLowerCase();
+    if(/\b(total|subtotal|grand\s*total|sum\b|balance|bal\b|paid\b|amount\s*paid|ending\s*balance)\b/i.test(str)) return true;
+    if(/(សរុប|នៅសល់|បានសង|ប្រាក់សរុប|ជំពាក់សរុប|ចំនួនសរុប|ទឹកប្រាក់សរុប)/i.test(str)) return true;
+    if(!inv && !/(inv|lf|pt|bridge|crown|veneer|post|metal|zirconia)/i.test(str)) return true;
+    return false;
+}
+
 function partyFor(t) {
 
-    if(t.pl) return t.pl;
+    var nm = (t.name || '').toLowerCase(), i;
 
-    var nm = t.name.toLowerCase(), i;
+    for(i=0; i<ACC.length; i++) {
+        var e = (ACC[i].entry || '').toLowerCase();
+        if(e && (nm === e || nm.indexOf(e) > -1)) return ACC[i].name;
+        var cid = (ACC[i].customerId || '').toLowerCase();
+        if(cid && (nm === cid || nm.indexOf(cid) > -1)) return ACC[i].name;
+    }
 
-    for(i=0; i<ACC.length; i++) { var e = ACC[i].entry.toLowerCase(); if(e && nm.indexOf(e) > -1) return ACC[i].name; }
+    if(t.m && t.m.entry) {
+        var s = {};
+        t.rows.forEach(r => { var val = String(r[t.m.entry]||'').trim(); if(val) s[val] = 1; });
+        for(i=0; i<ACC.length; i++) {
+            if(ACC[i].entry && s[ACC[i].entry]) return ACC[i].name;
+            if(ACC[i].customerId && s[ACC[i].customerId]) return ACC[i].name;
+        }
+    }
 
-    if(t.m.entry) { var s = {}; t.rows.forEach(r => { s[String(r[t.m.entry]).trim()] = 1 }); for(i=0; i<ACC.length; i++) if(ACC[i].entry && s[ACC[i].entry]) return ACC[i].name; }
-
-    return t.name;
+    return t.name || '';
 
 }
 
-function accBy(e) { for(var i=0; i<ACC.length; i++) if(ACC[i].entry && ACC[i].entry === e) return ACC[i].name; return ''; }
+function accBy(e) {
+    if(!e) return '';
+    for(var i=0; i<ACC.length; i++) {
+        if((ACC[i].entry && ACC[i].entry === e) || (ACC[i].customerId && ACC[i].customerId === e)) return ACC[i].name;
+    }
+    return '';
+}
 
 function build() {
 
@@ -617,11 +643,31 @@ function build() {
                 }
             }
 
+            // Exclude summary/total/balance rows or rows without an invoice number
+            if(isSummaryRow(x, inv)) return;
+            if(!inv) return;
+
+            if(!en && t.name) {
+                var mOr = t.name.match(/OR\d+/i);
+                if(mOr) en = mOr[0];
+            }
+
             var hParty = HDR[en] ? (HDR[en]['Customer ID'] || HDR[en]['Customer Name'] || HDR[en]['Customer'] || '') : '';
-            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || accBy(hParty) || hParty || en || pf;
+            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || accBy(hParty) || hParty || (en && !en.includes(',') && !en.startsWith('OR') ? en : '') || pf;
+            if(p && p.includes(',')) p = p.split(',')[0].trim();
+
+            if(!en && p) {
+                var aItem = ACC.find(ac => (ac.name && (ac.name === p || p.indexOf(ac.name) > -1 || ac.name.indexOf(p) > -1)) || (ac.customerId && ac.customerId === p));
+                if(aItem && aItem.entry) en = aItem.entry;
+            }
+            if(!en && p) {
+                for(var kH in HDR) {
+                    var rCust = HDR[kH]['Customer ID'] || HDR[kH]['Customer Name'] || HDR[kH]['Customer'] || '';
+                    if(rCust === p) { en = kH; break; }
+                }
+            }
 
             if(!(v > 0) || !p) return;
-            if(!inv) inv = t.name + '-' + (i+1);
 
             t.used++; names[p] = 1;
 
@@ -635,7 +681,7 @@ function build() {
 
         });
 
-        t.pl = Object.keys(names).join(', ');
+        t.displayNames = Object.keys(names).join(', ');
 
     });
 
@@ -783,15 +829,29 @@ function render() {
 
     $('out').innerHTML = h;
 
+    updateSelBtn();
+
 }
 
-
+function updateSelBtn() {
+    var cnt = Object.keys(sel).filter(k => sel[k]).length;
+    var btn = $('exSel');
+    if(btn) {
+        if(cnt > 0) {
+            btn.style.display = 'inline-block';
+            var sNum = $('selNum');
+            if(sNum) sNum.textContent = cnt;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+}
 
 document.addEventListener('change', e => {
 
     var t = e.target;
 
-    if(t.dataset.id != null) sel[t.dataset.id] = t.checked;
+    if(t.dataset.id != null) { sel[t.dataset.id] = t.checked; updateSelBtn(); }
 
     if(t.dataset.as != null && t.value) { assign[t.dataset.as] = t.value; run(); }
 
@@ -892,19 +952,43 @@ function buildOR(items) {
 
     items.forEach(x => {
 
-        var v = x.v, e = String(v.entry || x.n), h = HDR[e] || {};
+        var v = x.v;
+        var e = String(v.entry || '').trim();
+
+        // Ensure Entry No is always a clean OR code (never merged names)
+        if(!e || !/^OR\d+/i.test(e)) {
+            var docName = String(x.n || v.party || '').split(',')[0].trim();
+            var acc = ACC.find(a => (a.name && (a.name === docName || docName.toLowerCase().indexOf(a.name.toLowerCase()) > -1 || a.name.toLowerCase().indexOf(docName.toLowerCase()) > -1)) || (a.customerId && (a.customerId === docName || a.customerId === v.party)) || (a.entry && a.entry === docName));
+            if(acc && acc.entry) e = acc.entry;
+
+            if(!e || !/^OR\d+/i.test(e)) {
+                for(var k in HDR) {
+                    var rCust = HDR[k]['Customer ID'] || HDR[k]['Customer Name'] || HDR[k]['Customer'] || '';
+                    if(rCust === docName || (acc && rCust === acc.customerId)) { e = k; break; }
+                }
+            }
+            if(!e || !/^OR\d+/i.test(e)) {
+                var mOr = docName.match(/OR\d+/i) || (String(v.inv||'')).match(/OR\d+/i);
+                if(mOr) e = mOr[0];
+            }
+            if(!e) {
+                e = docName;
+            }
+        }
+
+        var h = HDR[e] || {};
 
         if(!seen[e]) {
             seen[e] = 1;
 
-            var acc = ACC.find(a => (a.entry && (a.entry === e || a.customerId === e)) || (a.name && (a.name === x.n || x.n.indexOf(a.name) > -1 || a.name.indexOf(x.n) > -1)));
+            var acc = ACC.find(a => (a.entry && a.entry === e) || (a.customerId && a.customerId === e) || (a.name && (a.name === x.n || x.n.toLowerCase().indexOf(a.name.toLowerCase()) > -1)));
 
             var hDate = h['Date (dd-MMM-YYYY)'] || h['Date'] || h['date'] || v.date || (x.D && x.D.lastD) || new Date();
             var entryDateStr = dmy(hDate);
 
             var type = h['Type'] || h['type'] || 'Apply to Sale Invoice';
             var prefix = h['Prefix'] || h['prefix'] || 'DEFAULT';
-            var custId = h['Customer ID'] || h['Customer'] || h['customer id'] || (acc && (acc.customerId || acc.entry)) || x.n || '';
+            var custId = h['Customer ID'] || h['Customer'] || h['customer id'] || (acc && (acc.customerId || acc.entry)) || (x.n && !x.n.includes(',') ? x.n : '') || e;
             var bankAcc = h['Cash/Bank Account ID'] || h['Cash/Bank Account'] || h['Bank Account ID'] || (acc && acc.bankAcc) || $('bank').value || '';
             var recBy = h['Received By'] || '';
             var classId = h['Class ID'] || h['Class'] || (acc && acc.classId) || 'KHEMA88888';
@@ -957,7 +1041,7 @@ function buildJV(items) {
 
     items.forEach((x, i) => {
 
-        var v = x.v, k = i+1, ds = dmy(x.D.lastD), rm = 'Payment from ' + x.n + ' (' + v.inv + ')', a = Math.round((v.amt != null && v.amt > 0 ? v.amt : (v.pp || 0))*100)/100;
+        var v = x.v, k = i+1, ds = dmy(x.D.lastD || v.date), rm = 'Payment from ' + x.n + ' (' + v.inv + ')', a = Math.round((v.amt != null && v.amt > 0 ? v.amt : (v.pp || 0))*100)/100;
 
         s1.push([k, ds, '', v.entry||'', v.inv, rm, cur, rate]); s2.push([k, ds, '', bank, '', rm, a, 0, '', 0, 0]); s2.push([k, ds, '', x.n, '', rm, 0, a, '', 0, 0]);
 
@@ -969,7 +1053,7 @@ function buildJV(items) {
 
 function exportX(n) {
 
-    var D = res.docs[n], list = D.inv.filter(v => (sel[v.id] ? true : v.pp > 0));
+    var D = res.docs[n], list = D.inv.filter(v => (sel[v.id] ? true : (v.pp > 0 || v.pb > 0)));
     if(!list.length) list = D.inv;
 
     if(!list.length) { alert('សូមធិចជ្រើសវិក័យបត្រយ៉ាងហោចណាស់មួយ'); return; }
@@ -983,9 +1067,35 @@ function exportX(n) {
 $('exAll').onclick = () => {
 
     var it = [];
-    var hasAnyChecked = Object.keys(sel).some(k => sel[k]);
 
-    if(hasAnyChecked) {
+    // Export ALL paid invoices across all doctors
+    if(res) {
+        res.names.forEach(n => {
+            var D = res.docs[n];
+            D.inv.forEach(v => {
+                if(v.pp > 0 || v.pb > 0 || (D.paidTotal > 0 && v.amt > 0 && (D.rem <= 0.005 || v.rem <= 0.005))) {
+                    it.push({n: n, D: D, v: v});
+                }
+            });
+        });
+    }
+
+    if(!it.length && debts && debts.length) {
+        debts.forEach(d => {
+            it.push({n: d.party, D: (res && res.docs[d.party]) || {}, v: d});
+        });
+    }
+
+    if(!it.length) { alert('មិនមានវិក័យបត្រដែលត្រូវទាញយកទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
+
+    var f = $('fmt').value;
+    saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
+
+};
+
+if($('exSel')) {
+    $('exSel').onclick = () => {
+        var it = [];
         if(res) {
             res.names.forEach(n => {
                 var D = res.docs[n];
@@ -996,26 +1106,10 @@ $('exAll').onclick = () => {
                 });
             });
         }
-    } else {
-        if(debts && debts.length) {
-            debts.forEach(d => {
-                it.push({n: d.party, D: (res && res.docs[d.party]) || {}, v: d});
-            });
-        } else if(res) {
-            res.names.forEach(n => {
-                var D = res.docs[n];
-                D.inv.forEach(v => {
-                    it.push({n: n, D: D, v: v});
-                });
-            });
-        }
-    }
-
-    if(!it.length) { alert('មិនមានវិក័យបត្រដែលត្រូវទាញយកទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
-
-    var f = $('fmt').value;
-    saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
-
+        if(!it.length) { alert('សូមធិចជ្រើសរើសវិក័យបត្រជាមុន'); return; }
+        var f = $('fmt').value;
+        saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'SELECTED_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
+    };
 };
 
 $('exUn').onclick = () => {
