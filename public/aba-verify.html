@@ -934,7 +934,7 @@ function buildOR(items) {
         }
 
         var invNo = v.inv;
-        var amt = Math.round((v.pp > 0 ? v.pp : v.amt) * 100) / 100;
+        var amt = Math.round((v.amt != null && v.amt > 0 ? v.amt : (v.pp || 0)) * 100) / 100;
 
         s2.push([
             e,
@@ -957,7 +957,7 @@ function buildJV(items) {
 
     items.forEach((x, i) => {
 
-        var v = x.v, k = i+1, ds = dmy(x.D.lastD), rm = 'Payment from ' + x.n + ' (' + v.inv + ')', a = Math.round(v.pp*100)/100;
+        var v = x.v, k = i+1, ds = dmy(x.D.lastD), rm = 'Payment from ' + x.n + ' (' + v.inv + ')', a = Math.round((v.amt != null && v.amt > 0 ? v.amt : (v.pp || 0))*100)/100;
 
         s1.push([k, ds, '', v.entry||'', v.inv, rm, cur, rate]); s2.push([k, ds, '', bank, '', rm, a, 0, '', 0, 0]); s2.push([k, ds, '', x.n, '', rm, 0, a, '', 0, 0]);
 
@@ -985,27 +985,30 @@ $('exAll').onclick = () => {
     var it = [];
     var hasAnyChecked = Object.keys(sel).some(k => sel[k]);
 
-    if(res) {
-        res.names.forEach(n => {
-            var D = res.docs[n];
-            D.inv.forEach(v => {
-                var shouldExport = hasAnyChecked ? sel[v.id] : (v.pp > 0);
-                if(shouldExport) {
-                    it.push({n: n, D: D, v: v});
-                }
+    if(hasAnyChecked) {
+        if(res) {
+            res.names.forEach(n => {
+                var D = res.docs[n];
+                D.inv.forEach(v => {
+                    if(sel[v.id]) {
+                        it.push({n: n, D: D, v: v});
+                    }
+                });
             });
-        });
-    }
-
-    if(!it.length && res) {
-        res.names.forEach(n => {
-            var D = res.docs[n];
-            D.inv.forEach(v => {
-                if(v.pp > 0 || v.pb > 0 || !hasAnyChecked) {
-                    it.push({n: n, D: D, v: v});
-                }
+        }
+    } else {
+        if(debts && debts.length) {
+            debts.forEach(d => {
+                it.push({n: d.party, D: (res && res.docs[d.party]) || {}, v: d});
             });
-        });
+        } else if(res) {
+            res.names.forEach(n => {
+                var D = res.docs[n];
+                D.inv.forEach(v => {
+                    it.push({n: n, D: D, v: v});
+                });
+            });
+        }
     }
 
     if(!it.length) { alert('មិនមានវិក័យបត្រដែលត្រូវទាញយកទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
