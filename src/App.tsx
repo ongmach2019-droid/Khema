@@ -5,6 +5,7 @@ import { DashboardScreen } from './components/DashboardScreen.tsx';
 import { UploadIngestionScreen } from './components/UploadIngestionScreen.tsx';
 import { LedgerListScreen } from './components/LedgerListScreen.tsx';
 import { SettingsScreen } from './components/SettingsScreen.tsx';
+import { AbaVerifyScreen } from './components/AbaVerifyScreen.tsx';
 import { TransactionDetailModal } from './components/TransactionDetailModal.tsx';
 import { TransactionEditModal } from './components/TransactionEditModal.tsx';
 import { NotificationsModal } from './components/NotificationsModal.tsx';
@@ -307,6 +308,8 @@ export default function App() {
                 onSelectTransaction={(tx) => setSelectedTransaction(tx)}
               />
             )}
+
+            {currentTab === 'aba-verify' && <AbaVerifyScreen />}
 
             {currentTab === 'upload-ingestion' && (
               <UploadIngestionScreen

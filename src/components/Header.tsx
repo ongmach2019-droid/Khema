@@ -20,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const navTabs = [
     { id: 'dashboard', label: 'ទំព័រដើម', icon: 'dashboard' },
+    { id: 'aba-verify', label: 'ផ្ទៀងផ្ទាត់ ABA', icon: 'fact_check' },
     { id: 'upload-ingestion', label: 'បញ្ចូលពត៌មាន', icon: 'cloud_upload' },
     { id: 'ledger-list', label: 'បញ្ជីទិន្នន័យ (Excel)', icon: 'receipt_long' },
     { id: 'settings', label: 'ការកំណត់', icon: 'settings' },
@@ -29,6 +30,8 @@ export const Header: React.FC<HeaderProps> = ({
     switch (currentTab) {
       case 'dashboard':
         return 'ទិដ្ឋភាពទូទៅ';
+      case 'aba-verify':
+        return 'ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុល';
       case 'upload-ingestion':
         return 'បញ្ចូលវិក្កយបត្រ';
       case 'ledger-list':

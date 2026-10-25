@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+
+<html lang="km">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+
+:root{--bg:#f0f2f5;--card:#fff;--tx:#1b2430;--mu:#5f6b7a;--bd:#cfd6de;--pr:#0b6bcb;--ok:#14803c;--wa:#b26a00;--er:#c62828;box-sizing:border-box}
+
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b222b;--tx:#e8ecf1;--mu:#94a0b0;--bd:#2d3744;--pr:#5aa8ff;--ok:#4cc38a;--wa:#f0b24a;--er:#ff7b7b}}
+
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+
+*{box-sizing:border-box}
+
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans Khmer",system-ui,sans-serif;line-height:1.4;font-size:14px}
+
+main{max-width:1200px;margin:0 auto;padding:10px}
+
+h1{font-size:1.15rem;margin:0 0 2px}h2{font-size:0.95rem;margin:0 0 6px}
+
+.mu{color:var(--mu);font-size:.78rem}
+
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,0.03)}
+
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+button,select,input{font:inherit;color:var(--tx);font-size:.85rem}
+
+button{background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;cursor:pointer;transition:all .15s}
+
+button:hover{background:var(--bg)}
+
+button.p,button.on{background:var(--pr);border-color:var(--pr);color:#fff}
+
+button.p:hover{background:#0a5aab}
+
+button:disabled{opacity:.45;cursor:not-allowed}
+
+input[type=date],select,input[type=text]{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 6px;height:28px}
+
+input[type=file]{font-size:.75rem;max-width:100%}
+
+.up{flex:1 1 200px;border:1px dashed var(--bd);border-radius:6px;padding:8px;background:var(--bg)}
+
+.up b{display:block;font-size:.85rem;margin-bottom:2px}
+
+.up .mu{display:block;margin-bottom:4px;font-size:.7rem}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+
+.kpi{background:var(--bg);border-radius:6px;padding:8px}.kpi span{display:block;font-size:.75rem;color:var(--mu)}.kpi strong{font-size:1.05rem}
+
+.tw{overflow-x:auto}
+
+table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:600px}
+
+th,td{padding:4px 6px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+
+td.n,th.n{text-align:right}
+
+details{border:1px solid var(--bd);border-radius:6px;margin-bottom:6px;background:var(--card)}
+
+summary{padding:8px 10px;cursor:pointer;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;font-size:.85rem;user-select:none}
+
+summary:hover{background:var(--bg)}
+
+.tag{border-radius:99px;padding:1px 8px;font-size:.7rem;border:1px solid currentColor}
+
+.ok{color:var(--ok)}.wa{color:var(--wa)}.er{color:var(--er)}
+
+.bar{height:4px;background:var(--bd);border-radius:9px;overflow:hidden;margin:0 10px 6px}.bar i{display:block;height:100%;background:var(--ok)}
+
+.pad{padding:0 10px 10px}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;background:var(--card);padding:8px;border-radius:8px;border:1px solid var(--bd);margin-bottom:10px;position:sticky;top:10px;z-index:10;box-shadow:0 2px 5px rgba(0,0,0,0.05)}
+
+</style>
+
+</head>
+
+<body>
+
+<main>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px">
+
+  <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
+
+</div>
+
+
+
+<div class="card">
+
+<div class="row">
+
+<div class="up"><b>១. តារាង ABA</b><span class="mu">Credit, ពិពណ៌នា</span><input type="file" id="fAba" accept=".xlsx,.xls,.csv"><div class="mu" id="sAba"></div></div>
+
+<div class="up"><b>២. តារាងវិក័យបត្រ</b><span class="mu">ជ្រើសបានច្រើនឯកសារ</span><input type="file" id="fDebt" accept=".xlsx,.xls,.csv" multiple><div class="mu" id="sDebt"></div></div>
+
+<div class="up"><b>៣. គណនីគ្រូពេទ្យ</b><span class="mu">(ជម្រើស) Entry, Name, Acc</span><input type="file" id="fAcc" accept=".xlsx,.xls,.csv"><div class="mu" id="sAcc"></div></div>
+
+</div>
+
+</div>
+
+
+
+<div id="mapContainer"></div>
+
+
+
+<!-- Sticky Toolbar for Actions & Filters -->
+
+<div class="toolbar">
+
+  <div class="row" style="flex:1">
+
+    <span class="mu" style="margin-right:4px">រយៈពេល៖</span>
+
+    <button data-d="7" class="pb">៧ ថ្ងៃ</button>
+
+    <button data-d="15" class="pb">១៥ ថ្ងៃ</button>
+
+    <button data-d="30" class="pb">១ ខែ</button>
+
+    <button data-d="0" class="pb on">ទាំងអស់</button>
+
+    <input type="date" id="dFrom" title="ពី"> <span>-</span> <input type="date" id="dTo" title="ដល់">
+
+    <button class="p" id="go" style="margin-left:auto">🔄 ផ្ទៀងផ្ទាត់</button>
+
+  </div>
+
+</div>
+
+
+
+<details class="card" style="margin-bottom:10px; border:1px dashed var(--bd);">
+
+  <summary style="font-weight:600; color:var(--mu)">⚙️ ការកំណត់ទម្រង់ Export (ចុចទីនេះដើម្បីកែប្រែ)</summary>
+
+  <div class="row pad" style="padding-top:8px">
+
+    <label class="mu">គណនីធនាគារ <input type="text" id="bank" value="ONG MACH ABA USD" style="width:160px"></label>
+
+    <label class="mu">រូបិយប័ណ្ណ <input type="text" id="cur" value="USD" style="width:60px"></label>
+
+    <label class="mu">អត្រា <input type="text" id="rate" value="1" style="width:60px"></label>
+
+    <label class="mu">ទម្រង់ 
+
+      <select id="fmt">
+
+        <option value="or">AME Receipt (OR)</option>
+
+        <option value="jv">Journal Voucher (JV)</option>
+
+      </select>
+
+    </label>
+
+  </div>
+
+</details>
+
+
+
+<div class="row" style="margin-bottom:10px">
+
+  <button class="p" id="exAll">⬇ Export ទាំងអស់ដែលបានសង</button>
+
+  <button id="exUn">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
+
+</div>
+
+
+
+<div id="out"></div>
+
+</main>
+
+
+
+<script>
+
+// ============================================================================
+
+// 0. LOCAL STORAGE (Save Settings)
+
+// ============================================================================
+
+var $ = id => document.getElementById(id);
+
+var ST_KEYS = { bank: 'aba_bank', cur: 'aba_cur', rate: 'aba_rate', fmt: 'aba_fmt' };
+
+
+
+function loadSettings() {
+
+    if(localStorage.getItem(ST_KEYS.bank)) $('bank').value = localStorage.getItem(ST_KEYS.bank);
+
+    if(localStorage.getItem(ST_KEYS.cur)) $('cur').value = localStorage.getItem(ST_KEYS.cur);
+
+    if(localStorage.getItem(ST_KEYS.rate)) $('rate').value = localStorage.getItem(ST_KEYS.rate);
+
+    if(localStorage.getItem(ST_KEYS.fmt)) $('fmt').value = localStorage.getItem(ST_KEYS.fmt);
+
+}
+
+
+
+function saveSettings() {
+
+    localStorage.setItem(ST_KEYS.bank, $('bank').value);
+
+    localStorage.setItem(ST_KEYS.cur, $('cur').value);
+
+    localStorage.setItem(ST_KEYS.rate, $('rate').value);
+
+    localStorage.setItem(ST_KEYS.fmt, $('fmt').value);
+
+}
+
+
+
+['bank', 'cur', 'rate', 'fmt'].forEach(id => {
+
+    $(id).addEventListener('input', saveSettings);
+
+    $(id).addEventListener('change', saveSettings);
+
+});
+
+
+
+loadSettings();
+
+
+
+// ============================================================================
+
+// 1. UTILITIES & GLOBALS
+
+// ============================================================================
+
+var num = v => { if(v==null || v==='') return 0; var n = parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n) ? 0 : n; };
+
+var fmt = n => n.toLocaleString('en-US', {maximumFractionDigits:2});
+
+var pd = v => {
+
+    if(v instanceof Date) return isNaN(v) ? null : v;
+
+    if(v == null || v === '') return null;
+
+    if(typeof v === 'number' && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4);
+
+    var s = String(v).trim(), m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
+
+    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+
+    var d = new Date(s); return isNaN(d) ? null : d;
+
+};
+
+var iso = d => d ? d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') : '';
+
+var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+var dmy = d => String(d.getDate()).padStart(2,'0') + '-' + MON[d.getMonth()] + '-' + d.getFullYear();
+
+var esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+var pick = (row, keys, not) => {
+
+    var ks = Object.keys(row);
+
+    for(var i=0; i<keys.length; i++){
+
+        for(var j=0; j<ks.length; j++){
+
+            var k = ks[j].toLowerCase();
+
+            if(k.indexOf(keys[i]) > -1 && !(not && k.indexOf(not) > -1)) return ks[j];
+
+        }
+
+    }
+
+    return null;
+
+};
+
+var isDate = x => x instanceof Date || (typeof x === 'string' && (/^\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}/.test(x.trim()) || /^\d{1,2}[\- ][A-Za-z]{3}[\- ]\d{4}/.test(x.trim())));
+
+
+
+var debts=[], aba=[], assign={}, sel={}, res=null, ACC=[], FILES=[], HDR={};
+
+var RAW = {aba: null, debt: null}, M = {aba: {}, debt: {}};
+
+var KEYS = {
+
+    aba: { date: ['date','កាល'], text: ['description','remark','detail','narr','particular','ពិពណ៌នា'], ref: ['reference','ref'], cr: ['money in','cash in','credit','received','deposit','ចូល'], am: ['amount'] },
+
+    debt: { inv: ['entry no','document','invoice','reference','jv no','វិក័យបត្រ'], date: ['date','កាល'], party: ['vendor','customer','employee','doctor','ពេទ្យ','name','ឈ្មោះ'], cr: ['amount','credit','ចំនួន'], db: ['debit'], bal: ['balance'], entry: ['entry no'], desc: ['description'] }
+
+};
+
+var LBL = {
+
+    aba: {date: 'កាលបរិច្ឆេទ', text: 'ពិពណ៌នា', ref: 'Reference', cr: 'ប្រាក់ចូល (Credit)', am: 'Amount (បើគ្មាន Credit)'},
+
+    debt: {inv: 'លេខវិក័យបត្រ', date: 'កាលបរិច្ឆេទ', party: 'ឈ្មោះគ្រូពេទ្យ', cr: 'ចំនួន', db: 'Debit', bal: 'Balance', entry: 'Entry No', desc: 'Description'}
+
+};
+
+
+
+// ============================================================================
+
+// 2. EXCEL PARSING
+
+// ============================================================================
+
+function readWB(f, cb) {
+
+    var r = new FileReader();
+
+    r.onload = e => { try { cb(XLSX.read(e.target.result, {type:'array', cellDates:true})) } catch(x) { alert('អានមិនបាន៖ ' + x.message) } };
+
+    r.readAsArrayBuffer(f);
+
+}
+
+function sheetsOf(wb) { return wb.SheetNames.map(n => { var a = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, defval:'', raw:true}); return a.length ? mkTable(a) : null; }).filter(Boolean); }
+
+function hasH(t, re) { return t.h.some(h => re.test(h)); }
+
+function mkTable(aoa) {
+
+    var re = /date|credit|debit|amount|description|remark|detail|invoice|reference|name|vendor|customer|balance|doctor|កាល|ចំនួន|ពិពណ៌នា|វិក័យ|ឈ្មោះ/i, bi=0, bs=-1;
+
+    for(var i=0; i<Math.min(aoa.length, 50); i++) {
+
+        var sc = 0; aoa[i].forEach(c => { if(typeof c === 'string' && c.trim()) { sc++; if(re.test(c)) sc+=10; } });
+
+        if(sc > bs) { bs = sc; bi = i; }
+
+    }
+
+    var h = (aoa[bi]||[]).map((c, j) => String(c||'').trim() || ('Col'+(j+1)));
+
+    var rows = aoa.slice(bi+1).filter(r => r.some(c => c !== '')).map(r => { var o={}; h.forEach((k,j) => { o[k] = r[j] }); return o; });
+
+    return {h: h, rows: rows};
+
+}
+
+function colInfo(t) {
+
+    return t.h.map(h => {
+
+        var v = t.rows.slice(0, 60).map(r => r[h]).filter(x => x !== '' && x != null), n = v.length || 1;
+
+        return { h: h, n: n, v: v, num: v.filter(x => typeof x === 'number' || (typeof x === 'string' && /^[\s\-\d.,$]+$/.test(x) && /\d/.test(x))).length/n, dt: v.filter(isDate).length/n, len: v.reduce((s, x) => s + String(x).length, 0)/n };
+
+    });
+
+}
+
+function smart(kind, t) {
+
+    var m = {}, f = {}; t.h.forEach(k => { f[k] = 1 });
+
+    Object.keys(KEYS[kind]).forEach(k => { var c = pick(f, KEYS[kind][k]); if(c) m[k] = c; });
+
+    var ci = colInfo(t), used = c => Object.keys(m).some(k => m[k] === c), c;
+
+    if(!m.date) { c = ci.filter(x => x.dt > 0.6 && !used(x.h))[0]; if(c) m.date = c.h; }
+
+    if(kind === 'aba') {
+
+        if(!m.cr && !m.am) { c = ci.filter(x => x.num > 0.6 && x.dt < 0.3 && !/bal|out|debit|ចេញ/i.test(x.h) && !used(x.h))[0]; if(c) m.cr = c.h; }
+
+        if(!m.text) { c = ci.filter(x => x.num < 0.3 && x.dt < 0.3 && !used(x.h)).sort((a,b) => b.len - a.len)[0]; if(c) m.text = c.h; }
+
+    } else {
+
+        if(!m.inv) { c = ci.filter(x => x.v.filter(y => /^[A-Za-z]{1,6}[-\s]?[A-Za-z0-9\-]*\d{3,}$/.test(String(y).trim())).length/x.n > 0.6 && !used(x.h))[0]; if(c) m.inv = c.h; }
+
+        if(!m.db && !m.cr && !m.bal) { c = ci.filter(x => x.num > 0.6 && x.dt < 0.3 && !used(x.h)).pop(); if(c) m.cr = c.h; }
+
+    }
+
+    return m;
+
+}
+
+
+
+// ============================================================================
+
+// 3. FILE LOADERS
+
+// ============================================================================
+
+$('fAba').onchange = e => {
+
+    if(!e.target.files[0]) return;
+
+    readWB(e.target.files[0], wb => {
+
+        var t = sheetsOf(wb).sort((a,b) => b.rows.length - a.rows.length)[0];
+
+        if(t) { RAW.aba = t; RAW.aba.m = smart('aba', RAW.aba); M.aba = RAW.aba.m; assign = {}; run(); }
+
+    });
+
+};
+
+function ingestAcc(t) {
+
+    var fk = {}; t.h.forEach(k => { fk[k] = 1 });
+
+    var kn = pick(fk, ['name','ឈ្មោះ']), ka = pick(fk, ['acc','aba']), ke = pick(fk, ['entry']);
+
+    t.rows.forEach(x => {
+
+        var a = {entry: String(x[ke]||'').trim(), name: String(x[kn]||'').trim(), acct: String(x[ka]||'').replace(/\D/g,'')};
+
+        if(a.name && a.acct.length >= 6) { ACC = ACC.filter(o => o.acct !== a.acct); ACC.push(a); }
+
+    });
+
+    $('sAcc').textContent = ACC.length + ' គណនី';
+
+}
+
+$('fDebt').onchange = e => {
+
+    var fs = [].slice.call(e.target.files), n = fs.length, got = [], cnt = 0;
+
+    if(!n) return; HDR = {};
+
+    fs.forEach((f, k) => {
+
+        readWB(f, wb => {
+
+            var ts = sheetsOf(wb), dt = null;
+
+            ts.forEach(t => {
+
+                if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice/i)) ingestAcc(t);
+
+                else if(hasH(t, /customer id/i) && hasH(t, /entry no/i) && !hasH(t, /invoice/i)) { t.rows.forEach(x => { var en = String(x['Entry No']||'').trim(); if(en) HDR[en] = x; }); } 
+
+                else if(!dt && hasH(t, /invoice/i)) dt = t;
+
+            });
+
+            if(!dt) dt = ts.slice().sort((a,b) => b.rows.length - a.rows.length)[0];
+
+            if(dt) { dt.name = f.name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, ''); dt.m = smart('debt', dt); if(!dt.m.date) dt.m.date = dt.m.entry || dt.m.inv || dt.h[0]; got[k] = dt; }
+
+            cnt++; if(cnt === n) { FILES = got.filter(Boolean); run(); }
+
+        });
+
+    });
+
+};
+
+$('fAcc').onchange = e => {
+
+    if(!e.target.files[0]) return;
+
+    readWB(e.target.files[0], wb => { var t = sheetsOf(wb).find(t => hasH(t, /acc|aba/i) && hasH(t, /name|ឈ្មោះ/i)); if(t) { ingestAcc(t); run(); } else { $('sAcc').textContent = 'រកមិនឃើញជួរ Name និង Account ABA'; } });
+
+};
+
+
+
+// ============================================================================
+
+// 4. DATA BUILDER & MATCHER
+
+// ============================================================================
+
+function partyFor(t) {
+
+    if(t.pl) return t.pl;
+
+    var nm = t.name.toLowerCase(), i;
+
+    for(i=0; i<ACC.length; i++) { var e = ACC[i].entry.toLowerCase(); if(e && nm.indexOf(e) > -1) return ACC[i].name; }
+
+    if(t.m.entry) { var s = {}; t.rows.forEach(r => { s[String(r[t.m.entry]).trim()] = 1 }); for(i=0; i<ACC.length; i++) if(ACC[i].entry && s[ACC[i].entry]) return ACC[i].name; }
+
+    return t.name;
+
+}
+
+function accBy(e) { for(var i=0; i<ACC.length; i++) if(ACC[i].entry && ACC[i].entry === e) return ACC[i].name; return ''; }
+
+function build() {
+
+    var a = RAW.aba, m; debts = [];
+
+    FILES.forEach((t, fi) => {
+
+        m = t.m; var pf = partyFor(t), names = {}; t.used = 0;
+
+        t.rows.forEach((x, i) => {
+
+            var v = m.db ? num(x[m.db]) : (num(x[m.cr]) || num(x[m.bal])), en = m.entry ? String(x[m.entry]||'').trim() : '';
+
+            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || en || pf, inv = String(m.inv ? (x[m.inv]||'') : '').trim();
+
+            if(!(v > 0) || !p) return; if(m.inv && !inv) return;
+
+            if(!inv) inv = t.name + '-' + (i+1);
+
+            t.used++; names[p] = 1;
+
+            debts.push({id: fi*100000+i, inv: inv, date: pd(x[m.date]), party: p, amt: v, entry: en, desc: m.desc ? String(x[m.desc]||'') : ''});
+
+        });
+
+        t.pl = Object.keys(names).join(', ');
+
+    });
+
+    if(FILES.length) $('sDebt').textContent = FILES.length + ' ឯកសារ · ' + debts.length + ' វិក័យបត្រ';
+
+    if(a) {
+
+        m = M.aba;
+
+        aba = a.rows.map((x, i) => { return { id: i, date: pd(x[m.date]), text: Object.keys(x).map(k => typeof x[k] === 'string' ? x[k] : '').join(' '), cells: Object.keys(x).map(k => x[k] instanceof Date ? '' : String(x[k])), ref: String(x[m.ref]||''), amt: num(x[m.cr]) || num(x[m.am]) }; }).filter(t => t.amt > 0 && t.date);
+
+        $('sAba').textContent = aba.length + ' ប្រតិបត្តិការ';
+
+    }
+
+    drawMap();
+
+}
+
+function aliases(p) { var out = [p], m = p.match(/^([^(]*)\((.*)\)/); if(m) { out.push(m[1]); out.push(m[2].replace(/[-\d\s]+$/, '')); } return out.map(s => s.toLowerCase().replace(/\s+/g,'')).filter(s => s.length >= 3); }
+
+function tok(n, txt) { var w = n.toLowerCase().split(/[\s()\/\-,]+/).filter(x => x.length >= 3 && !/^\d+$/.test(x)); var s = txt.toLowerCase(), c = w.filter(x => s.indexOf(x) > -1).length; return w.length >= 2 ? c >= 2 : (w.length === 1 && c === 1 && w[0].length >= 5); }
+
+function findDoc(A, docs, names) {
+
+    var n = A.name.toLowerCase().replace(/\s+/g,''), i, D;
+
+    if(n.length >= 3) for(i=0; i<names.length; i++) { D = docs[names[i]]; if(D.al.some(a => a.indexOf(n) > -1 || n.indexOf(a) > -1)) return D; }
+
+    if(A.entry) for(i=0; i<names.length; i++) { D = docs[names[i]]; if(D.inv.some(v => v.entry === A.entry || v.inv === A.entry)) return D; }
+
+    var tm = names.filter(p => tok(p, A.name) || tok(A.name, p)); return tm.length === 1 ? docs[tm[0]] : null;
+
+}
+
+function run() {
+
+    build();
+
+    if(FILES.length && !debts.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">⚠️ រកមិនឃើញចំនួនទឹកប្រាក់ សូមពិនិត្យជួរឈរ</div>'; return; }
+
+    if(!debts.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">សូមផ្ទុកឯកសារ ABA និង វិក័យបត្រ</div>'; return; }
+
+    var from = $('dFrom').value ? new Date($('dFrom').value) : null, to = $('dTo').value ? new Date($('dTo').value+'T23:59:59') : new Date(8.64e15), docs = {};
+
+    debts.forEach(d => { if(d.date && d.date > to) return; (docs[d.party] = docs[d.party] || {name: d.party, inv: [], pay: [], al: aliases(d.party)}).inv.push(d); });
+
+    var names = Object.keys(docs), unmatched = [];
+
+    aba.forEach(t => {
+
+        if(t.date > to) return;
+
+        var low = t.text.toLowerCase().replace(/\s+/g,''), hit = assign[t.id] && docs[assign[t.id]] ? docs[assign[t.id]] : null;
+
+        if(!hit && ACC.length) { for(var j=0; j<ACC.length && !hit; j++) { var A = ACC[j]; if(t.cells.some(c => c.replace(/\D/g,'').indexOf(A.acct) > -1)) hit = findDoc(A, docs, names); } }
+
+        if(!hit) { for(var i=0; i<names.length && !hit; i++) { var D2 = docs[names[i]]; if(D2.al.some(a => low.indexOf(a) > -1) || D2.inv.some(v => { var k = v.inv.toLowerCase().replace(/\s+/g,''); return k.length >= 5 && low.indexOf(k) > -1; })) hit = D2; } }
+
+        if(!hit) { var tm = names.filter(n => tok(n, t.text)); if(tm.length === 1) hit = docs[tm[0]]; }
+
+        if(hit) hit.pay.push(t); else unmatched.push(t);
+
+    });
+
+    var tot = {owed:0, paid:0, rem:0};
+
+    names.forEach(n => {
+
+        var D = docs[n]; D.inv.sort((a,b) => (a.date||0) - (b.date||0));
+
+        var before=0, per=0, lastD=null;
+
+        D.pay.forEach(t => { if(from && t.date < from) before += t.amt; else { per += t.amt; if(!lastD || t.date > lastD) lastD = t.date; } });
+
+        D.before = before; D.per = per; D.lastD = lastD || to; D.owed = 0;
+
+        D.inv.forEach(v => { var a = Math.min(v.amt, before); v.pb = a; before -= a; D.owed += v.amt; });
+
+        D.inv.forEach(v => { var a = Math.min(v.amt - v.pb, per); v.pp = a; per -= a; v.rem = v.amt - v.pb - v.pp; });
+
+        D.extra = before + per; D.paidTotal = D.inv.reduce((s,v) => s + v.pb + v.pp, 0); 
+
+        D.paidPer = D.inv.reduce((s,v) => s + v.pp, 0); D.rem = D.owed - D.paidTotal;
+
+        tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
+
+    });
+
+    res = {docs: docs, names: names, unmatched: unmatched, tot: tot, from: from}; render();
+
+}
+
+
+
+// ============================================================================
+
+// 5. UI & RENDERERS
+
+// ============================================================================
+
+function mkSel(attr, fi, f, cols, cur) { return '<div style="flex: 1 1 120px"><label class="mu">' + (attr==='aba' ? LBL.aba[f] : LBL.debt[f]) + '<br><select data-mk2="' + attr + '" data-fi="' + fi + '" data-mf="' + f + '" style="width:100%"><option value="">—</option>' + cols.map(c => '<option' + (cur===c?' selected':'') + '>' + esc(c) + '</option>').join('') + '</select></label></div>'; }
+
+function drawMap() {
+
+    var el = $('mapContainer'); if(!RAW.aba && !FILES.length) { el.innerHTML = ''; return; }
+
+    var od = el.querySelector('details'), bad = false, h = '<details class="card"' + ((bad || (od && od.open)) ? ' open' : '') + '><summary>⚙️ ការចាប់ជួរឈរ (Column Mapping)</summary><div class="pad" style="font-size:0.8rem">';
+
+    if(RAW.aba) { var m = M.aba; if(!m.date || !(m.cr || m.am)) bad = true; h += '<b>តារាង ABA</b> <span class="mu">(' + (m.date ? '✔ កាលបរិច្ឆេទ' : '✘ កាលបរិច្ឆេទ') + ')</span><div class="row" style="margin:6px 0 12px">'; Object.keys(LBL.aba).forEach(f => { h += mkSel('aba', 0, f, RAW.aba.h, M.aba[f]) }); h += '</div>'; }
+
+    FILES.forEach((t, fi) => { var m = t.m; if(!m.date || !(m.db || m.cr || m.bal) || !t.used) bad = true; h += '<b>' + esc(t.name) + '</b> <span class="mu">(' + (m.party ? 'ជួរឈ្មោះ' : esc(partyFor(t))) + ' · ' + (t.used||0) + ' វិក័យបត្រ)</span><div class="row" style="margin:6px 0 12px">'; Object.keys(LBL.debt).forEach(f => { h += mkSel('debt', fi, f, t.h, t.m[f]) }); h += '</div>'; });
+
+    el.innerHTML = h + '</div></details>';
+
+}
+
+function render() {
+
+    var R = res, h = '<div class="card"><div class="kpis"><div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div><div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div><div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div><div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div></div></div>';
+
+    R.names.sort((a,b) => R.docs[b].rem - R.docs[a].rem).forEach(n => {
+
+        var D = R.docs[n], full = D.rem <= 0.005, pct = Math.min(100, D.owed ? D.paidTotal/D.owed*100 : 0);
+
+        var st = full ? '<span class="tag ok">សងគ្រប់</span>' : D.paidTotal > 0 ? '<span class="tag wa">សងខ្លះ</span>' : '<span class="tag er">មិនទាន់សង</span>';
+
+        h += '<details><summary><div><b>' + esc(n) + '</b> <span class="mu" style="margin-left:6px">ជំពាក់ ' + fmt(D.owed) + ' · នៅសល់ <b class="' + (full?'ok':'er') + '">' + fmt(D.rem) + '</b></span></div>' + st + '</summary><div class="bar"><i style="width:' + pct + '%"></i></div><div class="pad"><p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.per+D.paidPer-D.paidPer+0) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidPer) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p><div class="row" style="margin-bottom:8px"><button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button><button data-cl="' + esc(n) + '">✗ សម្អាត</button><button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button></div><div class="tw"><table><tr><th></th><th>វិក័យបត្រ</th><th>កាលបរិច្ឆេទ</th><th class="n">ចំនួន</th><th class="n">សងមុន</th><th class="n">សងពេលនេះ</th><th class="n">នៅសល់</th><th>ស្ថានភាព</th></tr>';
+
+        D.inv.forEach(v => { var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : (v.pb+v.pp) > 0 ? '<span class="wa">សងខ្លះ</span>' : '<span class="er">មិនទាន់</span>'; h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (v.pp > 0 ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>'; });
+
+        h += '</table></div></div></details>';
+
+    });
+
+    if(R.unmatched.length) {
+
+        h += '<div class="card"><h2>ABA រកមិនឃើញគ្រូពេទ្យ (' + R.unmatched.length + ')</h2><div class="tw"><table><tr><th>កាលបរិច្ឆេទ</th><th>ពិពណ៌នា</th><th class="n">ចំនួន</th><th>គ្រូពេទ្យ</th></tr>';
+
+        R.unmatched.slice(0, 100).forEach(t => { h += '<tr><td>' + dmy(t.date) + '</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">' + esc(t.text) + '</td><td class="n">' + fmt(t.amt) + '</td><td><select data-as="' + t.id + '"><option value="">— ជ្រើសរើស —</option>' + R.names.map(n => '<option>' + esc(n) + '</option>').join('') + '</select></td></tr>'; });
+
+        h += '</table></div></div>';
+
+    }
+
+    $('out').innerHTML = h;
+
+}
+
+
+
+document.addEventListener('change', e => {
+
+    var t = e.target;
+
+    if(t.dataset.id != null) sel[t.dataset.id] = t.checked;
+
+    if(t.dataset.as != null && t.value) { assign[t.dataset.as] = t.value; run(); }
+
+    if(t.dataset.mk2) { var m = t.dataset.mk2 === 'aba' ? M.aba : FILES[+t.dataset.fi].m; m[t.dataset.mf] = t.value; run(); }
+
+});
+
+document.addEventListener('click', e => {
+
+    var t = e.target, n;
+
+    if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0) sel[v.id] = true; }); render(); }
+
+    if(n = t.dataset.cl) { res.docs[n].inv.forEach(v => { sel[v.id] = false; }); render(); }
+
+    if(n = t.dataset.ex) exportX(n);
+
+});
+
+
+
+var pbs = document.querySelectorAll('.pb');
+
+pbs.forEach(b => {
+
+    b.onclick = () => {
+
+        pbs.forEach(x => x.classList.remove('on')); b.classList.add('on');
+
+        var n = +b.dataset.d, to = $('dTo').value ? new Date($('dTo').value) : new Date(); $('dTo').value = iso(to);
+
+        if(n) { var f = new Date(to); f.setDate(f.getDate() - n + 1); $('dFrom').value = iso(f); } else $('dFrom').value = '';
+
+        run();
+
+    };
+
+});
+
+$('dTo').value = iso(new Date());
+
+$('go').onclick = () => run();
+
+
+
+// ============================================================================
+
+// 6. EXPORTS
+
+// ============================================================================
+
+function saveWB(wb, fn) { try { XLSX.writeFile(wb, fn); } catch(e) { alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || '')); } }
+
+function parseTx(s) {
+
+    s = String(s||'').replace(/\s+/g, ' ').trim(); var acc = '', name = '', m = s.match(/\(\s*(\d[\d ]{5,}\d)\s*\)/);
+
+    if(m) acc = m[1].replace(/\s+/g, ' '); else { m = s.match(/\b\d{8,}\b/); if(m) acc = m[0]; }
+
+    m = s.match(/\b(?:FROM|BY)\s+(.+?)(?=\s*\(|\s+\d{6,}|\s+ORIGINAL|\s+BANK|$)/i);
+
+    name = m ? m[1].trim() : s.replace(/^[A-Za-z]{3} \d{1,2}, \d{4}\s*/, '').slice(0, 60);
+
+    return {name: name, acc: acc};
+
+}
+
+function mkWB(s1, s2) { var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s1), 'SHEET1'); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2), 'SHEET2'); return wb; }
+
+function buildOR(items) {
+
+    var cur = $('cur').value, rate = +$('rate').value || 1, s1 = [['Entry No','Type','Date (dd-MMM-YYYY)','Prefix','Customer ID','Cash/Bank Account ID','Received By','Class ID','Reference','Remark','Payment Method','Payment Reference','Currency ID','Exchange Rate']], s2 = [['Entry No','Invoice No/Account ID','Job No','Description','Discount','Receive to Cash Acc./Amount']], seen = {};
+
+    items.forEach(x => {
+
+        var v = x.v, e = String(v.entry || x.n), ds = dmy(x.D.lastD), h;
+
+        if(!seen[e]) { seen[e] = 1; h = HDR[e] || {}; s1.push([e, h['Type']||'Apply to Sale Invoice', ds, h['Prefix']||'DEFAULT', h['Customer ID']||'', h['Cash/Bank Account ID']||'', h['Received By']||'', h['Class ID']||'', h['Reference']||'', 'ABA: '+ds, h['Payment Method']||'', h['Payment Reference']||'', cur, rate]); }
+
+        s2.push([e, v.inv, '', v.desc||'', 0, Math.round(v.pp*100)/100]);
+
+    });
+
+    return mkWB(s1, s2);
+
+}
+
+function buildJV(items) {
+
+    var cur = $('cur').value, rate = +$('rate').value || 1, bank = $('bank').value, s1 = [['Entry No','Date (dd-MMM-YYYY)','Prefix','Source Entry No','Reference','Remark','Currency ID','Exchange Rate']], s2 = [['Entry No','Date (dd-MMM-YYYY)','Account ID','Account Name','Class ID','Description','Debit','Credit','Job No','Job Task No','Job Planning Line']];
+
+    items.forEach((x, i) => {
+
+        var v = x.v, k = i+1, ds = dmy(x.D.lastD), rm = 'Payment from ' + x.n + ' (' + v.inv + ')', a = Math.round(v.pp*100)/100;
+
+        s1.push([k, ds, '', v.entry||'', v.inv, rm, cur, rate]); s2.push([k, ds, '', bank, '', rm, a, 0, '', 0, 0]); s2.push([k, ds, '', x.n, '', rm, 0, a, '', 0, 0]);
+
+    });
+
+    return mkWB(s1, s2);
+
+}
+
+function exportX(n) {
+
+    var D = res.docs[n], list = D.inv.filter(v => sel[v.id] && v.pp > 0);
+
+    if(!list.length) { alert('សូមធិចជ្រើសវិក័យបត្រយ៉ាងហោចណាស់មួយ'); return; }
+
+    var f = $('fmt').value, items = list.map(v => ({n: n, D: D, v: v})), wb = f === 'or' ? buildOR(items) : buildJV(items);
+
+    saveWB(wb, f.toUpperCase() + '_' + n.replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx');
+
+}
+
+$('exAll').onclick = () => {
+
+    var it = []; if(res) res.names.forEach(n => { var D = res.docs[n]; D.inv.forEach(v => { if(v.pp > 0) it.push({n: n, D: D, v: v}); }); });
+
+    if(!it.length) { alert('មិនមានវិក័យបត្រដែលបានសងទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
+
+    var f = $('fmt').value; saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
+
+};
+
+$('exUn').onclick = () => {
+
+    if(!res || !res.unmatched.length) { alert('គ្មានប្រតិបត្តិការដែលរកមិនឃើញគ្រូពេទ្យ'); return; }
+
+    var tk = (M.aba && M.aba.text) || '', rows = res.unmatched.map(t => { var r = RAW.aba.rows[t.id] || {}, p = parseTx(tk && r[tk] ? r[tk] : t.text); return [dmy(t.date), p.name, p.acc, Math.round(t.amt*100)/100, assign[t.id] || '']; });
+
+    var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Date','Name','Account No','Money In','Doctor']].concat(rows)), 'Unmatched');
+
+    saveWB(wb, 'ABA_unmatched_' + iso(new Date()) + '.xlsx');
+
+};
+
+</script>
+
+</body>
+
+</html>

@@ -13,6 +13,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
       icon: 'dashboard',
     },
     {
+      id: 'aba-verify',
+      label: 'ផ្ទៀងផ្ទាត់ ABA',
+      icon: 'fact_check',
+    },
+    {
       id: 'upload-ingestion',
       label: 'បញ្ចូលពត៌មាន',
       icon: 'cloud_upload',

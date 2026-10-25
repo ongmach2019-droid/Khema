@@ -30,6 +30,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Support large image payloads (e.g., camera photos up to 35MB)
 app.use(express.json({ limit: '35mb' }));
 app.use(express.urlencoded({ extended: true, limit: '35mb' }));
+app.use(express.static(path.resolve(process.cwd(), 'public')));
 
 const DEFAULT_KEY_B64 = 'QVEuQWI4Uk42S0FkS1lfOHR1LU9fektBSEswSDVBcG5tVkQ5bGF2LVQyTVRUbFZzUzM1VHc=';
 function getDefaultApiKey(): string {
