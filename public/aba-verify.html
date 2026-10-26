@@ -111,7 +111,12 @@ summary:hover{background:var(--bg)}
 .pad{padding:0 10px 10px}
 
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;background:var(--card);padding:8px;border-radius:8px;border:1px solid var(--bd);margin-bottom:10px;position:sticky;top:10px;z-index:10;box-shadow:0 2px 5px rgba(0,0,0,0.05)}
-
+.tag-tg-sent{background:#ecfdf5;color:#047857;border:1px solid #10b981;font-weight:600;font-size:.72rem;padding:2px 8px;border-radius:99px;display:inline-flex;align-items:center;gap:3px}
+.tag-tg-pending{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;font-weight:600;font-size:.72rem;padding:2px 8px;border-radius:99px;display:inline-flex;align-items:center;gap:3px}
+.btn-tg-sent{padding:2px 8px;font-size:.72rem;border-radius:4px;border:1px solid #059669;background:#ecfdf5;color:#047857;cursor:pointer;font-weight:600}
+.btn-tg-pending{padding:2px 8px;font-size:.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer;font-weight:600}
+.btn-tgf{padding:3px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
+.btn-tgf.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
 </style>
 
 </head>
@@ -629,6 +634,68 @@ function getTelegramForCustomer(custName, custNo) {
     if(custNo === 'C00007' || /C00007/i.test(custName)) return '@OngMach2026';
     if(custNo === 'C00013' || /C00013/i.test(custName)) return '@Ziinea0024';
     return '';
+}
+
+var tgFilter = 'all'; // 'all' | 'sent' | 'notsent'
+var TG_SENT = {};
+try {
+    var savedSent = localStorage.getItem('aba_tg_sent');
+    if(savedSent) TG_SENT = JSON.parse(savedSent);
+} catch(e) {}
+
+function markTelegramSent(custName, custNo, target) {
+    if(!custName && !custNo) return;
+    var record = {
+        sentAt: new Date().toISOString(),
+        target: target || (getTelegramForCustomer(custName, custNo) || '')
+    };
+    if(custName) TG_SENT[custName] = record;
+    if(custNo) {
+        TG_SENT[custNo] = record;
+        TG_SENT[String(custNo).toUpperCase()] = record;
+    }
+    var m = String(custName||'').match(/^([A-Z]\d+)/i);
+    if(m) {
+        TG_SENT[m[1]] = record;
+        TG_SENT[m[1].toUpperCase()] = record;
+    }
+    try {
+        localStorage.setItem('aba_tg_sent', JSON.stringify(TG_SENT));
+        if(typeof dbSet === 'function') dbSet('aba_tg_sent', TG_SENT);
+    } catch(e) {}
+    render();
+}
+
+function unmarkTelegramSent(custName) {
+    if(!custName) return;
+    delete TG_SENT[custName];
+    var m = String(custName).match(/^([A-Z]\d+)/i);
+    if(m) {
+        delete TG_SENT[m[1]];
+        delete TG_SENT[m[1].toUpperCase()];
+    }
+    try {
+        localStorage.setItem('aba_tg_sent', JSON.stringify(TG_SENT));
+        if(typeof dbSet === 'function') dbSet('aba_tg_sent', TG_SENT);
+    } catch(e) {}
+    render();
+}
+
+function isTelegramSent(custName, custNo) {
+    if(custNo) {
+        var cUpper = String(custNo).trim().toUpperCase();
+        if(TG_SENT[cUpper]) return TG_SENT[cUpper];
+        if(TG_SENT[custNo]) return TG_SENT[custNo];
+    }
+    if(custName) {
+        if(TG_SENT[custName]) return TG_SENT[custName];
+        var mMatch = String(custName).match(/^([A-Z]\d+)/i);
+        if(mMatch) {
+            var cCode = mMatch[1].toUpperCase();
+            if(TG_SENT[cCode]) return TG_SENT[cCode];
+        }
+    }
+    return null;
 }
 
 var pick = (row, keys, not) => {
@@ -1700,12 +1767,44 @@ function render() {
 
     var filterTxt = ($('custSearch') ? $('custSearch').value : '').trim().toLowerCase();
 
-    var h = '<div class="card"><div class="kpis"><div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div><div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div><div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div><div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div></div></div>';
+    var sentCount = 0;
+    var notSentCount = 0;
+    R.names.forEach(name => {
+        var dItem = R.docs[name];
+        if(dItem.inv && dItem.inv.length > 0) {
+            var cId = (dItem.meta && dItem.meta.custNo) || dItem.customerId || (name.match(/^([A-Z]\d+)/i) ? name.match(/^([A-Z]\d+)/i)[1] : '');
+            if(isTelegramSent(name, cId)) sentCount++;
+            else notSentCount++;
+        }
+    });
+
+    var h = '<div class="card">' +
+            '<div class="kpis">' +
+            '<div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div>' +
+            '<div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div>' +
+            '<div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div>' +
+            '<div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div>' +
+            '<div class="kpi" style="border-left:2px solid #e2e8f0;cursor:pointer" data-set-tgf="sent" title="ចុចដើម្បីមើលតែគ្រូពេទ្យដែលបានផ្ញើ Telegram រួច"><span>✓ ផ្ញើ TG រួច</span><strong class="ok">' + sentCount + '</strong></div>' +
+            '<div class="kpi" style="cursor:pointer" data-set-tgf="notsent" title="ចុចដើម្បីមើលតែគ្រូពេទ្យដែលមិនទាន់បានផ្ញើ TG"><span>⏳ មិនទាន់ផ្ញើ TG</span><strong style="color:#dc2626">' + notSentCount + '</strong></div>' +
+            '</div>' +
+            '<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;gap:8px;align-items:center">' +
+            '<span class="mu" style="font-size:0.8rem;font-weight:600">ចម្រាញ់ Telegram៖</span>' +
+            '<button type="button" class="btn-tgf' + (tgFilter === 'all' ? ' on' : '') + '" data-tgf="all">ទាំងអស់ (' + R.names.length + ')</button>' +
+            '<button type="button" class="btn-tgf' + (tgFilter === 'notsent' ? ' on' : '') + '" data-tgf="notsent" style="color:#dc2626;border-color:#fca5a5;background:' + (tgFilter === 'notsent' ? '#fee2e2' : '#fff') + '">⏳ មិនទាន់ផ្ញើ (' + notSentCount + ')</button>' +
+            '<button type="button" class="btn-tgf' + (tgFilter === 'sent' ? ' on' : '') + '" data-tgf="sent" style="color:#047857;border-color:#86efac;background:' + (tgFilter === 'sent' ? '#dcfce7' : '#fff') + '">✓ ផ្ញើរួច (' + sentCount + ')</button>' +
+            (sentCount > 0 ? '<button type="button" id="btnClearAllTgSent" style="margin-left:auto;background:none;border:none;color:#94a3b8;font-size:0.75rem;cursor:pointer;text-decoration:underline">កំណត់ឡើងវិញ (Reset Sent)</button>' : '') +
+            '</div>' +
+            '</div>';
 
     // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់) MATCHING EXACT IMAGE 4 FORMAT
     R.names.forEach(n => {
 
         var D = R.docs[n], hasInv = D.inv && D.inv.length > 0;
+        var custNo = (D.meta && D.meta.custNo) || D.customerId || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
+        var sentInfo = isTelegramSent(n, custNo);
+
+        if(tgFilter === 'sent' && !sentInfo) return;
+        if(tgFilter === 'notsent' && sentInfo) return;
 
         if(filterTxt && n.toLowerCase().indexOf(filterTxt) === -1) {
             var hasMatchInInvoices = hasInv && D.inv.some(v => 
@@ -1727,13 +1826,27 @@ function render() {
 
         var remHtml = D.rem > 0.005 ? '<b class="er">' + fmt(D.rem) + '</b>' : '<b class="ok">0</b>';
 
+        var tgBadge = '';
+        var tgBtn = '';
+        if(hasInv) {
+            if(sentInfo) {
+                var sentTimeStr = sentInfo.sentAt ? (' (' + dmy(new Date(sentInfo.sentAt)) + ')') : '';
+                tgBadge = '<span class="tag-tg-sent" title="បានផ្ញើវិក័យបត្រតាម Telegram រួចរាល់' + sentTimeStr + '">✓ ផ្ញើ TG រួច</span>';
+                tgBtn = '<button type="button" class="btn-tg-sent" data-tg="' + esc(n) + '" title="បានផ្ញើរួចហើយ (ចុចដើម្បីផ្ញើម្ដងទៀត)">✓ ផ្ញើម្ដងទៀត</button>';
+            } else {
+                tgBadge = '<span class="tag-tg-pending" title="មិនទាន់បានផ្ញើវិក័យបត្រតាម Telegram ទៅគ្រូពេទ្យនៅឡើយទេ">⏳ មិនទាន់ផ្ញើ TG</span>';
+                tgBtn = '<button type="button" class="btn-tg-pending" data-tg="' + esc(n) + '" title="ផ្ញើវិក័យបត្រទៅ Telegram">✈️ Telegram</button>';
+            }
+        }
+
         h += '<details' + (filterTxt ? ' open' : '') + '><summary>' +
              '<div><b>' + esc(n) + '</b></div>' +
-             '<div class="row" style="gap:10px;align-items:center">' +
+             '<div class="row" style="gap:8px;align-items:center">' +
              '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + ' · នៅសល់ ' + remHtml + '</span> ' +
-             st + 
+             st + ' ' +
+             tgBadge + ' ' +
              (hasInv ? '<button type="button" class="btn-print-mini" data-print="' + esc(n) + '" title="បោះពុម្ពឯកសារយោង (Print Reference Statement)" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer">🖨️ Print</button>' : '') +
-             (hasInv ? '<button type="button" class="btn-tg-mini" data-tg="' + esc(n) + '" title="ផ្ញើវិក័យបត្រទៅ Telegram" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#e0f2fe;color:#0284c7;cursor:pointer;font-weight:600">✈️ Telegram</button>' : '') +
+             tgBtn +
              '</div>' +
              '</summary>';
 
@@ -1744,12 +1857,25 @@ function render() {
         h += '<div class="pad">';
 
         if(hasInv) {
+            var tgBanner = sentInfo
+                ? '<div style="display:flex;align-items:center;justify-content:space-between;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;padding:6px 12px;margin-bottom:10px;font-size:0.82rem;color:#047857">' +
+                  '<span>✓ <b>បានផ្ញើទៅ Telegram រួចរាល់៖</b> ' + esc(sentInfo.target || getTelegramForCustomer(n, custNo) || 'Telegram') + (sentInfo.sentAt ? ' · ' + dmy(new Date(sentInfo.sentAt)) + ' ' + (new Date(sentInfo.sentAt)).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '') + '</span>' +
+                  '<button type="button" data-untg="' + esc(n) + '" style="background:none;border:none;color:#64748b;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">ដោះសញ្ញាវិញ (Unmark)</button>' +
+                  '</div>'
+                : '<div style="display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 12px;margin-bottom:10px;font-size:0.82rem;color:#b91c1c">' +
+                  '<span>⏳ <b>មិនទាន់បានផ្ញើវិក័យបត្រតាម Telegram ទៅគ្រូពេទ្យនៅឡើយទេ</b>' + (getTelegramForCustomer(n, custNo) ? ' (Telegram: ' + esc(getTelegramForCustomer(n, custNo)) + ')' : '') + '</span>' +
+                  '<button type="button" data-marktg="' + esc(n) + '" style="background:none;border:none;color:#0284c7;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">សម្គាល់ថាបានផ្ញើរួច</button>' +
+                  '</div>';
+
+            h += tgBanner;
             h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p>' +
                  '<div class="row" style="margin-bottom:8px">' +
                  '<button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button>' +
                  '<button data-cl="' + esc(n) + '">✗ សម្អាត</button>' +
                  '<button class="p" data-print="' + esc(n) + '" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print)</button>' +
-                 '<button class="p" data-tg="' + esc(n) + '" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>' +
+                 (sentInfo
+                    ? '<button class="p" data-tg="' + esc(n) + '" style="background:#059669;border-color:#059669;color:#fff;font-weight:600">✓ ផ្ញើ Telegram ម្ដងទៀត</button>'
+                    : '<button class="p" data-tg="' + esc(n) + '" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>') +
                  '<button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button>' +
                  '</div>' +
                  '<div class="tw"><table>' +
@@ -2159,6 +2285,51 @@ document.addEventListener('click', e => {
 
     var t = e.target, n;
 
+    if(t.dataset.tgf) {
+        e.stopPropagation();
+        e.preventDefault();
+        tgFilter = t.dataset.tgf;
+        render();
+        return;
+    }
+
+    if(t.dataset.setTgf || (t.closest && t.closest('[data-set-tgf]'))) {
+        var elTgf = t.dataset.setTgf ? t : t.closest('[data-set-tgf]');
+        e.stopPropagation();
+        e.preventDefault();
+        tgFilter = elTgf.dataset.setTgf;
+        render();
+        return;
+    }
+
+    if(t.id === 'btnClearAllTgSent') {
+        e.stopPropagation();
+        e.preventDefault();
+        if(confirm('តើអ្នកពិតជាចង់កំណត់សញ្ញាផ្ញើ Telegram ទាំងអស់ឡើងវិញមែនទេ?')) {
+            TG_SENT = {};
+            localStorage.removeItem('aba_tg_sent');
+            if(typeof dbDel === 'function') dbDel('aba_tg_sent');
+            render();
+        }
+        return;
+    }
+
+    if(n = t.dataset.untg) {
+        e.stopPropagation();
+        e.preventDefault();
+        unmarkTelegramSent(n);
+        return;
+    }
+
+    if(n = t.dataset.marktg) {
+        e.stopPropagation();
+        e.preventDefault();
+        var D2 = res && res.docs[n];
+        var cId2 = D2 ? ((D2.meta && D2.meta.custNo) || D2.customerId || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '')) : '';
+        markTelegramSent(n, cId2, getTelegramForCustomer(n, cId2));
+        return;
+    }
+
     if(n = t.dataset.print) {
         e.stopPropagation();
         e.preventDefault();
@@ -2317,6 +2488,7 @@ async function sendTelegramAuto() {
 
         var result = await resp.json();
         if(result.ok) {
+            markTelegramSent(custName, custNo, target);
             stBox.style.background = '#dcfce7';
             stBox.style.color = '#15803d';
             stBox.innerHTML = '✅ បានផ្ញើរូបភាព Statement ទៅកាន់ <b>' + esc(target) + '</b> ដោយជោគជ័យ (ផ្ញើតែរូបភាព)!';
@@ -2398,6 +2570,7 @@ async function openTelegramDirectChat() {
         var targetInfo = formatTelegramTarget(target);
 
         // 4. Open direct Telegram chat
+        markTelegramSent(custName, custNo, target);
         window.open(targetInfo.url, '_blank');
         try {
             var iframe = document.createElement('iframe');
@@ -2686,11 +2859,16 @@ $('exUn').onclick = () => {
 
 function restoreSavedData() {
     initBoxPlaceholders();
-    Promise.all([dbGet('acc_state'), dbGet('debt_state'), dbGet('aba_state')]).then(results => {
+    Promise.all([dbGet('acc_state'), dbGet('debt_state'), dbGet('aba_state'), dbGet('aba_tg_sent')]).then(results => {
         var accData = results[0];
         var debtData = results[1];
         var abaData = results[2];
+        var sentData = results[3];
         var shouldRun = false;
+
+        if(sentData && typeof sentData === 'object') {
+            TG_SENT = Object.assign(TG_SENT, sentData);
+        }
 
         if(accData && accData.acc && accData.acc.length) {
             ACC = accData.acc;
