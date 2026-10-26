@@ -279,11 +279,11 @@ summary:hover{background:var(--bg)}
 
       <div style="margin-bottom:14px">
         <label style="display:block;font-weight:600;margin-bottom:4px;font-size:0.86rem;color:#1e293b">
-          គណនី Telegram គ្រូពេទ្យ (Telegram Username / Chat ID):
+          គណនី Telegram ឬ លេខទូរសព្ទគ្រូពេទ្យ (Telegram Username / Phone):
         </label>
-        <input type="text" id="tgUsernameInput" placeholder="@username ឬ Chat ID (ឧ. @OngMach2026)" style="width:100%;height:34px;font-size:0.92rem;font-weight:600;color:#0284c7;padding:4px 8px">
+        <input type="text" id="tgUsernameInput" placeholder="@username ឬ លេខទូរសព្ទ (ឧ. @OngMach2026 ឬ 0975973959)" style="width:100%;height:36px;font-size:0.92rem;font-weight:600;color:#0284c7;padding:4px 10px;border:1.5px solid #0284c7;border-radius:6px">
         <div class="mu" style="font-size:0.75rem;margin-top:4px">
-          💡 ឧទាហរណ៍៖ <b>@OngMach2026</b> សម្រាប់គ្រូពេទ្យ <b>C00007</b> (ប្រព័ន្ធនឹងចងចាំស្វ័យប្រវត្តិ)
+          💡 អាចបញ្ចូល Username <b>@OngMach2026</b> ឬ លេខទូរសព្ទ <b>0975973959</b> សម្រាប់គ្រូពេទ្យ <b>C00007</b>
         </div>
       </div>
 
@@ -292,18 +292,18 @@ summary:hover{background:var(--bg)}
         <div style="padding-top:8px;font-size:0.8rem">
           <label style="display:block;margin-bottom:3px;font-weight:600">Bot Token (ពី @BotFather):</label>
           <input type="text" id="tgBotTokenInput" placeholder="ឧ. 123456789:ABCdefGhIJKlmNoPQRstuVWXyz" style="width:100%;height:30px;font-size:0.8rem;margin-bottom:4px">
-          <span class="mu">ប្រសិនបើមិនទាន់មាន Bot Token លោកអ្នកអាចចុច <b>«បើកឆាត Telegram ផ្ទាល់»</b> ខាងក្រោម ដោយប្រព័ន្ធនឹង Copy ព័ត៌មានវិក័យបត្រ និងទាញយករូបភាព Statement ឱ្យលោកអ្នក Paste ផ្ញើភ្លាមៗ!</span>
+          <span class="mu">Bot Token រួចរាល់សម្រាប់ផ្ញើអូតូដោយស្វ័យប្រវត្តិ។</span>
         </div>
       </details>
 
       <div id="tgStatusMsg" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:6px;font-size:0.85rem;line-height:1.5"></div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button type="button" id="btnTgDirectChat" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0284c7;font-weight:600;padding:8px 14px">
-          💬 បើកឆាត Telegram ផ្ទាល់
+        <button type="button" id="btnTgDirectChat" style="background:#0284c7;border:1.5px solid #0284c7;color:#fff;font-weight:700;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.88rem;display:inline-flex;align-items:center;gap:6px">
+          💬 ផ្ញើផ្ទាល់តាម Telegram (Paste រូបភាព)
         </button>
-        <button type="button" id="btnTgSendAuto" class="p" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600;padding:8px 16px">
-          🚀 ផ្ញើអូតូ (ផ្ញើតែរូបភាព)
+        <button type="button" id="btnTgSendAuto" class="p" style="background:#f0f9ff;border:1.5px solid #0284c7;color:#0284c7;font-weight:700;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.88rem;display:inline-flex;align-items:center;gap:6px">
+          🤖 ផ្ញើអូតូតាម Bot (ផ្ញើតែរូបភាព)
         </button>
       </div>
     </div>
@@ -546,12 +546,43 @@ var TG_CHAT_IDS = {
     '@OngMach2026': '8805554075',
     '@OngMach': '8805554075',
     'OngMach2026': '8805554075',
-    'OngMach': '8805554075'
+    'OngMach': '8805554075',
+    '0975973959': '8805554075',
+    '+855975973959': '8805554075',
+    '855975973959': '8805554075',
+    '975973959': '8805554075'
 };
 try {
     var savedTgMap = localStorage.getItem('aba_tg_map');
     if(savedTgMap) TG_MAP = Object.assign(TG_MAP, JSON.parse(savedTgMap));
 } catch(e) {}
+
+function formatTelegramTarget(target) {
+    var raw = String(target || '').trim();
+    var cleanNum = raw.replace(/[\s\-\.]/g, '');
+    var isPhone = /^(\+?855|0)\d{7,10}$/.test(cleanNum);
+    if(isPhone) {
+        var digits = cleanNum.replace(/[^0-9]/g, '');
+        if(digits.startsWith('0')) digits = '855' + digits.slice(1);
+        else if(!digits.startsWith('855')) digits = '855' + digits;
+        return {
+            type: 'phone',
+            phone: digits,
+            url: 'https://t.me/+' + digits,
+            appUrl: 'tg://resolve?phone=' + digits,
+            display: '0' + digits.slice(3)
+        };
+    } else {
+        var uname = raw.replace(/^@/, '');
+        return {
+            type: 'username',
+            username: uname,
+            url: 'https://t.me/' + uname,
+            appUrl: 'tg://resolve?domain=' + uname,
+            display: '@' + uname
+        };
+    }
+}
 
 function getTelegramForCustomer(custName, custNo) {
     if(custNo && TG_MAP[custNo]) return TG_MAP[custNo];
@@ -2179,9 +2210,11 @@ async function sendTelegramAuto() {
             return;
         }
 
+        var cleanNum = target.replace(/[\s\-\.]/g, '');
         var targetClean = target.toLowerCase().replace(/^@/, '');
         var targetChatId = (typeof TG_CHAT_IDS !== 'undefined' && (
             TG_CHAT_IDS[target] || 
+            TG_CHAT_IDS[cleanNum] || 
             TG_CHAT_IDS[target.toLowerCase()] || 
             TG_CHAT_IDS['@' + targetClean] || 
             TG_CHAT_IDS[targetClean] || 
@@ -2210,11 +2243,10 @@ async function sendTelegramAuto() {
             stBox.style.color = '#b91c1c';
             stBox.innerHTML = 
                 '⚠️ Bot មិនទាន់អាចផ្ញើទៅ ' + esc(target) + ' ផ្ទាល់បានទេ (' + esc(errMsg) + ')。<br>' +
-                '👉 Telegram តម្រូវឱ្យ User ធ្លាប់ចុច /start ជាមួយ Bot ជាមុន ឬប្រើ Chat ID របស់គ្រូពេទ្យ។<br>' +
-                'កំពុងបើកឆាត Telegram របស់ ' + esc(target) + ' ដោយផ្ទាល់...';
+                '👉 ប្រព័ន្ធកំពុងបើក Chat ផ្ទាល់របស់ ' + esc(target) + ' ក្នុង Telegram ជូនលោកអ្នក...';
             setTimeout(() => {
                 openTelegramDirectChat();
-            }, 2500);
+            }, 1800);
         }
     } catch(err) {
         stBox.style.background = '#fee2e2';
@@ -2222,11 +2254,11 @@ async function sendTelegramAuto() {
         stBox.innerHTML = '⚠️ បញ្ហាក្នុងការផ្ញើ៖ ' + esc(err.message || '') + '<br>កំពុងបើកឆាត Telegram ផ្ទាល់...';
         setTimeout(() => {
             openTelegramDirectChat();
-        }, 1500);
+        }, 1200);
     }
 }
 
-function openTelegramDirectChat() {
+async function openTelegramDirectChat() {
     var custName = currentPrintCustomer;
     if(!res || !res.docs[custName]) return;
     var D = res.docs[custName];
@@ -2238,35 +2270,73 @@ function openTelegramDirectChat() {
     TG_MAP[custName] = target;
     localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
 
-    var totalAmt = D.inv.reduce((s, v) => s + v.amt, 0);
-    var textMsg = 
-        '🏥 Khema Digital Dental Solution\n' +
-        '📄 របាយការណ៍អតិថិជន (Customer Statement)\n' +
-        '━━━━━━━━━━━━━━━━━━\n' +
-        '👤 អតិថិជន: ' + custName + '\n' +
-        (custNo ? '🆔 លេខកូដ: ' + custNo + '\n' : '') +
-        '📅 កាលបរិច្ឆេទ: ' + dmy(new Date()) + '\n' +
-        '🧾 ចំនួនវិក័យបត្រ: ' + D.inv.length + ' សន្លឹក\n' +
-        '💰 សមតុល្យសរុប (Total Balance): $' + fmt(totalAmt) + '\n' +
-        '━━━━━━━━━━━━━━━━━━\n' +
-        '📞 ទំនាក់ទំនង: 099 744 497\n' +
-        '🙏 សូមអរគុណ!';
-
-    if(navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(textMsg).catch(() => {});
-    }
-
-    exportModalPNG(custName);
-
-    var cleanUsername = target.replace(/^@/, '');
-    var tgUrl = cleanUsername ? ('https://t.me/' + cleanUsername) : 'https://t.me/share/url?url=&text=' + encodeURIComponent(textMsg);
-    window.open(tgUrl, '_blank');
-
     var stBox = $('tgStatusMsg');
     stBox.style.display = 'block';
-    stBox.style.background = '#dcfce7';
-    stBox.style.color = '#15803d';
-    stBox.innerHTML = '📋 បាន Copy ព័ត៌មានវិក័យបត្រ, ទាញយករូបភាព Statement PNG និងបើកឆាត Telegram របស់ <b>' + esc(target) + '</b> រួចរាល់! លោកអ្នកគ្រាន់តែចុច <b>Ctrl+V (Paste)</b> ដើម្បីផ្ញើ។';
+    stBox.style.background = '#e0f2fe';
+    stBox.style.color = '#0369a1';
+    stBox.innerHTML = '⏳ កំពុងបង្កើតរូបភាព Statement និងរៀបចំបើក Telegram ' + esc(target) + '...';
+
+    // Ensure print document is rendered
+    if(!$('printDocument') || currentPrintCustomer !== custName) {
+        openPrintModal(custName);
+        $('printModal').classList.remove('active');
+    }
+
+    try {
+        var el = document.getElementById('printDocument');
+        var canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+
+        // 1. Copy image to Clipboard
+        if(canvas.toBlob && navigator.clipboard && window.ClipboardItem) {
+            try {
+                await new Promise((resolve) => {
+                    canvas.toBlob(async blob => {
+                        if(blob) {
+                            try {
+                                await navigator.clipboard.write([
+                                    new ClipboardItem({ 'image/png': blob })
+                                ]);
+                            } catch(e) {
+                                console.warn('Clipboard write image error:', e);
+                            }
+                        }
+                        resolve();
+                    }, 'image/png');
+                });
+            } catch(e) {
+                console.warn('Blob error:', e);
+            }
+        }
+
+        // 2. Download Statement PNG as backup
+        exportModalPNG(custName);
+
+        // 3. Format Telegram target (Phone vs Username)
+        var targetInfo = formatTelegramTarget(target);
+
+        // 4. Open direct Telegram chat
+        window.open(targetInfo.url, '_blank');
+        try {
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = targetInfo.appUrl;
+            document.body.appendChild(iframe);
+            setTimeout(() => { try { document.body.removeChild(iframe); } catch(e){} }, 3000);
+        } catch(e) {}
+
+        stBox.style.background = '#dcfce7';
+        stBox.style.color = '#15803d';
+        stBox.innerHTML = 
+            '✅ <b>បានចម្លង (Copy) រូបភាពវិក័យបត្រ Statement ចូល Clipboard រួចរាល់!</b><br>' +
+            '🚀 កំពុងបើក Chat ផ្ទាល់របស់ <b>' + esc(targetInfo.display) + '</b> ក្នុងកម្មវិធី Telegram...<br>' +
+            '👉 លោកអ្នកគ្រាន់តែចុច <b>Ctrl+V (Paste)</b> ក្នុង Telegram ដើម្បីផ្ញើរូបភាពចេញពីគណនីផ្ទាល់ខ្លួនរបស់លោកអ្នក!';
+    } catch(err) {
+        var targetInfo = formatTelegramTarget(target);
+        window.open(targetInfo.url, '_blank');
+        stBox.style.background = '#fef3c7';
+        stBox.style.color = '#92400e';
+        stBox.innerHTML = 'កំពុងបើក Chat ផ្ទាល់របស់ <b>' + esc(targetInfo.display) + '</b> ក្នុង Telegram...';
+    }
 }
 
 

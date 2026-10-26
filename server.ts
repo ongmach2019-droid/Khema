@@ -87,12 +87,17 @@ app.post('/api/send-telegram', async (req, res) => {
       '@ongmach2026': '8805554075',
       'ongmach': '8805554075',
       '@ongmach': '8805554075',
-      'c00007': '8805554075'
+      'c00007': '8805554075',
+      '0975973959': '8805554075',
+      '+855975973959': '8805554075',
+      '855975973959': '8805554075',
+      '975973959': '8805554075'
     };
 
+    const cleanNum = targetChat.replace(/[\s\-\.]/g, '');
     const cleanName = targetChat.toLowerCase().replace(/^@/, '');
-    if (KNOWN_MAP[cleanName] || KNOWN_MAP[targetChat.toLowerCase()]) {
-      resolvedChatId = KNOWN_MAP[cleanName] || KNOWN_MAP[targetChat.toLowerCase()];
+    if (KNOWN_MAP[cleanName] || KNOWN_MAP[targetChat.toLowerCase()] || KNOWN_MAP[cleanNum]) {
+      resolvedChatId = KNOWN_MAP[cleanName] || KNOWN_MAP[targetChat.toLowerCase()] || KNOWN_MAP[cleanNum];
     } else if (!/^-?\d+$/.test(targetChat)) {
       try {
         const updRes = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
