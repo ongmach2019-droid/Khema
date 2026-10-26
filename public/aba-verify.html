@@ -1486,7 +1486,7 @@ function buildOR(items) {
         }
 
         var invNo = v.inv;
-        var paid = (v.pp != null && v.pp > 0) ? v.pp : ((v.pb != null && v.pb > 0) ? v.pb : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : (v.amt || 0)));
+        var paid = (v.pp != null && v.pp > 0) ? v.pp : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : ((v.pb != null && v.pb > 0) ? v.pb : 0));
         var amt = Math.round(paid * 100) / 100;
 
         s2.push([
@@ -1511,7 +1511,7 @@ function buildJV(items) {
     items.forEach((x, i) => {
 
         var v = x.v, k = i+1, ds = dmy(x.D.lastD || v.date), rm = 'Payment from ' + x.n + ' (' + v.inv + ')';
-        var paid = (v.pp != null && v.pp > 0) ? v.pp : ((v.pb != null && v.pb > 0) ? v.pb : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : (v.amt || 0)));
+        var paid = (v.pp != null && v.pp > 0) ? v.pp : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : ((v.pb != null && v.pb > 0) ? v.pb : 0));
         var a = Math.round(paid * 100) / 100;
 
         s1.push([k, ds, '', v.entry||'', v.inv, rm, cur, rate]); s2.push([k, ds, '', bank, '', rm, a, 0, '', 0, 0]); s2.push([k, ds, '', x.n, '', rm, 0, a, '', 0, 0]);
@@ -1524,10 +1524,11 @@ function buildJV(items) {
 
 function exportX(n) {
 
-    var D = res.docs[n], list = D.inv.filter(v => (sel[v.id] ? true : ((v.pp != null && v.pp > 0) || (v.pb != null && v.pb > 0) || (v.paidInOR != null && v.paidInOR > 0))));
-    if(!list.length) list = D.inv;
+    var D = res.docs[n];
+    var list = D.inv.filter(v => (sel[v.id] ? true : ((v.pp != null && v.pp > 0) || (v.paidInOR != null && v.paidInOR > 0))));
+    if(!list.length) list = D.inv.filter(v => (v.pp != null && v.pp > 0) || (v.paidInOR != null && v.paidInOR > 0));
 
-    if(!list.length) { alert('សូមធិចជ្រើសវិក័យបត្រយ៉ាងហោចណាស់មួយ'); return; }
+    if(!list.length) { alert('គ្មានវិក័យបត្រដែលបានសងទេក្នុងគណនីនេះ'); return; }
 
     var f = $('fmt').value, items = list.map(v => ({n: n, D: D, v: v})), wb = f === 'or' ? buildOR(items) : buildJV(items);
 
@@ -1539,22 +1540,16 @@ $('exAll').onclick = () => {
 
     var it = [];
 
-    // Export ALL paid invoices across all doctors
+    // Export ALL paid invoices across all doctors strictly by paid amount (សងពេលនេះ)
     if(res) {
         res.names.forEach(n => {
             var D = res.docs[n];
             D.inv.forEach(v => {
-                var paid = (v.pp != null && v.pp > 0) ? v.pp : ((v.pb != null && v.pb > 0) ? v.pb : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : 0));
+                var paid = (v.pp != null && v.pp > 0) ? v.pp : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : 0);
                 if(paid > 0) {
                     it.push({n: n, D: D, v: v});
                 }
             });
-        });
-    }
-
-    if(!it.length && debts && debts.length) {
-        debts.forEach(d => {
-            it.push({n: d.party, D: (res && res.docs[d.party]) || {}, v: d});
         });
     }
 
