@@ -61,6 +61,59 @@ app.get('/api/exchange-rate', (_req, res) => {
   });
 });
 
+// Telegram Send Endpoint
+app.post('/api/send-telegram', async (req, res) => {
+  try {
+    const { botToken, chatId, caption, imageBase64 } = req.body;
+    const token = (botToken || process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    if (!token) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing Telegram Bot Token. សូមបញ្ចូល Telegram Bot Token នៅក្នុងការកំណត់ ឬ .env'
+      });
+    }
+    if (!chatId) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing Chat ID or Username'
+      });
+    }
+
+    const targetChat = String(chatId).trim();
+
+    if (imageBase64) {
+      const cleanB64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(cleanB64, 'base64');
+      const formData = new FormData();
+      formData.append('chat_id', targetChat);
+      if (caption) formData.append('caption', caption);
+      formData.append('photo', new Blob([buffer], { type: 'image/png' }), 'Customer_Statement.png');
+
+      const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: 'POST',
+        body: formData
+      });
+      const data: any = await tgRes.json();
+      return res.json(data);
+    } else {
+      const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChat,
+          text: caption || '',
+          parse_mode: 'HTML'
+        })
+      });
+      const data: any = await tgRes.json();
+      return res.json(data);
+    }
+  } catch (err: any) {
+    console.error('Telegram API error:', err);
+    res.status(500).json({ ok: false, error: err.message || 'Telegram API Error' });
+  }
+});
+
 // Update or save Gemini API Key
 app.post('/api/update-api-key', (req, res) => {
   const { apiKey } = req.body;

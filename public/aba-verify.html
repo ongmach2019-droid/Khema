@@ -224,6 +224,8 @@ summary:hover{background:var(--bg)}
 
     </label>
 
+    <label class="mu">Telegram Bot Token <input type="text" id="cfgTgBotToken" placeholder="Bot Token (ជម្រើស)" style="width:160px"></label>
+
   </div>
 
 </details>
@@ -254,10 +256,57 @@ summary:hover{background:var(--bg)}
         <button id="btnSavePNG" style="background:#059669;border-color:#059669;color:#fff">🖼️ រក្សាទុក PNG</button>
         <button id="btnSaveExcel" style="background:#16a34a;border-color:#16a34a;color:#fff">📊 រក្សាទុក Excel</button>
         <button id="btnSaveCSV" style="background:#475569;border-color:#475569;color:#fff">📄 រក្សាទុក CSV</button>
+        <button id="btnSendTelegram" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>
         <button id="btnCloseModal" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626">✕ បិទ</button>
       </div>
     </div>
     <div id="printModalBody" class="modal-body"></div>
+  </div>
+</div>
+
+<!-- Telegram Send Modal -->
+<div id="tgModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:540px">
+    <div class="modal-header" style="background:#0284c7;color:#fff">
+      <h3 style="color:#fff;margin:0;display:flex;align-items:center;gap:6px">✈️ ផ្ញើវិក័យបត្រទៅ Telegram</h3>
+      <button type="button" id="btnCloseTgModal" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px">
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-weight:700;color:#0369a1;margin-bottom:4px;font-size:0.95rem" id="tgCustomerName">C00007 - Aesthetic Dental Clinic</div>
+        <div class="mu" id="tgStatementSummary" style="font-size:0.84rem;line-height:1.6"></div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-weight:600;margin-bottom:4px;font-size:0.86rem;color:#1e293b">
+          គណនី Telegram គ្រូពេទ្យ (Telegram Username / Chat ID):
+        </label>
+        <input type="text" id="tgUsernameInput" placeholder="@username ឬ Chat ID (ឧ. @OngMach2026)" style="width:100%;height:34px;font-size:0.92rem;font-weight:600;color:#0284c7;padding:4px 8px">
+        <div class="mu" style="font-size:0.75rem;margin-top:4px">
+          💡 ឧទាហរណ៍៖ <b>@OngMach2026</b> សម្រាប់គ្រូពេទ្យ <b>C00007</b> (ប្រព័ន្ធនឹងចងចាំស្វ័យប្រវត្តិ)
+        </div>
+      </div>
+
+      <details style="margin-bottom:14px;border:1px dashed #cbd5e1;padding:8px;border-radius:6px;background:#f8fafc">
+        <summary style="font-size:0.82rem;color:#475569;cursor:pointer;font-weight:600">⚙️ ការកំណត់ Telegram Bot (ជម្រើសផ្ញើអូតូ / Bot Token)</summary>
+        <div style="padding-top:8px;font-size:0.8rem">
+          <label style="display:block;margin-bottom:3px;font-weight:600">Bot Token (ពី @BotFather):</label>
+          <input type="text" id="tgBotTokenInput" placeholder="ឧ. 123456789:ABCdefGhIJKlmNoPQRstuVWXyz" style="width:100%;height:30px;font-size:0.8rem;margin-bottom:4px">
+          <span class="mu">ប្រសិនបើមិនទាន់មាន Bot Token លោកអ្នកអាចចុច <b>«បើកឆាត Telegram ផ្ទាល់»</b> ខាងក្រោម ដោយប្រព័ន្ធនឹង Copy ព័ត៌មានវិក័យបត្រ និងទាញយករូបភាព Statement ឱ្យលោកអ្នក Paste ផ្ញើភ្លាមៗ!</span>
+        </div>
+      </details>
+
+      <div id="tgStatusMsg" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:6px;font-size:0.85rem;line-height:1.5"></div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button type="button" id="btnTgDirectChat" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0284c7;font-weight:600;padding:8px 14px">
+          💬 បើកឆាត Telegram ផ្ទាល់
+        </button>
+        <button type="button" id="btnTgSendAuto" class="p" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600;padding:8px 16px">
+          🚀 ផ្ញើអូតូ (Auto Send via Bot)
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -275,44 +324,30 @@ summary:hover{background:var(--bg)}
 
 var $ = id => document.getElementById(id);
 
-var ST_KEYS = { bank: 'aba_bank', cur: 'aba_cur', rate: 'aba_rate', fmt: 'aba_fmt' };
-
-
+var ST_KEYS = { bank: 'aba_bank', cur: 'aba_cur', rate: 'aba_rate', fmt: 'aba_fmt', tg_token: 'aba_tg_bot_token' };
 
 function loadSettings() {
-
     if(localStorage.getItem(ST_KEYS.bank)) $('bank').value = localStorage.getItem(ST_KEYS.bank);
-
     if(localStorage.getItem(ST_KEYS.cur)) $('cur').value = localStorage.getItem(ST_KEYS.cur);
-
     if(localStorage.getItem(ST_KEYS.rate)) $('rate').value = localStorage.getItem(ST_KEYS.rate);
-
     if(localStorage.getItem(ST_KEYS.fmt)) $('fmt').value = localStorage.getItem(ST_KEYS.fmt);
-
+    if(localStorage.getItem(ST_KEYS.tg_token) && $('cfgTgBotToken')) $('cfgTgBotToken').value = localStorage.getItem(ST_KEYS.tg_token);
 }
-
-
 
 function saveSettings() {
-
     localStorage.setItem(ST_KEYS.bank, $('bank').value);
-
     localStorage.setItem(ST_KEYS.cur, $('cur').value);
-
     localStorage.setItem(ST_KEYS.rate, $('rate').value);
-
     localStorage.setItem(ST_KEYS.fmt, $('fmt').value);
-
+    if($('cfgTgBotToken')) localStorage.setItem(ST_KEYS.tg_token, $('cfgTgBotToken').value.trim());
 }
 
-
-
-['bank', 'cur', 'rate', 'fmt'].forEach(id => {
-
-    $(id).addEventListener('input', saveSettings);
-
-    $(id).addEventListener('change', saveSettings);
-
+['bank', 'cur', 'rate', 'fmt', 'cfgTgBotToken'].forEach(id => {
+    var el = $(id);
+    if(el) {
+        el.addEventListener('input', saveSettings);
+        el.addEventListener('change', saveSettings);
+    }
 });
 
 
@@ -487,6 +522,30 @@ var nowDateTimeStr = () => {
 };
 
 var esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+var KHEMA_LOGO_URL = '/khema-logo.jpg';
+fetch('/khema-logo.jpg')
+  .then(r => r.blob())
+  .then(b => {
+    var fr = new FileReader();
+    fr.onload = () => { KHEMA_LOGO_URL = fr.result; };
+    fr.readAsDataURL(b);
+  }).catch(() => {});
+
+var TG_MAP = {
+    'C00007': '@OngMach2026'
+};
+try {
+    var savedTgMap = localStorage.getItem('aba_tg_map');
+    if(savedTgMap) TG_MAP = Object.assign(TG_MAP, JSON.parse(savedTgMap));
+} catch(e) {}
+
+function getTelegramForCustomer(custName, custNo) {
+    if(custNo && TG_MAP[custNo]) return TG_MAP[custNo];
+    if(custName && TG_MAP[custName]) return TG_MAP[custName];
+    if(custNo === 'C00007' || /C00007/i.test(custName)) return '@OngMach2026';
+    return '';
+}
 
 var pick = (row, keys, not) => {
 
@@ -1557,6 +1616,7 @@ function render() {
              '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + ' · នៅសល់ ' + remHtml + '</span> ' +
              st + 
              (hasInv ? '<button type="button" class="btn-print-mini" data-print="' + esc(n) + '" title="បោះពុម្ពឯកសារយោង (Print Reference Statement)" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer">🖨️ Print</button>' : '') +
+             (hasInv ? '<button type="button" class="btn-tg-mini" data-tg="' + esc(n) + '" title="ផ្ញើវិក័យបត្រទៅ Telegram" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#e0f2fe;color:#0284c7;cursor:pointer;font-weight:600">✈️ Telegram</button>' : '') +
              '</div>' +
              '</summary>';
 
@@ -1572,6 +1632,7 @@ function render() {
                  '<button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button>' +
                  '<button data-cl="' + esc(n) + '">✗ សម្អាត</button>' +
                  '<button class="p" data-print="' + esc(n) + '" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print)</button>' +
+                 '<button class="p" data-tg="' + esc(n) + '" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>' +
                  '<button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button>' +
                  '</div>' +
                  '<div class="tw"><table>' +
@@ -1688,13 +1749,21 @@ function openPrintModal(custName) {
 
     var docHtml = 
         '<div id="printDocument" class="print-paper">' +
-            '<!-- 1. COMPANY HEADER (ក្បាលទំព័រក្រុមហ៊ុន) -->' +
-            '<div style="text-align:center;margin-bottom:14px;border-bottom:2px solid #0f172a;padding-bottom:10px">' +
-                '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;line-height:1.3">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
-                '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:3px">Khema Digital Dental Solution</div>' +
-                '<div style="font-size:0.8rem;color:#475569;line-height:1.4">អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ</div>' +
-                '<div style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
-                '<div style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">Telephone : 099 744 497</div>' +
+            '<!-- 1. COMPANY HEADER WITH LOGO (ក្បាលទំព័រក្រុមហ៊ុន និង LOGO) -->' +
+            '<div class="print-header" style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0f172a;padding-bottom:10px;margin-bottom:14px;gap:12px">' +
+                '<div style="flex:0 0 160px;text-align:left">' +
+                    '<img src="' + (KHEMA_LOGO_URL || '/khema-logo.jpg') + '" alt="Khema Logo" style="max-height:75px;max-width:160px;object-fit:contain;display:block">' +
+                '</div>' +
+                '<div style="flex:1;text-align:center">' +
+                    '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;line-height:1.3">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
+                    '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:3px">Khema Digital Dental Solution</div>' +
+                    '<div style="font-size:0.8rem;color:#475569;line-height:1.4">អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ</div>' +
+                    '<div style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
+                    '<div style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">Telephone : 099 744 497</div>' +
+                '</div>' +
+                '<div style="flex:0 0 160px;visibility:hidden" aria-hidden="true">' +
+                    '<img src="' + (KHEMA_LOGO_URL || '/khema-logo.jpg') + '" style="max-height:75px;max-width:160px;visibility:hidden">' +
+                '</div>' +
             '</div>' +
 
             '<!-- 2. STATEMENT TITLE (ចំណងជើងរបាយការណ៍) -->' +
@@ -1980,6 +2049,13 @@ document.addEventListener('click', e => {
         return;
     }
 
+    if(n = t.dataset.tg) {
+        e.stopPropagation();
+        e.preventDefault();
+        openTelegramModal(n);
+        return;
+    }
+
     if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) sel[v.id] = true; }); render(); }
 
     if(n = t.dataset.cl) { res.docs[n].inv.forEach(v => { sel[v.id] = false; }); render(); }
@@ -1992,9 +2068,194 @@ $('btnPrintNow').onclick = () => window.print();
 $('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
 $('btnSaveExcel').onclick = () => exportCustomerStatementExcel(currentPrintCustomer);
 $('btnSaveCSV').onclick = () => exportCustomerStatementCSV(currentPrintCustomer);
+$('btnSendTelegram').onclick = () => openTelegramModal(currentPrintCustomer);
 $('btnCloseModal').onclick = () => closePrintModal();
 $('printModal').onclick = e => { if(e.target === $('printModal')) closePrintModal(); };
+
+$('btnCloseTgModal').onclick = () => closeTelegramModal();
+$('tgModal').onclick = e => { if(e.target === $('tgModal')) closeTelegramModal(); };
+$('btnTgSendAuto').onclick = () => sendTelegramAuto();
+$('btnTgDirectChat').onclick = () => openTelegramDirectChat();
+
 if($('custSearch')) $('custSearch').oninput = () => render();
+
+// ============================================================================
+// 5.2 TELEGRAM DISPATCH & AUTOMATION
+// ============================================================================
+function openTelegramModal(custName) {
+    if(!res || !res.docs[custName]) return;
+    var D = res.docs[custName];
+    if(!D.inv || !D.inv.length) { alert('គ្មានវិក័យបត្រក្នុងគណនីនេះទេ'); return; }
+
+    currentPrintCustomer = custName;
+    var meta = D.meta || {};
+    var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
+    var targetTg = getTelegramForCustomer(custName, custNo);
+
+    $('tgCustomerName').textContent = custName + (custNo ? ' (' + custNo + ')' : '');
+    $('tgUsernameInput').value = targetTg || (custNo === 'C00007' ? '@OngMach2026' : '');
+    if($('tgBotTokenInput')) $('tgBotTokenInput').value = localStorage.getItem('aba_tg_bot_token') || ($('cfgTgBotToken') ? $('cfgTgBotToken').value.trim() : '');
+
+    var totalAmt = D.inv.reduce((s, v) => s + v.amt, 0);
+    $('tgStatementSummary').innerHTML = 
+        'កាលបរិច្ឆេទ៖ <b>' + dmy(new Date()) + '</b><br>' +
+        'ចំនួនវិក័យបត្រ៖ <b>' + D.inv.length + ' សន្លឹក</b><br>' +
+        'សមតុល្យសរុប (Total Balance)៖ <b style="color:var(--er);font-size:1.05em">$' + fmt(totalAmt) + '</b>';
+
+    $('tgStatusMsg').style.display = 'none';
+    $('tgModal').classList.add('active');
+}
+
+function closeTelegramModal() {
+    $('tgModal').classList.remove('active');
+}
+
+async function sendTelegramAuto() {
+    var custName = currentPrintCustomer;
+    if(!res || !res.docs[custName]) return;
+    var D = res.docs[custName];
+    var meta = D.meta || {};
+    var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
+    
+    var target = ($('tgUsernameInput').value || '').trim();
+    if(!target) {
+        alert('សូមបញ្ចូលគណនី Telegram របស់គ្រូពេទ្យ (ឧ. @OngMach2026)');
+        $('tgUsernameInput').focus();
+        return;
+    }
+
+    // Save to TG_MAP
+    if(custNo) TG_MAP[custNo] = target;
+    TG_MAP[custName] = target;
+    localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+
+    var botToken = ($('tgBotTokenInput') ? $('tgBotTokenInput').value.trim() : '') || ($('cfgTgBotToken') ? $('cfgTgBotToken').value.trim() : '') || localStorage.getItem('aba_tg_bot_token') || '';
+    if(botToken) {
+        localStorage.setItem('aba_tg_bot_token', botToken);
+        if($('cfgTgBotToken')) $('cfgTgBotToken').value = botToken;
+    }
+
+    var stBox = $('tgStatusMsg');
+    stBox.style.display = 'block';
+    stBox.style.background = '#e0f2fe';
+    stBox.style.color = '#0369a1';
+    stBox.innerHTML = '⏳ កំពុងបង្កើតរូបភាពវិក័យបត្រ និងផ្ញើទៅ Telegram ' + esc(target) + '...';
+
+    // Ensure print document is rendered
+    if(!$('printDocument') || currentPrintCustomer !== custName) {
+        openPrintModal(custName);
+        $('printModal').classList.remove('active');
+    }
+
+    var totalAmt = D.inv.reduce((s, v) => s + v.amt, 0);
+    var caption = 
+        '🏥 <b>Khema Digital Dental Solution</b>\n' +
+        '📄 <b>របាយការណ៍អតិថិជន (Customer Statement)</b>\n' +
+        '━━━━━━━━━━━━━━━━━━\n' +
+        '👤 <b>អតិថិជន:</b> ' + esc(custName) + '\n' +
+        (custNo ? '🆔 <b>លេខកូដ:</b> ' + esc(custNo) + '\n' : '') +
+        '📅 <b>កាលបរិច្ឆេទ:</b> ' + dmy(new Date()) + '\n' +
+        '🧾 <b>ចំនួនវិក័យបត្រ:</b> ' + D.inv.length + ' សន្លឹក\n' +
+        '💰 <b>សមតុល្យសរុប (Total Balance):</b> $' + fmt(totalAmt) + '\n' +
+        '━━━━━━━━━━━━━━━━━━\n' +
+        '📞 <b>ទំនាក់ទំនង:</b> 099 744 497\n' +
+        '🙏 សូមអរគុណសម្រាប់ការសហការ!';
+
+    try {
+        var el = document.getElementById('printDocument');
+        var canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        var imageB64 = canvas.toDataURL('image/png');
+
+        if(!botToken) {
+            stBox.style.background = '#fef3c7';
+            stBox.style.color = '#92400e';
+            stBox.innerHTML = 'ℹ️ មិនទាន់មាន Bot Token ទេ! ប្រព័ន្ធកំពុងបើកឆាត Telegram របស់ ' + esc(target) + ' ដោយស្វ័យប្រវត្តិ...';
+            setTimeout(() => {
+                openTelegramDirectChat();
+            }, 800);
+            return;
+        }
+
+        var resp = await fetch('/api/send-telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                botToken: botToken,
+                chatId: target,
+                caption: caption,
+                imageBase64: imageB64
+            })
+        });
+
+        var result = await resp.json();
+        if(result.ok) {
+            stBox.style.background = '#dcfce7';
+            stBox.style.color = '#15803d';
+            stBox.innerHTML = '✅ បានផ្ញើវិក័យបត្រ និងរូបភាព Statement ទៅកាន់ <b>' + esc(target) + '</b> ដោយជោគជ័យ!';
+        } else {
+            var errMsg = result.description || result.error || 'Chat not found';
+            stBox.style.background = '#fee2e2';
+            stBox.style.color = '#b91c1c';
+            stBox.innerHTML = 
+                '⚠️ Bot មិនទាន់អាចផ្ញើទៅ ' + esc(target) + ' ផ្ទាល់បានទេ (' + esc(errMsg) + ')。<br>' +
+                '👉 Telegram តម្រូវឱ្យ User ធ្លាប់ចុច /start ជាមួយ Bot ជាមុន ឬប្រើ Chat ID របស់គ្រូពេទ្យ។<br>' +
+                'កំពុងបើកឆាត Telegram របស់ ' + esc(target) + ' ដោយផ្ទាល់...';
+            setTimeout(() => {
+                openTelegramDirectChat();
+            }, 2500);
+        }
+    } catch(err) {
+        stBox.style.background = '#fee2e2';
+        stBox.style.color = '#b91c1c';
+        stBox.innerHTML = '⚠️ បញ្ហាក្នុងការផ្ញើ៖ ' + esc(err.message || '') + '<br>កំពុងបើកឆាត Telegram ផ្ទាល់...';
+        setTimeout(() => {
+            openTelegramDirectChat();
+        }, 1500);
+    }
+}
+
+function openTelegramDirectChat() {
+    var custName = currentPrintCustomer;
+    if(!res || !res.docs[custName]) return;
+    var D = res.docs[custName];
+    var meta = D.meta || {};
+    var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
+    
+    var target = ($('tgUsernameInput').value || '').trim() || getTelegramForCustomer(custName, custNo) || '@OngMach2026';
+    if(custNo) TG_MAP[custNo] = target;
+    TG_MAP[custName] = target;
+    localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+
+    var totalAmt = D.inv.reduce((s, v) => s + v.amt, 0);
+    var textMsg = 
+        '🏥 Khema Digital Dental Solution\n' +
+        '📄 របាយការណ៍អតិថិជន (Customer Statement)\n' +
+        '━━━━━━━━━━━━━━━━━━\n' +
+        '👤 អតិថិជន: ' + custName + '\n' +
+        (custNo ? '🆔 លេខកូដ: ' + custNo + '\n' : '') +
+        '📅 កាលបរិច្ឆេទ: ' + dmy(new Date()) + '\n' +
+        '🧾 ចំនួនវិក័យបត្រ: ' + D.inv.length + ' សន្លឹក\n' +
+        '💰 សមតុល្យសរុប (Total Balance): $' + fmt(totalAmt) + '\n' +
+        '━━━━━━━━━━━━━━━━━━\n' +
+        '📞 ទំនាក់ទំនង: 099 744 497\n' +
+        '🙏 សូមអរគុណ!';
+
+    if(navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textMsg).catch(() => {});
+    }
+
+    exportModalPNG(custName);
+
+    var cleanUsername = target.replace(/^@/, '');
+    var tgUrl = cleanUsername ? ('https://t.me/' + cleanUsername) : 'https://t.me/share/url?url=&text=' + encodeURIComponent(textMsg);
+    window.open(tgUrl, '_blank');
+
+    var stBox = $('tgStatusMsg');
+    stBox.style.display = 'block';
+    stBox.style.background = '#dcfce7';
+    stBox.style.color = '#15803d';
+    stBox.innerHTML = '📋 បាន Copy ព័ត៌មានវិក័យបត្រ, ទាញយករូបភាព Statement PNG និងបើកឆាត Telegram របស់ <b>' + esc(target) + '</b> រួចរាល់! លោកអ្នកគ្រាន់តែចុច <b>Ctrl+V (Paste)</b> ដើម្បីផ្ញើ។';
+}
 
 
 
