@@ -303,7 +303,7 @@ summary:hover{background:var(--bg)}
           💬 បើកឆាត Telegram ផ្ទាល់
         </button>
         <button type="button" id="btnTgSendAuto" class="p" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600;padding:8px 16px">
-          🚀 ផ្ញើអូតូ (Auto Send via Bot)
+          🚀 ផ្ញើអូតូ (ផ្ញើតែរូបភាព)
         </button>
       </div>
     </div>
@@ -533,7 +533,7 @@ fetch('/khema-logo.jpg')
   }).catch(() => {});
 
 var DEFAULT_BOT_TOKEN = '8573963689:AAEX3OFDd4IKFqmMKUIOWlhKc8lHTg8v64M';
-if(!localStorage.getItem('aba_tg_bot_token')) {
+if(!localStorage.getItem('aba_tg_bot_token') || !localStorage.getItem('aba_tg_bot_token').includes(':')) {
     localStorage.setItem('aba_tg_bot_token', DEFAULT_BOT_TOKEN);
 }
 
@@ -2161,18 +2161,8 @@ async function sendTelegramAuto() {
     }
 
     var totalAmt = D.inv.reduce((s, v) => s + v.amt, 0);
-    var caption = 
-        '🏥 <b>Khema Digital Dental Solution</b>\n' +
-        '📄 <b>របាយការណ៍អតិថិជន (Customer Statement)</b>\n' +
-        '━━━━━━━━━━━━━━━━━━\n' +
-        '👤 <b>អតិថិជន:</b> ' + esc(custName) + '\n' +
-        (custNo ? '🆔 <b>លេខកូដ:</b> ' + esc(custNo) + '\n' : '') +
-        '📅 <b>កាលបរិច្ឆេទ:</b> ' + dmy(new Date()) + '\n' +
-        '🧾 <b>ចំនួនវិក័យបត្រ:</b> ' + D.inv.length + ' សន្លឹក\n' +
-        '💰 <b>សមតុល្យសរុប (Total Balance):</b> $' + fmt(totalAmt) + '\n' +
-        '━━━━━━━━━━━━━━━━━━\n' +
-        '📞 <b>ទំនាក់ទំនង:</b> 099 744 497\n' +
-        '🙏 សូមអរគុណសម្រាប់ការសហការ!';
+    // ផ្ញើតែរូបភាពវិក័យបត្រ (Statement Image) ទៅ Telegram គ្មាន Caption អក្សរវែងឡើយ
+    var caption = '';
 
     try {
         var el = document.getElementById('printDocument');
@@ -2189,7 +2179,14 @@ async function sendTelegramAuto() {
             return;
         }
 
-        var targetChatId = (typeof TG_CHAT_IDS !== 'undefined' && (TG_CHAT_IDS[target] || TG_CHAT_IDS[target.toLowerCase()] || TG_CHAT_IDS[custNo])) || target;
+        var targetClean = target.toLowerCase().replace(/^@/, '');
+        var targetChatId = (typeof TG_CHAT_IDS !== 'undefined' && (
+            TG_CHAT_IDS[target] || 
+            TG_CHAT_IDS[target.toLowerCase()] || 
+            TG_CHAT_IDS['@' + targetClean] || 
+            TG_CHAT_IDS[targetClean] || 
+            TG_CHAT_IDS[custNo]
+        )) || target;
 
         var resp = await fetch('/api/send-telegram', {
             method: 'POST',
@@ -2197,7 +2194,7 @@ async function sendTelegramAuto() {
             body: JSON.stringify({
                 botToken: botToken,
                 chatId: targetChatId,
-                caption: caption,
+                caption: '',
                 imageBase64: imageB64
             })
         });
@@ -2206,7 +2203,7 @@ async function sendTelegramAuto() {
         if(result.ok) {
             stBox.style.background = '#dcfce7';
             stBox.style.color = '#15803d';
-            stBox.innerHTML = '✅ បានផ្ញើវិក័យបត្រ និងរូបភាព Statement ទៅកាន់ <b>' + esc(target) + '</b> ដោយជោគជ័យ!';
+            stBox.innerHTML = '✅ បានផ្ញើរូបភាព Statement ទៅកាន់ <b>' + esc(target) + '</b> ដោយជោគជ័យ (ផ្ញើតែរូបភាព)!';
         } else {
             var errMsg = result.description || result.error || 'Chat not found';
             stBox.style.background = '#fee2e2';

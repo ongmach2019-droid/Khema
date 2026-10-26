@@ -122,7 +122,9 @@ app.post('/api/send-telegram', async (req, res) => {
       const buffer = Buffer.from(cleanB64, 'base64');
       const formData = new FormData();
       formData.append('chat_id', resolvedChatId);
-      if (caption) formData.append('caption', caption);
+      if (caption && typeof caption === 'string' && caption.trim()) {
+        formData.append('caption', caption.trim());
+      }
       formData.append('photo', new Blob([buffer], { type: 'image/png' }), 'Customer_Statement.png');
 
       const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
