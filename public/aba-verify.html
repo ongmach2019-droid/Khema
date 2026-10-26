@@ -645,9 +645,9 @@ var KEYS = {
         ],
         date: ['date','កាល'],
         party: ['customer name','customer id','customer','vendor name','vendor','employee','doctor','ពេទ្យ','name','ឈ្មោះ','party'],
-        cr: ['receive to cash','cash acc','amount','credit','ចំនួន','total'],
+        cr: ['balance','សមតុល្យ','receive to cash','cash acc','amount','credit','ចំនួន','total'],
         db: ['debit'],
-        bal: ['balance'],
+        bal: ['balance','សមតុល្យ'],
         entry: ['entry no','entry','source entry no','jv no','jv'],
         desc: ['description','desc','particular','ពិពណ៌នា']
     }
@@ -755,6 +755,7 @@ function parseAgedReport(aoa) {
                 'Date': colDate >= 0 ? r[colDate] : '',
                 'Description': colDesc >= 0 ? String(r[colDesc]||'').trim() : '',
                 'Amount': amt,
+                'Balance': amt,
                 'Running Balance': Math.round(custRunningBal[currentCust] * 100) / 100
             };
 
@@ -1252,9 +1253,17 @@ $('delAcc').onclick = () => {
 // ============================================================================
 
 function isSummaryRow(x, inv) {
+    // If it has a legitimate invoice number starting with INV followed by digits, it's definitely NOT a summary row!
+    if(inv && /^INV\s*[-_]?\s*\d+/i.test(String(inv).trim())) {
+        return false;
+    }
+    var invStr = String(inv || '').trim().toLowerCase();
+    if(/\b(total|subtotal|grand\s*total|sum\b|ending\s*balance)\b/i.test(invStr) || /(សរុប|នៅសល់|ប្រាក់សរុប|ជំពាក់សរុប|ចំនួនសរុប|ទឹកប្រាក់សរុប)/i.test(invStr)) {
+        return true;
+    }
     var str = Object.keys(x).map(k => String(x[k] == null ? '' : x[k]).trim()).filter(Boolean).join(' ').toLowerCase();
-    if(/\b(total|subtotal|grand\s*total|sum\b|balance|bal\b|paid\b|amount\s*paid|ending\s*balance)\b/i.test(str)) return true;
-    if(/(សរុប|នៅសល់|បានសង|ប្រាក់សរុប|ជំពាក់សរុប|ចំនួនសរុប|ទឹកប្រាក់សរុប)/i.test(str)) return true;
+    if(/\b(total|subtotal|grand\s*total|ending\s*balance)\b/i.test(str)) return true;
+    if(/(សរុប|ប្រាក់សរុប|ជំពាក់សរុប|ចំនួនសរុប|ទឹកប្រាក់សរុប)/i.test(str)) return true;
     if(!inv && !/(inv|lf|pt|bridge|crown|veneer|post|metal|zirconia)/i.test(str)) return true;
     return false;
 }
@@ -1301,7 +1310,12 @@ function build() {
 
         t.rows.forEach((x, i) => {
 
-            var v = m.db ? num(x[m.db]) : (num(x[m.cr]) || num(x[m.bal])), en = m.entry ? String(x[m.entry]||'').trim() : '';
+            // Prioritize Balance as instructed by user: "ចំនួនទឹកប្រាក់ដែលពេទ្យនៅជំពាក់គឺចាប់យក ចំនួន Balance"
+            var balKey = (m.bal && x[m.bal] != null && String(x[m.bal]).trim() !== '') ? m.bal : 
+                         (x['Balance'] != null && String(x['Balance']).trim() !== '' ? 'Balance' : 
+                         (x['balance'] != null && String(x['balance']).trim() !== '' ? 'balance' : null));
+            var v = (balKey && !isNaN(num(x[balKey]))) ? num(x[balKey]) : (m.db ? num(x[m.db]) : (num(x[m.cr]) || num(x[m.bal])));
+            var en = m.entry ? String(x[m.entry]||'').trim() : '';
 
             // Invoice No detection: strictly prioritize invoice numbers starting with INV
             var inv = '';
@@ -1555,7 +1569,7 @@ function run() {
 
     names.forEach(n => {
         var D = docs[n];
-        D.inv.sort((a, b) => (a.date || 0) - (b.date || 0));
+        D.inv.sort((a, b) => (a.no || 0) - (b.no || 0));
 
         var before = 0, per = 0, lastD = null;
         D.pay.forEach(t => {
