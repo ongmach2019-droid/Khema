@@ -532,8 +532,21 @@ fetch('/khema-logo.jpg')
     fr.readAsDataURL(b);
   }).catch(() => {});
 
+var DEFAULT_BOT_TOKEN = '8573963689:AAEX3OFDd4IKFqmMKUIOWlhKc8lHTg8v64M';
+if(!localStorage.getItem('aba_tg_bot_token')) {
+    localStorage.setItem('aba_tg_bot_token', DEFAULT_BOT_TOKEN);
+}
+
 var TG_MAP = {
-    'C00007': '@OngMach2026'
+    'C00007': '@OngMach2026',
+    '8805554075': '@OngMach2026'
+};
+var TG_CHAT_IDS = {
+    'C00007': '8805554075',
+    '@OngMach2026': '8805554075',
+    '@OngMach': '8805554075',
+    'OngMach2026': '8805554075',
+    'OngMach': '8805554075'
 };
 try {
     var savedTgMap = localStorage.getItem('aba_tg_map');
@@ -2176,12 +2189,14 @@ async function sendTelegramAuto() {
             return;
         }
 
+        var targetChatId = (typeof TG_CHAT_IDS !== 'undefined' && (TG_CHAT_IDS[target] || TG_CHAT_IDS[target.toLowerCase()] || TG_CHAT_IDS[custNo])) || target;
+
         var resp = await fetch('/api/send-telegram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 botToken: botToken,
-                chatId: target,
+                chatId: targetChatId,
                 caption: caption,
                 imageBase64: imageB64
             })

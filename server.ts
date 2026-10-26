@@ -80,12 +80,48 @@ app.post('/api/send-telegram', async (req, res) => {
     }
 
     const targetChat = String(chatId).trim();
+    let resolvedChatId = targetChat;
+
+    const KNOWN_MAP: Record<string, string> = {
+      'ongmach2026': '8805554075',
+      '@ongmach2026': '8805554075',
+      'ongmach': '8805554075',
+      '@ongmach': '8805554075',
+      'c00007': '8805554075'
+    };
+
+    const cleanName = targetChat.toLowerCase().replace(/^@/, '');
+    if (KNOWN_MAP[cleanName] || KNOWN_MAP[targetChat.toLowerCase()]) {
+      resolvedChatId = KNOWN_MAP[cleanName] || KNOWN_MAP[targetChat.toLowerCase()];
+    } else if (!/^-?\d+$/.test(targetChat)) {
+      try {
+        const updRes = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+        const updData: any = await updRes.json();
+        if (updData.ok && Array.isArray(updData.result)) {
+          for (const u of updData.result) {
+            const from = u.message?.from || u.channel_post?.chat || u.my_chat_member?.chat;
+            if (from) {
+              const uName = (from.username || '').toLowerCase();
+              const fName = (from.first_name || '').toLowerCase();
+              const lName = (from.last_name || '').toLowerCase();
+              const fullName = `${fName} ${lName}`.trim();
+              if (uName === cleanName || fName === cleanName || fullName === cleanName || (uName && cleanName.includes(uName))) {
+                resolvedChatId = String(from.id);
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to resolve telegram username from getUpdates:', e);
+      }
+    }
 
     if (imageBase64) {
       const cleanB64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(cleanB64, 'base64');
       const formData = new FormData();
-      formData.append('chat_id', targetChat);
+      formData.append('chat_id', resolvedChatId);
       if (caption) formData.append('caption', caption);
       formData.append('photo', new Blob([buffer], { type: 'image/png' }), 'Customer_Statement.png');
 
@@ -94,19 +130,19 @@ app.post('/api/send-telegram', async (req, res) => {
         body: formData
       });
       const data: any = await tgRes.json();
-      return res.json(data);
+      return res.json({ ...data, resolvedChatId, originalTarget: targetChat });
     } else {
       const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: targetChat,
+          chat_id: resolvedChatId,
           text: caption || '',
           parse_mode: 'HTML'
         })
       });
       const data: any = await tgRes.json();
-      return res.json(data);
+      return res.json({ ...data, resolvedChatId, originalTarget: targetChat });
     }
   } catch (err: any) {
     console.error('Telegram API error:', err);
