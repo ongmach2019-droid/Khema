@@ -13,10 +13,35 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 
 :root{--bg:#f0f2f5;--card:#fff;--tx:#1b2430;--mu:#5f6b7a;--bd:#cfd6de;--pr:#0b6bcb;--ok:#14803c;--wa:#b26a00;--er:#c62828;box-sizing:border-box}
+
+/* Print Modal Styles */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:none;align-items:center;justify-content:center;padding:15px;backdrop-filter:blur(2px)}
+.modal-overlay.active{display:flex}
+.modal-card{background:#fff;color:#1b2430;border-radius:10px;width:100%;max-width:980px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,0.3);overflow:hidden}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap;gap:8px}
+.modal-header h3{margin:0;font-size:1.05rem;color:#0f172a}
+.modal-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.modal-body{padding:20px;overflow-y:auto;flex:1;background:#fff}
+.print-paper{background:#fff;color:#000;font-family:'Noto Sans Khmer',system-ui,sans-serif;font-size:13px;line-height:1.4;padding:10px}
+.print-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
+.print-table th,.print-table td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}
+.print-table th{background:#f1f5f9;font-weight:600;color:#0f172a}
+.print-table th.n,.print-table td.n{text-align:right}
+.print-table tfoot td{font-weight:bold;background:#f8fafc}
+@media print{
+  body *{visibility:hidden !important}
+  #printDocument,#printDocument *{visibility:visible !important}
+  #printModal{display:block !important;position:absolute !important;left:0 !important;top:0 !important;width:100% !important;height:auto !important;background:#fff !important;padding:0 !important;margin:0 !important;box-shadow:none !important}
+  #printModal .modal-header{display:none !important}
+  #printModal .modal-body{padding:0 !important;overflow:visible !important}
+  #printDocument{position:absolute !important;left:0 !important;top:0 !important;width:100% !important;margin:0 !important;padding:15px !important}
+  .print-table th,.print-table td{border:1px solid #333 !important}
+}
 
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b222b;--tx:#e8ecf1;--mu:#94a0b0;--bd:#2d3744;--pr:#5aa8ff;--ok:#4cc38a;--wa:#f0b24a;--er:#ff7b7b}}
 
@@ -164,6 +189,8 @@ summary:hover{background:var(--bg)}
 
     <input type="date" id="dFrom" title="ពី"> <span>-</span> <input type="date" id="dTo" title="ដល់">
 
+    <input type="text" id="custSearch" placeholder="🔍 ស្វែងរកអតិថិជន (C00007, ឈ្មោះ...)" style="width:230px;height:28px" title="ស្វែងរកតាមលេខកូដ C00007 ឬ ឈ្មោះ">
+
     <button class="p" id="go" style="margin-left:auto">🔄 ផ្ទៀងផ្ទាត់</button>
 
   </div>
@@ -215,6 +242,23 @@ summary:hover{background:var(--bg)}
 
 
 <div id="out"></div>
+
+<!-- Print & Export Modal -->
+<div id="printModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>🖨️ ឯកសារយោងវិក័យបត្រ (Customer Statement / Reference Document)</h3>
+      <div class="modal-actions">
+        <button class="p" id="btnPrintNow" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print / PDF)</button>
+        <button id="btnSavePNG" style="background:#059669;border-color:#059669;color:#fff">🖼️ រក្សាទុក PNG</button>
+        <button id="btnSaveExcel" style="background:#16a34a;border-color:#16a34a;color:#fff">📊 រក្សាទុក Excel</button>
+        <button id="btnSaveCSV" style="background:#475569;border-color:#475569;color:#fff">📄 រក្សាទុក CSV</button>
+        <button id="btnCloseModal" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626">✕ បិទ</button>
+      </div>
+    </div>
+    <div id="printModalBody" class="modal-body"></div>
+  </div>
+</div>
 
 </main>
 
@@ -521,7 +565,110 @@ function readWB(f, cb) {
 
 }
 
-function sheetsOf(wb) { return wb.SheetNames.map(n => { var a = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, defval:'', raw:true}); return a.length ? mkTable(a) : null; }).filter(Boolean); }
+function isAgedReportAOA(aoa) {
+    if(!aoa || !aoa.length) return false;
+    for(var i=0; i<Math.min(aoa.length, 100); i++) {
+        var txt = (aoa[i]||[]).join(' ').trim();
+        if(/^[A-Z]\d{4,}\s*[-–]/i.test(txt) || /^C\d{4,}\b/i.test(txt)) return true;
+    }
+    return false;
+}
+
+function parseAgedReport(aoa) {
+    var bi = -1;
+    for(var i=0; i<Math.min(aoa.length, 50); i++) {
+        var rowStr = (aoa[i]||[]).join(' ').toLowerCase();
+        if((rowStr.includes('entry no') || rowStr.includes('inv')) && (rowStr.includes('module') || rowStr.includes('date'))) {
+            bi = i;
+            break;
+        }
+    }
+    if(bi === -1) return null;
+
+    var h = (aoa[bi]||[]).map((c, j) => String(c||'').trim() || ('Col'+(j+1)));
+    
+    var colInv = h.findIndex(k => /entry\s*no|inv/i.test(k));
+    var colDate = h.findIndex(k => /^date/i.test(k));
+    var colRef = h.findIndex(k => /^ref/i.test(k));
+    var colMod = h.findIndex(k => /module|source/i.test(k));
+    var colDesc = h.findIndex(k => /remark|desc|particular/i.test(k));
+    
+    var colBal = h.findIndex(k => /^balance$/i.test(k));
+    if(colBal < 0) colBal = h.findIndex(k => /balance/i.test(k));
+    if(colBal < 0) colBal = h.findIndex(k => /^current\s*amount$/i.test(k));
+    if(colBal < 0) colBal = h.findIndex(k => /^amount$/i.test(k));
+
+    var currentCust = '';
+    var currentCustCode = '';
+    var rows = [];
+    var custRunningBal = {};
+    var custInvoiceIndex = {};
+
+    for(var i = bi + 1; i < aoa.length; i++) {
+        var r = aoa[i];
+        if(!r || !r.length) continue;
+        var firstCell = String(r[0]||'').trim();
+        var rowText = r.map(x => String(x||'').trim()).filter(Boolean).join(' ');
+
+        var custMatch = firstCell.match(/^([A-Z]\d{4,})\s*[-–]\s*(.+)$/i) || 
+                        rowText.match(/^([A-Z]\d{4,})\s*[-–]\s*(.+)$/i) || 
+                        firstCell.match(/^([A-Z]\d{4,})\b/i);
+        if(custMatch) {
+            currentCustCode = custMatch[1].trim();
+            currentCust = custMatch[2] ? (custMatch[1] + ' - ' + custMatch[2]).trim() : firstCell;
+            custRunningBal[currentCust] = 0;
+            custInvoiceIndex[currentCust] = 0;
+            continue;
+        }
+
+        var invVal = colInv >= 0 ? String(r[colInv]||'').trim() : '';
+        if(/^INV/i.test(invVal) || (colMod >= 0 && /AR-IN/i.test(String(r[colMod]||'')) && invVal)) {
+            var amt = colBal >= 0 ? parseFloat(String(r[colBal]).replace(/[^0-9.-]/g,'')) : 0;
+            if(isNaN(amt)) amt = 0;
+
+            custRunningBal[currentCust] = (custRunningBal[currentCust] || 0) + amt;
+            custInvoiceIndex[currentCust] = (custInvoiceIndex[currentCust] || 0) + 1;
+
+            var obj = {
+                'Customer Name': currentCust,
+                'Customer ID': currentCustCode,
+                'No': custInvoiceIndex[currentCust],
+                'Module': colMod >= 0 ? String(r[colMod]||'').trim() : 'AR-IN',
+                'Entry No': invVal,
+                'Invoice No': invVal,
+                'Reference': colRef >= 0 ? String(r[colRef]||'').trim() : '',
+                'Date': colDate >= 0 ? r[colDate] : '',
+                'Description': colDesc >= 0 ? String(r[colDesc]||'').trim() : '',
+                'Amount': amt,
+                'Running Balance': Math.round(custRunningBal[currentCust] * 100) / 100
+            };
+
+            h.forEach((k, j) => {
+                if(!obj[k]) obj[k] = r[j];
+            });
+
+            rows.push(obj);
+        }
+    }
+
+    return {
+        h: ['Customer Name', 'Customer ID', 'No', 'Module', 'Entry No', 'Invoice No', 'Reference', 'Date', 'Description', 'Amount', 'Running Balance'].concat(h),
+        rows: rows,
+        isAgedReport: true
+    };
+}
+
+function sheetsOf(wb) {
+    return wb.SheetNames.map(n => {
+        var a = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, defval:'', raw:true});
+        if(!a.length) return null;
+        if(isAgedReportAOA(a)) {
+            var t = parseAgedReport(a);
+            if(t) return t;
+        }
+        return mkTable(a);
+    }).filter(Boolean);
+}
 
 function hasH(t, re) { return t.h.some(h => re.test(h)); }
 
@@ -951,8 +1098,8 @@ function build() {
             }
 
             var hParty = HDR[en] ? (HDR[en]['Customer ID'] || HDR[en]['Customer Name'] || HDR[en]['Customer'] || '') : '';
-            var p = (m.party ? String(x[m.party]||'').trim() : '') || accBy(en) || accBy(hParty) || hParty || (en && !en.includes(',') ? en : '') || pf;
-            if(p && p.includes(',')) p = p.split(',')[0].trim();
+            var p = (m.party ? String(x[m.party]||'').trim() : '') || x['Customer Name'] || accBy(en) || accBy(hParty) || hParty || (en && !en.includes(',') ? en : '') || pf;
+            if(p && p.includes(',') && !/^C\d{4,}/i.test(p)) p = p.split(',')[0].trim();
 
             if(!en && p) {
                 var aItem = ACC.find(ac => (ac.name && (ac.name === p || p.indexOf(ac.name) > -1 || ac.name.indexOf(p) > -1)) || (ac.customerId && ac.customerId === p));
@@ -969,13 +1116,31 @@ function build() {
 
             t.used++; names[p] = 1;
 
-            var dVal = pd(x[m.date]);
+            var dVal = pd(x[m.date] || x['Date']);
             if(!dVal && en && HDR[en]) {
                 var hDateCol = pick(HDR[en], ['date', 'កាល']);
                 if(hDateCol) dVal = pd(HDR[en][hDateCol]);
             }
 
-            debts.push({id: fi*100000+i, inv: inv, date: dVal, party: p, amt: v, entry: en, desc: m.desc ? String(x[m.desc]||'') : ''});
+            var refVal = x['Reference'] || x['ref'] || (m.ref ? String(x[m.ref]||'').trim() : '');
+            var modVal = x['Module'] || 'AR-IN';
+            var descVal = x['Description'] || (m.desc ? String(x[m.desc]||'') : '') || x['Remark'] || '';
+            var custIdVal = x['Customer ID'] || (p.match(/^([A-Z]\d{4,})/i) ? p.match(/^([A-Z]\d{4,})/i)[1] : '');
+
+            debts.push({
+                id: fi*100000+i,
+                no: x['No'] || (i+1),
+                module: modVal,
+                inv: inv,
+                ref: refVal,
+                date: dVal,
+                party: p,
+                custId: custIdVal,
+                amt: v,
+                runBal: x['Running Balance'] != null ? x['Running Balance'] : null,
+                entry: en,
+                desc: descVal
+            });
 
         });
 
@@ -1019,7 +1184,27 @@ function run() {
     var from = $('dFrom').value ? new Date($('dFrom').value) : null, to = $('dTo').value ? new Date($('dTo').value+'T23:59:59') : new Date(8.64e15);
     var docs = {}, names = [];
 
-    // 1. Initialize docs with ALL accounts from ACC in exact order
+    // 1. If debts exist, extract customers in EXACT sequential order of appearance in the file! (តាមលំដាប់ ចាប់ពី C00007...)
+    debts.forEach(d => {
+        var pName = d.party || d.entry || 'គ្មានឈ្មោះ';
+        if(!docs[pName]) {
+            var accMatch = ACC.find(a => (a.name && (a.name === pName || pName.indexOf(a.name) > -1 || a.name.indexOf(pName) > -1)) || (a.customerId && (a.customerId === pName || a.customerId === d.custId)));
+            docs[pName] = {
+                name: pName,
+                accItem: accMatch || null,
+                entry: (accMatch && accMatch.entry) || d.entry || '',
+                customerId: (accMatch && accMatch.customerId) || d.custId || '',
+                bankAcc: (accMatch && (accMatch.bankAcc || accMatch.acct)) || '',
+                inv: [],
+                pay: [],
+                al: aliases(pName)
+            };
+            names.push(pName);
+        }
+        docs[pName].inv.push(d);
+    });
+
+    // 2. Append any remaining accounts from ACC that didn't have invoices in debts
     if(ACC && ACC.length) {
         ACC.forEach((a, idx) => {
             var dn = String(a.name || a.customerId || a.entry || ('គណនី ' + (idx + 1))).trim();
@@ -1035,65 +1220,11 @@ function run() {
                     al: aliases(dn)
                 };
                 names.push(dn);
-            } else {
-                docs[dn].accItem = docs[dn].accItem || a;
-                if(a.entry && !docs[dn].entry) docs[dn].entry = a.entry;
-                if(a.customerId && !docs[dn].customerId) docs[dn].customerId = a.customerId;
-                if((a.bankAcc || a.acct) && !docs[dn].bankAcc) docs[dn].bankAcc = a.bankAcc || a.acct;
             }
         });
     }
 
-    // 2. Attach debts to docs
-    debts.forEach(d => {
-        var targetDoc = null;
-
-        if(d.entry) {
-            for(var i = 0; i < names.length; i++) {
-                var D = docs[names[i]];
-                if((D.entry && D.entry === d.entry) ||
-                   (D.customerId && D.customerId === d.entry) ||
-                   (D.accItem && (D.accItem.entry === d.entry || D.accItem.customerId === d.entry))) {
-                    targetDoc = D;
-                    break;
-                }
-            }
-        }
-
-        if(!targetDoc && d.party && docs[d.party]) targetDoc = docs[d.party];
-
-        if(!targetDoc && d.party) {
-            var low = d.party.toLowerCase().replace(/\s+/g, '');
-            for(var i = 0; i < names.length; i++) {
-                var D = docs[names[i]];
-                if(D.al && D.al.some(a => low.indexOf(a) > -1 || a.indexOf(low) > -1)) {
-                    targetDoc = D;
-                    break;
-                }
-            }
-        }
-
-        if(!targetDoc) {
-            var pName = d.party || d.entry || 'គ្មានឈ្មោះ';
-            if(!docs[pName]) {
-                docs[pName] = {
-                    name: pName,
-                    entry: d.entry || '',
-                    customerId: '',
-                    bankAcc: '',
-                    inv: [],
-                    pay: [],
-                    al: aliases(pName)
-                };
-                names.push(pName);
-            }
-            targetDoc = docs[pName];
-        }
-
-        targetDoc.inv.push(d);
-    });
-
-    // If any account in docs has 0 invoices from debts, but has invoices in ACC_INVOICES (from Box 3), attach them!
+    // 3. If any account in docs has 0 invoices from debts, but has invoices in ACC_INVOICES (from Box 3), attach them!
     if(ACC_INVOICES && ACC_INVOICES.length) {
         names.forEach(n => {
             var D = docs[n];
@@ -1109,9 +1240,13 @@ function run() {
                     matchedAccInvs.forEach(ai => {
                         D.inv.push({
                             id: ai.id,
+                            no: D.inv.length + 1,
+                            module: 'AR-IN',
                             inv: ai.inv,
+                            ref: '',
                             date: null,
                             amt: ai.amt,
+                            runBal: 0,
                             paidInOR: ai.paid,
                             party: D.name,
                             entry: D.entry || ai.entry,
@@ -1122,6 +1257,17 @@ function run() {
             }
         });
     }
+
+    // 4. Calculate sequential No and cumulative Running Balance for each customer
+    names.forEach(n => {
+        var D = docs[n];
+        var running = 0;
+        D.inv.forEach((v, idx) => {
+            v.no = idx + 1;
+            running += v.amt;
+            v.runBal = Math.round(running * 100) / 100;
+        });
+    });
 
     var unmatched = [];
 
@@ -1222,17 +1368,31 @@ function drawMap() {
 
 }
 
+var currentPrintCustomer = '';
+
 function render() {
 
     var R = res;
     if(!R) return;
 
+    var filterTxt = ($('custSearch') ? $('custSearch').value : '').trim().toLowerCase();
+
     var h = '<div class="card"><div class="kpis"><div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div><div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div><div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div><div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div></div></div>';
 
-    // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់) MATCHING EXACT IMAGE FORMAT
+    // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់) MATCHING EXACT IMAGE 4 FORMAT
     R.names.forEach(n => {
 
         var D = R.docs[n], hasInv = D.inv && D.inv.length > 0;
+
+        if(filterTxt && n.toLowerCase().indexOf(filterTxt) === -1) {
+            var hasMatchInInvoices = hasInv && D.inv.some(v => 
+                (v.inv && v.inv.toLowerCase().indexOf(filterTxt) > -1) ||
+                (v.ref && v.ref.toLowerCase().indexOf(filterTxt) > -1) ||
+                (v.desc && v.desc.toLowerCase().indexOf(filterTxt) > -1)
+            );
+            if(!hasMatchInInvoices) return;
+        }
+
         var full = D.rem <= 0.005;
         var pct = D.owed > 0 ? Math.min(100, (D.paidTotal / D.owed) * 100) : (full ? 100 : 0);
 
@@ -1248,7 +1408,9 @@ function render() {
              '<div><b>' + esc(n) + '</b></div>' +
              '<div class="row" style="gap:10px;align-items:center">' +
              '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + ' · នៅសល់ ' + remHtml + '</span> ' +
-             st + '</div>' +
+             st + 
+             (hasInv ? '<button type="button" class="btn-print-mini" data-print="' + esc(n) + '" title="បោះពុម្ពឯកសារយោង (Print Reference Statement)" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer">🖨️ Print</button>' : '') +
+             '</div>' +
              '</summary>';
 
         if(hasInv) {
@@ -1258,17 +1420,53 @@ function render() {
         h += '<div class="pad">';
 
         if(hasInv) {
-            h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p><div class="row" style="margin-bottom:8px"><button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button><button data-cl="' + esc(n) + '">✗ សម្អាត</button><button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button></div><div class="tw"><table><tr><th></th><th>វិក័យបត្រ</th><th>កាលបរិច្ឆេទ</th><th class="n">ចំនួន</th><th class="n">សងមុន</th><th class="n">សងពេលនេះ</th><th class="n">នៅសល់</th><th>ស្ថានភាព</th></tr>';
+            h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p>' +
+                 '<div class="row" style="margin-bottom:8px">' +
+                 '<button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button>' +
+                 '<button data-cl="' + esc(n) + '">✗ សម្អាត</button>' +
+                 '<button class="p" data-print="' + esc(n) + '" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print)</button>' +
+                 '<button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button>' +
+                 '</div>' +
+                 '<div class="tw"><table>' +
+                 '<thead><tr>' +
+                 '<th style="width:28px"></th>' +
+                 '<th style="width:40px;text-align:center">ល.រ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">N°</span></th>' +
+                 '<th style="width:65px">ប្រភេទ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Source</span></th>' +
+                 '<th>លេខឯកសារ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Document No.</span></th>' +
+                 '<th>លេខយោង<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Reference</span></th>' +
+                 '<th>កាលបរិច្ឆេទ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Date</span></th>' +
+                 '<th>បរិយាយ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Description</span></th>' +
+                 '<th class="n">ចំនួនទឹកប្រាក់<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Amount</span></th>' +
+                 '<th class="n">សមតុល្យ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Running Bal</span></th>' +
+                 '<th class="n">សងមុន</th>' +
+                 '<th class="n">សងពេលនេះ</th>' +
+                 '<th class="n">នៅសល់</th>' +
+                 '<th>ស្ថានភាព</th>' +
+                 '</tr></thead><tbody>';
 
-            D.inv.forEach(v => {
+            D.inv.forEach((v, idx) => {
                 var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : ((v.pb + v.pp) > 0 ? '<span class="wa">សងមួយផ្នែក</span>' : '<span class="er">មិនទាន់</span>');
                 var hasPaid = (v.pp > 0) || (v.pb > 0) || (v.paidInOR != null && v.paidInOR > 0);
-                h += '<tr><td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (hasPaid ? '' : ' disabled') + '></td><td>' + esc(v.inv) + '</td><td>' + (v.date ? dmy(v.date) : '') + '</td><td class="n">' + fmt(v.amt) + '</td><td class="n">' + fmt(v.pb) + '</td><td class="n">' + fmt(v.pp) + '</td><td class="n">' + fmt(v.rem) + '</td><td>' + s + '</td></tr>';
+                h += '<tr>' +
+                     '<td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (hasPaid ? '' : ' disabled') + '></td>' +
+                     '<td style="text-align:center">' + (idx + 1) + '</td>' +
+                     '<td>' + esc(v.module || 'AR-IN') + '</td>' +
+                     '<td><b>' + esc(v.inv) + '</b></td>' +
+                     '<td>' + esc(v.ref || '') + '</td>' +
+                     '<td>' + (v.date ? dmy(v.date) : '') + '</td>' +
+                     '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(v.desc) + '">' + esc(v.desc) + '</td>' +
+                     '<td class="n">' + fmt(v.amt) + '</td>' +
+                     '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : v.amt) + '</td>' +
+                     '<td class="n">' + fmt(v.pb) + '</td>' +
+                     '<td class="n" style="font-weight:bold;color:' + (v.pp > 0 ? 'var(--ok)' : 'inherit') + '">' + fmt(v.pp) + '</td>' +
+                     '<td class="n">' + fmt(v.rem) + '</td>' +
+                     '<td>' + s + '</td>' +
+                     '</tr>';
             });
 
-            h += '</table></div>';
+            h += '</tbody></table></div>';
         } else {
-            h += '<div class="tw"><table><tr><td colspan="8" style="text-align:center;color:var(--ok);padding:15px;font-weight:600">✓ សងគ្រប់រួចរាល់ (គ្មានវិក័យបត្រជំពាក់ទេ)</td></tr></table></div>';
+            h += '<div class="tw"><table><tr><td colspan="13" style="text-align:center;color:var(--ok);padding:15px;font-weight:600">✓ សងគ្រប់រួចរាល់ (គ្មានវិក័យបត្រជំពាក់ទេ)</td></tr></table></div>';
         }
 
         h += '</div></details>';
@@ -1305,6 +1503,173 @@ function updateSelBtn() {
     }
 }
 
+// ============================================================================
+// 5.1 PRINT MODAL & REFERENCE DOCUMENT EXPORTS (PDF, PNG, EXCEL, CSV)
+// ============================================================================
+function openPrintModal(custName) {
+    if(!res || !res.docs[custName]) return;
+    var D = res.docs[custName];
+    if(!D.inv || !D.inv.length) { alert('គ្មានវិក័យបត្រក្នុងគណនីនេះទេ'); return; }
+
+    currentPrintCustomer = custName;
+    var curDateStr = dmy(new Date());
+    var totalAmt = 0;
+    var rowsHtml = '';
+
+    D.inv.forEach((v, idx) => {
+        totalAmt += v.amt;
+        rowsHtml += '<tr>' +
+            '<td style="text-align:center">' + (idx + 1) + '</td>' +
+            '<td>' + esc(v.module || 'AR-IN') + '</td>' +
+            '<td><b>' + esc(v.inv) + '</b></td>' +
+            '<td>' + esc(v.ref || '') + '</td>' +
+            '<td>' + (v.date ? dmy(v.date) : '') + '</td>' +
+            '<td style="max-width:280px;white-space:normal;word-break:break-word">' + esc(v.desc || '') + '</td>' +
+            '<td class="n">' + fmt(v.amt) + '</td>' +
+            '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : totalAmt) + '</td>' +
+        '</tr>';
+    });
+
+    var docHtml = 
+        '<div id="printDocument" class="print-paper">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:10px;margin-bottom:12px">' +
+                '<div>' +
+                    '<h2 style="margin:0 0 4px;font-size:1.25rem;color:#0f172a">Khema Digital Dental Solution</h2>' +
+                    '<div style="font-size:0.95rem;font-weight:600;color:#334155">របាយការណ៍បំណុលតាមអតិថិជន (Aged Receivable by Customer Detail)</div>' +
+                '</div>' +
+                '<div style="text-align:right;font-size:0.82rem;color:#64748b">' +
+                    '<div>កាលបរិច្ឆេទ / Date: <b>' + curDateStr + '</b></div>' +
+                    '<div>រូបិយប័ណ្ណ / Currency: <b>' + ($('cur').value || 'USD') + '</b></div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:0.88rem">' +
+                '<b>អតិថិជន / Customer:</b> <span style="color:#0f172a;font-weight:600">' + esc(custName) + '</span>' +
+                (D.customerId ? ' <span class="mu">(' + esc(D.customerId) + ')</span>' : '') +
+            '</div>' +
+            '<table class="print-table">' +
+                '<thead>' +
+                    '<tr>' +
+                        '<th style="width:45px;text-align:center">ល.រ<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">N°</span></th>' +
+                        '<th style="width:70px">ប្រភេទ<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Source</span></th>' +
+                        '<th style="width:105px">លេខឯកសារ<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Document No.</span></th>' +
+                        '<th style="width:105px">លេខយោង<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Reference</span></th>' +
+                        '<th style="width:95px">កាលបរិច្ឆេទ<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Date</span></th>' +
+                        '<th>បរិយាយ<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Description</span></th>' +
+                        '<th style="width:95px;text-align:right">ចំនួនទឹកប្រាក់<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Amount</span></th>' +
+                        '<th style="width:100px;text-align:right">សមតុល្យ<br><span style="font-size:0.72rem;font-weight:normal;color:#64748b">Running Balance</span></th>' +
+                    '</tr>' +
+                '</thead>' +
+                '<tbody>' +
+                    rowsHtml +
+                '</tbody>' +
+                '<tfoot>' +
+                    '<tr>' +
+                        '<td colspan="6" style="text-align:right;font-weight:bold">សរុបបំណុលទាំងអស់ (Total Balance):</td>' +
+                        '<td class="n" style="font-weight:bold">' + fmt(totalAmt) + '</td>' +
+                        '<td class="n" style="font-weight:bold">' + fmt(totalAmt) + '</td>' +
+                    '</tr>' +
+                '</tfoot>' +
+            '</table>' +
+            '<div style="display:flex;justify-content:space-between;margin-top:40px;padding:0 20px;font-size:0.85rem;color:#475569">' +
+                '<div style="text-align:center"><div style="margin-bottom:45px">រៀបចំដោយ (Prepared By)</div><div>______________________</div></div>' +
+                '<div style="text-align:center"><div style="margin-bottom:45px">ត្រួតពិនិត្យដោយ (Approved By)</div><div>______________________</div></div>' +
+                '<div style="text-align:center"><div style="margin-bottom:45px">ទទួលដោយ (Received By)</div><div>______________________</div></div>' +
+            '</div>' +
+        '</div>';
+
+    $('printModalBody').innerHTML = docHtml;
+    $('printModal').classList.add('active');
+}
+
+function closePrintModal() {
+    $('printModal').classList.remove('active');
+}
+
+function exportModalPNG(custName) {
+    var el = document.getElementById('printDocument');
+    if(!el) return;
+    if(typeof html2canvas === 'function') {
+        html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+            var link = document.createElement('a');
+            link.download = 'Statement_' + (custName || 'Document').replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }).catch(err => {
+            alert('មិនអាចទាញយក PNG: ' + (err.message || ''));
+        });
+    } else {
+        alert('បណ្ណាល័យ html2canvas មិនទាន់ដំណើរការ');
+    }
+}
+
+function exportCustomerStatementExcel(custName) {
+    if(!res || !res.docs[custName]) return;
+    var D = res.docs[custName];
+    if(!D || !D.inv.length) { alert('គ្មានទិន្នន័យ'); return; }
+    var s1 = [
+        ['Khema Digital Dental Solution'],
+        ['របាយការណ៍បំណុលតាមអតិថិជន (Customer Statement)'],
+        ['អតិថិជន / Customer:', custName, '', 'កាលបរិច្ឆេទ / Date:', dmy(new Date())],
+        [],
+        ['ល.រ (N°)', 'ប្រភេទ (Source)', 'លេខឯកសារ (Document No.)', 'លេខយោង (Reference)', 'កាលបរិច្ឆេទ (Date)', 'បរិយាយ (Description)', 'ចំនួនទឹកប្រាក់ (Amount)', 'សមតុល្យ (Running Balance)']
+    ];
+    var runBal = 0;
+    D.inv.forEach((v, idx) => {
+        runBal += v.amt;
+        s1.push([
+            idx + 1,
+            v.module || 'AR-IN',
+            v.inv || '',
+            v.ref || '',
+            v.date ? dmy(v.date) : '',
+            v.desc || '',
+            v.amt,
+            Math.round(runBal * 100) / 100
+        ]);
+    });
+    s1.push([]);
+    s1.push(['', '', '', '', '', 'សមតុល្យសរុប (Total Balance):', Math.round(runBal * 100) / 100, Math.round(runBal * 100) / 100]);
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(s1);
+    XLSX.utils.book_append_sheet(wb, ws, 'Statement');
+    saveWB(wb, 'Statement_' + custName.replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx');
+}
+
+function exportCustomerStatementCSV(custName) {
+    if(!res || !res.docs[custName]) return;
+    var D = res.docs[custName];
+    if(!D || !D.inv.length) { alert('គ្មានទិន្នន័យ'); return; }
+    var rows = [
+        ['"Khema Digital Dental Solution"'],
+        ['"របាយការណ៍បំណុលតាមអតិថិជន (Customer Statement)"'],
+        ['"អតិថិជន / Customer: ' + custName.replace(/"/g, '""') + '"', '"កាលបរិច្ឆេទ / Date: ' + dmy(new Date()) + '"'],
+        [],
+        ['"ល.រ (N°)"', '"ប្រភេទ (Source)"', '"លេខឯកសារ (Document No.)"', '"លេខយោង (Reference)"', '"កាលបរិច្ឆេទ (Date)"', '"បរិយាយ (Description)"', '"ចំនួនទឹកប្រាក់ (Amount)"', '"សមតុល្យ (Running Balance)"']
+    ];
+    var runBal = 0;
+    D.inv.forEach((v, idx) => {
+        runBal += v.amt;
+        rows.push([
+            idx + 1,
+            '"' + (v.module || 'AR-IN').replace(/"/g, '""') + '"',
+            '"' + (v.inv || '').replace(/"/g, '""') + '"',
+            '"' + (v.ref || '').replace(/"/g, '""') + '"',
+            '"' + (v.date ? dmy(v.date) : '').replace(/"/g, '""') + '"',
+            '"' + (v.desc || '').replace(/"/g, '""') + '"',
+            v.amt,
+            Math.round(runBal * 100) / 100
+        ]);
+    });
+    rows.push([]);
+    rows.push(['""', '""', '""', '""', '""', '"សមតុល្យសរុប (Total Balance)"', Math.round(runBal * 100) / 100, Math.round(runBal * 100) / 100]);
+    var csvContent = '\uFEFF' + rows.map(e => e.join(',')).join('\r\n');
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Statement_' + custName.replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.csv';
+    link.click();
+}
+
 document.addEventListener('change', e => {
 
     var t = e.target;
@@ -1321,6 +1686,13 @@ document.addEventListener('click', e => {
 
     var t = e.target, n;
 
+    if(n = t.dataset.print) {
+        e.stopPropagation();
+        e.preventDefault();
+        openPrintModal(n);
+        return;
+    }
+
     if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) sel[v.id] = true; }); render(); }
 
     if(n = t.dataset.cl) { res.docs[n].inv.forEach(v => { sel[v.id] = false; }); render(); }
@@ -1328,6 +1700,14 @@ document.addEventListener('click', e => {
     if(n = t.dataset.ex) exportX(n);
 
 });
+
+$('btnPrintNow').onclick = () => window.print();
+$('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
+$('btnSaveExcel').onclick = () => exportCustomerStatementExcel(currentPrintCustomer);
+$('btnSaveCSV').onclick = () => exportCustomerStatementCSV(currentPrintCustomer);
+$('btnCloseModal').onclick = () => closePrintModal();
+$('printModal').onclick = e => { if(e.target === $('printModal')) closePrintModal(); };
+if($('custSearch')) $('custSearch').oninput = () => render();
 
 
 
