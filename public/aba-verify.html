@@ -539,23 +539,51 @@ if(!localStorage.getItem('aba_tg_bot_token') || !localStorage.getItem('aba_tg_bo
 
 var TG_MAP = {
     'C00007': '@OngMach2026',
-    '8805554075': '@OngMach2026'
+    'C00013': '@Ziinea0024',
+    '8805554075': '@OngMach2026',
+    '727477829': '@OngMach2026'
 };
 var TG_CHAT_IDS = {
-    'C00007': '8805554075',
-    '@OngMach2026': '8805554075',
-    '@OngMach': '8805554075',
-    'OngMach2026': '8805554075',
-    'OngMach': '8805554075',
-    '0975973959': '8805554075',
-    '+855975973959': '8805554075',
-    '855975973959': '8805554075',
-    '975973959': '8805554075'
+    'C00007': '727477829',
+    '@OngMach2026': '727477829',
+    'OngMach2026': '727477829',
+    '8805554075': '8805554075',
+    '727477829': '727477829',
+    '0975973959': '727477829',
+    '+855975973959': '727477829',
+    '855975973959': '727477829',
+    '975973959': '727477829',
+    'C00013': '@Ziinea0024',
+    '@Ziinea0024': '@Ziinea0024',
+    'Ziinea0024': '@Ziinea0024'
 };
 try {
     var savedTgMap = localStorage.getItem('aba_tg_map');
     if(savedTgMap) TG_MAP = Object.assign(TG_MAP, JSON.parse(savedTgMap));
 } catch(e) {}
+
+function ingestTelegramMap(t) {
+    if(!t || !t.h || !t.rows) return;
+    var fk = {}; t.h.forEach(k => { fk[k.toLowerCase()] = k; });
+    var kid = fk['id'] || fk['customer id'] || fk['customer no'] || fk['code'];
+    var ktg = fk['telegram name'] || fk['telegram'] || fk['tg name'] || fk['tg'] || fk['username'];
+    if(kid && ktg) {
+        var added = 0;
+        t.rows.forEach(r => {
+            var cid = String(r[kid]||'').trim();
+            var tg = String(r[ktg]||'').trim();
+            if(cid && tg) {
+                if(!tg.startsWith('@') && !/^\+?\d+$/.test(tg)) tg = '@' + tg;
+                TG_MAP[cid] = tg;
+                TG_MAP[cid.toUpperCase()] = tg;
+                added++;
+            }
+        });
+        if(added > 0) {
+            localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+        }
+    }
+}
 
 function formatTelegramTarget(target) {
     var raw = String(target || '').trim();
@@ -585,9 +613,21 @@ function formatTelegramTarget(target) {
 }
 
 function getTelegramForCustomer(custName, custNo) {
-    if(custNo && TG_MAP[custNo]) return TG_MAP[custNo];
-    if(custName && TG_MAP[custName]) return TG_MAP[custName];
+    if(custNo) {
+        var cUpper = String(custNo).trim().toUpperCase();
+        if(TG_MAP[cUpper]) return TG_MAP[cUpper];
+        if(TG_MAP[custNo]) return TG_MAP[custNo];
+    }
+    if(custName) {
+        var mMatch = String(custName).match(/^([A-Z]\d{4,})/i);
+        if(mMatch) {
+            var cCode = mMatch[1].toUpperCase();
+            if(TG_MAP[cCode]) return TG_MAP[cCode];
+        }
+        if(TG_MAP[custName]) return TG_MAP[custName];
+    }
     if(custNo === 'C00007' || /C00007/i.test(custName)) return '@OngMach2026';
+    if(custNo === 'C00013' || /C00013/i.test(custName)) return '@Ziinea0024';
     return '';
 }
 
@@ -645,7 +685,7 @@ var KEYS = {
         ],
         date: ['date','កាល'],
         party: ['customer name','customer id','customer','vendor name','vendor','employee','doctor','ពេទ្យ','name','ឈ្មោះ','party'],
-        cr: ['balance','សមតុល្យ','receive to cash','cash acc','amount','credit','ចំនួន','total'],
+        cr: ['amount','credit','receive to cash','cash acc','ចំនួន','total'],
         db: ['debit'],
         bal: ['balance','សមតុល្យ'],
         entry: ['entry no','entry','source entry no','jv no','jv'],
@@ -940,7 +980,11 @@ function smart(kind, t) {
 
     var m = {}, f = {}; t.h.forEach(k => { f[k] = 1 });
 
-    Object.keys(KEYS[kind]).forEach(k => { var c = pick(f, KEYS[kind][k]); if(c) m[k] = c; });
+    Object.keys(KEYS[kind]).forEach(k => { 
+        var notWord = (k === 'bal' || k === 'cr') ? 'running' : null;
+        var c = pick(f, KEYS[kind][k], notWord); 
+        if(c) m[k] = c; 
+    });
 
     var ci = colInfo(t), used = c => Object.keys(m).some(k => m[k] === c), c;
 
@@ -998,7 +1042,9 @@ $('fAba').onchange = e => {
 
     readWB(f, wb => {
 
-        var t = sheetsOf(wb).sort((a,b) => b.rows.length - a.rows.length)[0];
+        var allSheets = sheetsOf(wb);
+        allSheets.forEach(s => ingestTelegramMap(s));
+        var t = allSheets.sort((a,b) => b.rows.length - a.rows.length)[0];
 
         if(t) {
             RAW.aba = t;
@@ -1126,6 +1172,8 @@ $('fDebt').onchange = e => {
 
             ts.forEach(t => {
 
+                ingestTelegramMap(t);
+
                 if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice|inv|វិក័យ/i)) ingestAcc(t);
 
                 else if(hasH(t, /entry/i) && (hasH(t, /customer/i) || hasH(t, /type/i) || hasH(t, /cash|bank/i) || hasH(t, /prefix/i)) && !hasH(t, /invoice|inv|វិក័យ|វិក្កយ/i)) {
@@ -1187,6 +1235,7 @@ $('fAcc').onchange = e => {
             ACC_INVOICES = [];
 
             ts.forEach(s => {
+                ingestTelegramMap(s);
                 if(hasH(s, /entry/i) && (hasH(s, /customer/i) || hasH(s, /type/i) || hasH(s, /cash|bank/i) || hasH(s, /prefix/i)) && !hasH(s, /invoice|inv|វិក័យ|វិក្កយ/i)) {
                     var enKey = s.h.find(h => /entry/i.test(h)) || 'Entry No';
                     s.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
@@ -1311,10 +1360,20 @@ function build() {
         t.rows.forEach((x, i) => {
 
             // Prioritize Balance as instructed by user: "ចំនួនទឹកប្រាក់ដែលពេទ្យនៅជំពាក់គឺចាប់យក ចំនួន Balance"
-            var balKey = (m.bal && x[m.bal] != null && String(x[m.bal]).trim() !== '') ? m.bal : 
-                         (x['Balance'] != null && String(x['Balance']).trim() !== '' ? 'Balance' : 
-                         (x['balance'] != null && String(x['balance']).trim() !== '' ? 'balance' : null));
-            var v = (balKey && !isNaN(num(x[balKey]))) ? num(x[balKey]) : (m.db ? num(x[m.db]) : (num(x[m.cr]) || num(x[m.bal])));
+            // Strictly exclude 'Running Balance' to prevent accumulating running balances into $4,930
+            var balKey = null;
+            if(m.bal && !/running/i.test(m.bal) && x[m.bal] != null && String(x[m.bal]).trim() !== '') {
+                balKey = m.bal;
+            } else if(x['Balance'] != null && String(x['Balance']).trim() !== '' && !/running/i.test('Balance')) {
+                balKey = 'Balance';
+            } else if(x['balance'] != null && String(x['balance']).trim() !== '') {
+                balKey = 'balance';
+            } else if(x['Amount'] != null && String(x['Amount']).trim() !== '') {
+                balKey = 'Amount';
+            } else if(m.cr && !/running/i.test(m.cr) && x[m.cr] != null) {
+                balKey = m.cr;
+            }
+            var v = (balKey && !isNaN(num(x[balKey]))) ? num(x[balKey]) : (m.db ? num(x[m.db]) : ((m.cr && !/running/i.test(m.cr) ? num(x[m.cr]) : 0) || 0));
             var en = m.entry ? String(x[m.entry]||'').trim() : '';
 
             // Invoice No detection: strictly prioritize invoice numbers starting with INV
@@ -2110,7 +2169,7 @@ document.addEventListener('click', e => {
     if(n = t.dataset.tg) {
         e.stopPropagation();
         e.preventDefault();
-        openTelegramModal(n);
+        openTelegramModal(n, true);
         return;
     }
 
@@ -2126,7 +2185,7 @@ $('btnPrintNow').onclick = () => window.print();
 $('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
 $('btnSaveExcel').onclick = () => exportCustomerStatementExcel(currentPrintCustomer);
 $('btnSaveCSV').onclick = () => exportCustomerStatementCSV(currentPrintCustomer);
-$('btnSendTelegram').onclick = () => openTelegramModal(currentPrintCustomer);
+$('btnSendTelegram').onclick = () => openTelegramModal(currentPrintCustomer, true);
 $('btnCloseModal').onclick = () => closePrintModal();
 $('printModal').onclick = e => { if(e.target === $('printModal')) closePrintModal(); };
 
@@ -2140,7 +2199,7 @@ if($('custSearch')) $('custSearch').oninput = () => render();
 // ============================================================================
 // 5.2 TELEGRAM DISPATCH & AUTOMATION
 // ============================================================================
-function openTelegramModal(custName) {
+function openTelegramModal(custName, autoSend) {
     if(!res || !res.docs[custName]) return;
     var D = res.docs[custName];
     if(!D.inv || !D.inv.length) { alert('គ្មានវិក័យបត្រក្នុងគណនីនេះទេ'); return; }
@@ -2162,6 +2221,16 @@ function openTelegramModal(custName) {
 
     $('tgStatusMsg').style.display = 'none';
     $('tgModal').classList.add('active');
+
+    // Auto send photo directly if target is known
+    if(autoSend) {
+        var finalTarget = targetTg || ($('tgUsernameInput').value || '').trim();
+        if(finalTarget) {
+            setTimeout(() => {
+                sendTelegramAuto();
+            }, 300);
+        }
+    }
 }
 
 function closeTelegramModal() {
