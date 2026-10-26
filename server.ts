@@ -1583,6 +1583,7 @@ function generateExcelWorkbook(
   period?: { year?: string; month?: string; week?: string; startDate?: string; endDate?: string }
 ): { buffer: Buffer; targetSheet: string } {
   const store = getStoredSheets();
+  const txs = getStoredTransactions();
   const targetSheet = (requestedSheet && requestedSheet.trim()) || store.activeSheet || 'All data';
 
   const getRowsForSheet = (sheetName: string) => {

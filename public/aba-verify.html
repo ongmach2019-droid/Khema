@@ -330,10 +330,68 @@ function dbDel(key) {
     }).catch(err => console.warn('dbDel error:', err));
 }
 
+// ============================================================================
+// STATE & UI PERSISTENCE
+// ============================================================================
+var FILE_NAMES = {
+    aba: localStorage.getItem('aba_file_name') || '',
+    debt: localStorage.getItem('debt_file_name') || '',
+    acc: localStorage.getItem('acc_file_name') || ''
+};
 
+function updateBoxUI() {
+    // 1. ABA Box
+    var hasAba = !!(RAW.aba && RAW.aba.rows && RAW.aba.rows.length);
+    if(hasAba) {
+        if($('delAba')) $('delAba').style.display = 'inline-block';
+        var nmAba = FILE_NAMES.aba || localStorage.getItem('aba_file_name') || 'ឯកសារ ABA';
+        var cntAba = (aba && aba.length) ? aba.length : (RAW.aba.rows ? RAW.aba.rows.length : 0);
+        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAba) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + cntAba + ' ប្រតិបត្តិការ';
+    } else {
+        if($('delAba')) $('delAba').style.display = 'none';
+        $('sAba').innerHTML = '';
+    }
+
+    // 2. Debts Box
+    var hasDebt = !!(FILES && FILES.length);
+    if(hasDebt) {
+        if($('delDebt')) $('delDebt').style.display = 'inline-block';
+        var nmDebt = FILE_NAMES.debt || localStorage.getItem('debt_file_name') || (FILES.length + ' ឯកសារ');
+        var cntInv = (debts && debts.length) ? debts.length : (FILES.reduce((s, f) => s + (f.rows ? f.rows.length : 0), 0));
+        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmDebt) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + FILES.length + ' ឯកសារ · ' + cntInv + ' វិក័យបត្រ';
+    } else {
+        if($('delDebt')) $('delDebt').style.display = 'none';
+        $('sDebt').innerHTML = '';
+    }
+
+    // 3. Accounts Box
+    var hasAcc = !!(ACC && ACC.length);
+    if(hasAcc) {
+        if($('delAcc')) $('delAcc').style.display = 'inline-block';
+        var nmAcc = FILE_NAMES.acc || localStorage.getItem('acc_file_name') || 'ឯកសារគណនី';
+        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAcc) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + ACC.length + ' គណនី';
+    } else {
+        if($('delAcc')) $('delAcc').style.display = 'none';
+        $('sAcc').innerHTML = '';
+    }
+}
+
+function initBoxPlaceholders() {
+    if(FILE_NAMES.aba) {
+        if($('delAba')) $('delAba').style.display = 'inline-block';
+        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.aba) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+    }
+    if(FILE_NAMES.debt) {
+        if($('delDebt')) $('delDebt').style.display = 'inline-block';
+        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.debt) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+    }
+    if(FILE_NAMES.acc) {
+        if($('delAcc')) $('delAcc').style.display = 'inline-block';
+        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.acc) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+    }
+}
 
 // ============================================================================
-
 // 1. UTILITIES & GLOBALS
 
 // ============================================================================
@@ -568,10 +626,11 @@ $('fAba').onchange = e => {
             RAW.aba.m = smart('aba', RAW.aba);
             M.aba = RAW.aba.m;
             assign = {};
-            $('delAba').style.display = 'inline-block';
+            FILE_NAMES.aba = f.name;
+            localStorage.setItem('aba_file_name', f.name);
             run();
-            $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(f.name) + '</span><br>' + aba.length + ' ប្រតិបត្តិការ';
             dbSet('aba_state', { name: f.name, raw: RAW.aba, m: M.aba, count: aba.length });
+            updateBoxUI();
         }
 
     });
@@ -639,7 +698,7 @@ function ingestAcc(t) {
 
     });
 
-    $('sAcc').textContent = ACC.length + ' គណនី';
+    updateBoxUI();
 
 }
 
@@ -716,11 +775,19 @@ $('fDebt').onchange = e => {
             cnt++;
             if(cnt === n) {
                 FILES = got.filter(Boolean);
-                $('delDebt').style.display = 'inline-block';
                 var nStr = fs.map(x => x.name).join(', ');
+                FILE_NAMES.debt = nStr;
+                localStorage.setItem('debt_file_name', nStr);
+                if(ACC && ACC.length > 0) {
+                    if(!FILE_NAMES.acc) {
+                        FILE_NAMES.acc = nStr;
+                        localStorage.setItem('acc_file_name', nStr);
+                    }
+                    dbSet('acc_state', { name: FILE_NAMES.acc, acc: ACC, count: ACC.length, accInvoices: ACC_INVOICES });
+                }
                 run();
-                $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nStr) + '</span><br>' + FILES.length + ' ឯកសារ · ' + debts.length + ' វិក័យបត្រ';
                 dbSet('debt_state', { names: fs.map(x => x.name), files: FILES, hdr: HDR, count: debts.length });
+                updateBoxUI();
             }
 
         });
@@ -754,10 +821,11 @@ $('fAcc').onchange = e => {
                 }
             });
 
-            $('delAcc').style.display = 'inline-block';
-            $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(f.name) + '</span><br>' + ACC.length + ' គណនី';
+            FILE_NAMES.acc = f.name;
+            localStorage.setItem('acc_file_name', f.name);
             run();
             dbSet('acc_state', { name: f.name, acc: ACC, count: ACC.length, accInvoices: ACC_INVOICES });
+            updateBoxUI();
         } else {
             $('sAcc').textContent = 'រកមិនឃើញជួរគណនី';
         }
@@ -768,29 +836,32 @@ $('fAcc').onchange = e => {
 // Delete Handlers for 3 file boxes
 $('delAba').onclick = () => {
     RAW.aba = null; M.aba = {}; aba = []; assign = {};
+    FILE_NAMES.aba = '';
+    localStorage.removeItem('aba_file_name');
     $('fAba').value = '';
-    $('sAba').innerHTML = '';
-    $('delAba').style.display = 'none';
     dbDel('aba_state');
+    updateBoxUI();
     run();
 };
 
 $('delDebt').onclick = () => {
     FILES = []; debts = []; HDR = {}; sel = {};
+    FILE_NAMES.debt = '';
+    localStorage.removeItem('debt_file_name');
     $('fDebt').value = '';
-    $('sDebt').innerHTML = '';
-    $('delDebt').style.display = 'none';
     dbDel('debt_state');
+    updateBoxUI();
     run();
 };
 
 $('delAcc').onclick = () => {
     ACC = [];
     ACC_INVOICES = [];
+    FILE_NAMES.acc = '';
+    localStorage.removeItem('acc_file_name');
     $('fAcc').value = '';
-    $('sAcc').innerHTML = '';
-    $('delAcc').style.display = 'none';
     dbDel('acc_state');
+    updateBoxUI();
     run();
 };
 
@@ -912,18 +983,15 @@ function build() {
 
     });
 
-    if(FILES.length) $('sDebt').textContent = FILES.length + ' ឯកសារ · ' + debts.length + ' វិក័យបត្រ';
-
     if(a) {
 
         m = M.aba;
 
         aba = a.rows.map((x, i) => { return { id: i, date: pd(x[m.date]), text: Object.keys(x).map(k => typeof x[k] === 'string' ? x[k] : '').join(' '), cells: Object.keys(x).map(k => x[k] instanceof Date ? '' : String(x[k])), ref: String(x[m.ref]||''), amt: num(x[m.cr]) || num(x[m.am]) }; }).filter(t => t.amt > 0 && t.date);
 
-        $('sAba').textContent = aba.length + ' ប្រតិបត្តិការ';
-
     }
 
+    updateBoxUI();
     drawMap();
 
 }
@@ -1529,6 +1597,7 @@ $('exUn').onclick = () => {
 };
 
 function restoreSavedData() {
+    initBoxPlaceholders();
     Promise.all([dbGet('acc_state'), dbGet('debt_state'), dbGet('aba_state')]).then(results => {
         var accData = results[0];
         var debtData = results[1];
@@ -1538,37 +1607,52 @@ function restoreSavedData() {
         if(accData && accData.acc && accData.acc.length) {
             ACC = accData.acc;
             ACC_INVOICES = accData.accInvoices || [];
-            $('delAcc').style.display = 'inline-block';
-            $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(accData.name || 'ឯកសារគណនី') + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + ACC.length + ' គណនី';
+            FILE_NAMES.acc = accData.name || localStorage.getItem('acc_file_name') || 'ឯកសារគណនី';
+            localStorage.setItem('acc_file_name', FILE_NAMES.acc);
             shouldRun = true;
         }
 
         if(debtData && debtData.files && debtData.files.length) {
             FILES = debtData.files;
             HDR = debtData.hdr || {};
-            $('delDebt').style.display = 'inline-block';
             var nStr = (debtData.names && debtData.names.join(', ')) || FILES.map(x => x.name).join(', ');
-            $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nStr) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + FILES.length + ' ឯកសារ';
+            FILE_NAMES.debt = nStr || localStorage.getItem('debt_file_name') || 'ឯកសារវិក័យបត្រ';
+            localStorage.setItem('debt_file_name', FILE_NAMES.debt);
             shouldRun = true;
         }
 
         if(abaData && abaData.raw) {
             RAW.aba = abaData.raw;
             M.aba = abaData.m || (RAW.aba && RAW.aba.m) || {};
-            $('delAba').style.display = 'inline-block';
-            $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(abaData.name || 'ឯកសារ ABA') + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+            FILE_NAMES.aba = abaData.name || localStorage.getItem('aba_file_name') || 'ឯកសារ ABA';
+            localStorage.setItem('aba_file_name', FILE_NAMES.aba);
             shouldRun = true;
         }
 
         if(shouldRun) {
             run();
+        } else {
+            updateBoxUI();
         }
     }).catch(err => {
         console.warn('restoreSavedData error:', err);
+        updateBoxUI();
     });
 }
 
 restoreSavedData();
+
+window.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && (!RAW.aba || !FILES.length)) {
+        restoreSavedData();
+    }
+});
+
+window.addEventListener('focus', () => {
+    if(!RAW.aba || !FILES.length) {
+        restoreSavedData();
+    }
+});
 
 </script>
 
