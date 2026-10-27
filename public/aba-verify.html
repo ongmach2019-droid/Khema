@@ -1271,14 +1271,17 @@ function syncDoctorsFromLoadedFiles(showNotice) {
         return;
     }
     var added = 0;
+    var existingSet = new Set(TG_DIRECTORY.map(x => (x.id || '').toUpperCase()).filter(Boolean));
+    var existingNames = new Set(TG_DIRECTORY.map(x => (x.name || '').toLowerCase()).filter(Boolean));
+
     res.names.forEach(n => {
         var D = res.docs[n];
         var custNo = (D && D.meta && D.meta.custNo) || (D && D.customerId) || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
         var cleanName = n.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim() || n;
         if(custNo) custNo = custNo.toUpperCase();
 
-        var existing = TG_DIRECTORY.find(x => (custNo && x.id && x.id.toUpperCase() === custNo) || (x.name && x.name === cleanName) || (x.id && x.id === n));
-        if(!existing) {
+        var isKnown = (custNo && existingSet.has(custNo)) || existingNames.has(cleanName.toLowerCase());
+        if(!isKnown) {
             var mappedTg = getTelegramForCustomer(n, custNo);
             TG_DIRECTORY.push({
                 id: custNo || n,
@@ -1286,18 +1289,20 @@ function syncDoctorsFromLoadedFiles(showNotice) {
                 tg: mappedTg || '',
                 phone: ''
             });
+            if(custNo) existingSet.add(custNo);
+            existingNames.add(cleanName.toLowerCase());
             added++;
-        } else if(!existing.tg) {
-            var mappedTg2 = getTelegramForCustomer(n, custNo);
-            if(mappedTg2) {
-                existing.tg = mappedTg2;
-            }
         }
     });
 
     if(added > 0 || showNotice) {
         syncTgMapFromDirectory();
-        renderTgDirectoryTable();
+        var modal = $('tgManagerModal');
+        if(modal && modal.classList.contains('active')) {
+            renderTgDirectoryTable();
+        } else {
+            updateTgCountBadge();
+        }
         if(showNotice) {
             alert('បានផ្ទុកទិន្នន័យគ្រូពេទ្យ ' + res.names.length + ' នាក់ពីឯកសារជោគជ័យ (បន្ថែមថ្មី ' + added + ' នាក់)!');
         }
@@ -1350,8 +1355,10 @@ function renderTgDirectoryTable() {
         return;
     }
 
+    // Limit to 80 items for high performance
+    var displayList = list.slice(0, 80);
     var html = '';
-    list.forEach((item, idx) => {
+    displayList.forEach((item, idx) => {
         var hasTg = item.tg && String(item.tg).trim();
         var statusBadge = hasTg 
             ? '<span class="tag ok" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:0.7rem;padding:2px 6px">✓ ភ្ជាប់រួច</span>'
@@ -1375,6 +1382,10 @@ function renderTgDirectoryTable() {
             '</td>' +
         '</tr>';
     });
+
+    if(list.length > 80) {
+        html += '<tr><td colspan="6" style="text-align:center;padding:10px;color:#64748b;font-size:0.8rem;background:#f8fafc">បង្ហាញ 80 នាក់ដំបូង (សូមប្រើប្រអប់ស្វែងរកខាងលើដើម្បីស្វែងរកឈ្មោះ ឬ ID ជាក់លាក់ ពីចំណោមគ្រូពេទ្យ ' + list.length + ' នាក់)</td></tr>';
+    }
 
     tbody.innerHTML = html;
 }
@@ -2244,13 +2255,13 @@ function ingestAcc(t) {
         // Sync with CUSTOMER_PROFILES
         var cCode = (custVal || entryVal || '').toUpperCase();
         if(cCode && nameVal) {
-            var prof = CUSTOMER_PROFILES.find(p => p.code && p.code.toUpperCase() === cCode);
+            var prof = CUSTOMER_PROFILES[cCode];
             if(prof) {
                 prof.nameKh = nameVal;
                 prof.nameEn = nameVal;
                 if(accVal) prof.abaAcc = rawAcc || accVal;
             } else {
-                CUSTOMER_PROFILES.push({
+                CUSTOMER_PROFILES[cCode] = {
                     code: cCode,
                     nameKh: nameVal,
                     nameEn: nameVal,
@@ -2258,7 +2269,7 @@ function ingestAcc(t) {
                     address: '',
                     currency: 'USD',
                     abaAcc: rawAcc || accVal
-                });
+                };
             }
             if(typeof saveCustomerProfiles === 'function') saveCustomerProfiles();
         }
@@ -2725,7 +2736,7 @@ function run() {
         docs[pName].inv.push(d);
     });
 
-    // 2. Append any remaining accounts from ACC that didn't have invoices in debts
+    // 2. Index accounts from ACC in docs for rapid lookup without flooding the list
     if(ACC && ACC.length) {
         ACC.forEach((a, idx) => {
             var dn = String(a.name || a.customerId || a.entry || ('គណនី ' + (idx + 1))).trim();
@@ -2750,40 +2761,46 @@ function run() {
                     pay: [],
                     al: aliases(dn)
                 };
-                names.push(dn);
+                // Only push to names if debts list is completely empty (user loaded only accounts)
+                if(!debts.length && names.length < 50) {
+                    names.push(dn);
+                }
             }
         });
     }
 
     // 3. If any account in docs has 0 invoices from debts, but has invoices in ACC_INVOICES (from Box 3), attach them!
     if(ACC_INVOICES && ACC_INVOICES.length) {
-        names.forEach(n => {
-            var D = docs[n];
-            if(!D.inv || D.inv.length === 0) {
-                var matchedAccInvs = ACC_INVOICES.filter(ai => {
-                    if(D.entry && ai.entry && D.entry === ai.entry) return true;
-                    if(D.customerId && ai.entry && D.customerId === ai.entry) return true;
-                    if(D.name && ai.party && D.name === ai.party) return true;
-                    if(D.name && ai.entry && D.name === ai.entry) return true;
-                    return false;
+        ACC_INVOICES.forEach(ai => {
+            var target = ai.entry || ai.party;
+            if(!target) return;
+            var hitDoc = docs[target] || (docs[ai.party] ? docs[ai.party] : null);
+            if(!hitDoc) {
+                for(var dKey in docs) {
+                    var curD = docs[dKey];
+                    if((curD.entry && curD.entry === target) || (curD.customerId && curD.customerId === target) || (curD.name && curD.name === ai.party)) {
+                        hitDoc = curD;
+                        break;
+                    }
+                }
+            }
+            if(hitDoc) {
+                hitDoc.inv.push({
+                    id: ai.id,
+                    no: hitDoc.inv.length + 1,
+                    module: 'AR-IN',
+                    inv: ai.inv,
+                    ref: '',
+                    date: null,
+                    amt: ai.amt,
+                    runBal: 0,
+                    paidInOR: ai.paid,
+                    party: hitDoc.name,
+                    entry: hitDoc.entry || ai.entry,
+                    desc: ai.desc
                 });
-                if(matchedAccInvs.length > 0) {
-                    matchedAccInvs.forEach(ai => {
-                        D.inv.push({
-                            id: ai.id,
-                            no: D.inv.length + 1,
-                            module: 'AR-IN',
-                            inv: ai.inv,
-                            ref: '',
-                            date: null,
-                            amt: ai.amt,
-                            runBal: 0,
-                            paidInOR: ai.paid,
-                            party: D.name,
-                            entry: D.entry || ai.entry,
-                            desc: ai.desc
-                        });
-                    });
+                if(names.indexOf(hitDoc.name) === -1) {
+                    names.push(hitDoc.name);
                 }
             }
         });
@@ -3013,13 +3030,13 @@ function render() {
             '<div class="kpi"><span>បំណុលសរុប</span><strong>' + fmt(R.tot.owed) + '</strong></div>' +
             '<div class="kpi"><span>បានសងសរុប</span><strong class="ok">' + fmt(R.tot.paid) + '</strong></div>' +
             '<div class="kpi"><span>នៅជំពាក់</span><strong class="er">' + fmt(R.tot.rem) + '</strong></div>' +
-            '<div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + R.names.length + '</strong></div>' +
+            '<div class="kpi"><span>គ្រូពេទ្យ</span><strong>' + (sentCount + notSentCount) + '</strong></div>' +
             '<div class="kpi" style="border-left:2px solid #e2e8f0;cursor:pointer" data-set-tgf="sent" title="ចុចដើម្បីមើលតែគ្រូពេទ្យដែលបានផ្ញើ Telegram រួច"><span>✓ ផ្ញើ TG រួច</span><strong class="ok">' + sentCount + '</strong></div>' +
             '<div class="kpi" style="cursor:pointer" data-set-tgf="notsent" title="ចុចដើម្បីមើលតែគ្រូពេទ្យដែលមិនទាន់បានផ្ញើ TG"><span>⏳ មិនទាន់ផ្ញើ TG</span><strong style="color:#dc2626">' + notSentCount + '</strong></div>' +
             '</div>' +
             '<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;gap:8px;align-items:center">' +
             '<span class="mu" style="font-size:0.8rem;font-weight:600">ចម្រាញ់ Telegram៖</span>' +
-            '<button type="button" class="btn-tgf' + (tgFilter === 'all' ? ' on' : '') + '" data-tgf="all">ទាំងអស់ (' + R.names.length + ')</button>' +
+            '<button type="button" class="btn-tgf' + (tgFilter === 'all' ? ' on' : '') + '" data-tgf="all">ទាំងអស់ (' + (sentCount + notSentCount) + ')</button>' +
             '<button type="button" class="btn-tgf' + (tgFilter === 'notsent' ? ' on' : '') + '" data-tgf="notsent" style="color:#dc2626;border-color:#fca5a5;background:' + (tgFilter === 'notsent' ? '#fee2e2' : '#fff') + '">⏳ មិនទាន់ផ្ញើ (' + notSentCount + ')</button>' +
             '<button type="button" class="btn-tgf' + (tgFilter === 'sent' ? ' on' : '') + '" data-tgf="sent" style="color:#047857;border-color:#86efac;background:' + (tgFilter === 'sent' ? '#dcfce7' : '#fff') + '">✓ ផ្ញើរួច (' + sentCount + ')</button>' +
             (sentCount > 0 ? '<button type="button" id="btnClearAllTgSent" style="margin-left:auto;background:none;border:none;color:#94a3b8;font-size:0.75rem;cursor:pointer;text-decoration:underline">កំណត់ឡើងវិញ (Reset Sent)</button>' : '') +
@@ -3029,7 +3046,11 @@ function render() {
     // RENDER ALL DOCTORS IN EXACT ORDER (តាមលំដាប់) MATCHING EXACT IMAGE 4 FORMAT
     R.names.forEach(n => {
 
-        var D = R.docs[n], hasInv = D.inv && D.inv.length > 0;
+        var D = R.docs[n];
+        if(!D) return;
+        var hasInv = D.inv && D.inv.length > 0;
+        var hasPay = D.pay && D.pay.length > 0;
+        if(!hasInv && !hasPay && !filterTxt) return;
         var custNo = (D.meta && D.meta.custNo) || D.customerId || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
         var sentInfo = isTelegramSent(n, custNo);
 

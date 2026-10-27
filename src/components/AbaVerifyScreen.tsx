@@ -9,6 +9,13 @@ export const AbaVerifyScreen: React.FC = () => {
     setIframeKey(Date.now());
   };
 
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [iframeKey]);
+
   return (
     <div className="w-full flex-1 flex flex-col bg-surface-container-lowest min-h-[calc(100vh-4rem)] relative">
       {/* Top Banner Toolbar */}
