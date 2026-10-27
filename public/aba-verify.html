@@ -1907,6 +1907,132 @@ function parseCustomerStatement(aoa) {
     };
 }
 
+function extractAbaAccount(text) {
+    if(!text) return '';
+    var str = String(text);
+    // 1. Parenthesized account like (000 428 736) or (096 441 100) or (000 755 553)
+    var m = str.match(/\(\s*([0-9\s]{6,20})\s*\)/);
+    if(m) {
+        var digits = m[1].replace(/\D/g, '');
+        if(digits.length >= 6) return digits;
+    }
+    // 2. Format like 000 428 736 (3 digits space 3 digits space 3-4 digits)
+    var m2 = str.match(/\b(\d{3}\s+\d{3}\s+\d{3,4})\b/);
+    if(m2) {
+        return m2[1].replace(/\D/g, '');
+    }
+    // 3. Contiguous digits of bank account (8-12 digits)
+    var m3 = str.match(/(?:ACC|ACCT|ACCOUNT|A\/C)?\s*:?\s*(\d{8,12})\b/i);
+    if(m3) {
+        return m3[1];
+    }
+    return '';
+}
+
+function findAccountByAbaNo(accNo) {
+    if(!accNo || !ACC || !ACC.length) return null;
+    var cleanNo = String(accNo).replace(/\D/g, '');
+    if(!cleanNo) return null;
+
+    for(var i = 0; i < ACC.length; i++) {
+        var A = ACC[i];
+        var aNo = String(A.acct || A.bankAcc || '').replace(/\D/g, '');
+        if(!aNo) continue;
+
+        // Exact match of digits
+        if(cleanNo === aNo) return A;
+        // Match without leading zeroes (e.g. 428736 vs 000428736)
+        var s1 = cleanNo.replace(/^0+/, ''), s2 = aNo.replace(/^0+/, '');
+        if(s1 && s2 && s1 === s2 && s1.length >= 5) return A;
+        // Ends with (if account includes prefix)
+        if(cleanNo.length >= 6 && aNo.length >= 6 && (cleanNo.endsWith(aNo) || aNo.endsWith(cleanNo))) return A;
+    }
+    return null;
+}
+
+function isAbaStatementAOA(aoa) {
+    if(!aoa || !aoa.length) return false;
+    for(var i = 0; i < Math.min(aoa.length, 120); i++) {
+        var str = (aoa[i] || []).join(' ');
+        if(/ACCOUNT ACTIVITY|FUNDS RECEIVED FROM|ORIGINAL AMOUNT|REF#\s*100FT/i.test(str)) return true;
+    }
+    return false;
+}
+
+function parseAbaStatement(aoa) {
+    if(!aoa || !aoa.length) return null;
+
+    var headerIdx = -1;
+    var colDate = -1, colDesc = -1, colCredit = -1, colDebit = -1, colBal = -1, colRef = -1;
+
+    for(var i = 0; i < Math.min(aoa.length, 120); i++) {
+        var row = aoa[i] || [];
+        for(var j = 0; j < row.length; j++) {
+            var val = String(row[j]||'').trim().toLowerCase();
+            if(!val) continue;
+            if(/^(date|កាលបរិច្ឆេទ)$/i.test(val) && colDate === -1) colDate = j;
+            if(/^(description|remark|particular|details|បរិយាយ|ពិពណ៌នា)$/i.test(val) && colDesc === -1) colDesc = j;
+            if(/^(credit|money in|cash in|deposit|ចូល)$/i.test(val) && colCredit === -1) colCredit = j;
+            if(/^(debit|money out|cash out|withdrawal|ចេញ)$/i.test(val) && colDebit === -1) colDebit = j;
+            if(/^(balance|សមតុល្យ)$/i.test(val) && colBal === -1) colBal = j;
+            if(/^(ref|reference|លេខយោង)$/i.test(val) && colRef === -1) colRef = j;
+        }
+        if(colDate >= 0 && (colDesc >= 0 || colCredit >= 0)) {
+            headerIdx = i;
+            break;
+        }
+    }
+
+    var startRow = headerIdx >= 0 ? headerIdx + 1 : 0;
+    if(colDate === -1 || colDesc === -1 || colCredit === -1) {
+        for(var r = startRow; r < Math.min(aoa.length, 120); r++) {
+            var row = aoa[r] || [];
+            for(var c = 0; c < row.length; c++) {
+                var cell = row[c];
+                if(pd(cell) && colDate === -1) colDate = c;
+                if(typeof cell === 'string' && /FUNDS RECEIVED|TRANSFER FROM/i.test(cell) && colDesc === -1) colDesc = c;
+                if(typeof cell === 'number' && cell > 0 && colCredit === -1 && c !== colDate) colCredit = c;
+            }
+            if(colDate >= 0 && colDesc >= 0 && colCredit >= 0) break;
+        }
+    }
+
+    if(colDate === -1) colDate = 0;
+    if(colDesc === -1) colDesc = 1;
+    if(colCredit === -1) colCredit = 2;
+
+    var rows = [];
+    for(var i = startRow; i < aoa.length; i++) {
+        var r = aoa[i] || [];
+        var dVal = pd(r[colDate]);
+        if(!dVal) continue;
+
+        var descVal = colDesc >= 0 ? String(r[colDesc]||'').trim() : '';
+        var crVal = colCredit >= 0 ? num(r[colCredit]) : 0;
+        var drVal = colDebit >= 0 ? num(r[colDebit]) : 0;
+        var balVal = colBal >= 0 ? num(r[colBal]) : 0;
+        var refVal = colRef >= 0 ? String(r[colRef]||'').trim() : '';
+
+        if(crVal > 0 || descVal) {
+            rows.push({
+                'Date': dVal,
+                'Description': descVal,
+                'Credit': crVal,
+                'Debit': drVal,
+                'Balance': balVal,
+                'Reference': refVal,
+                'Raw': r
+            });
+        }
+    }
+
+    return {
+        h: ['Date', 'Description', 'Credit', 'Debit', 'Balance', 'Reference'],
+        rows: rows,
+        isAbaReport: true
+    };
+}
+
 function sheetsOf(wb) {
     return wb.SheetNames.map(n => {
         var a = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, defval:'', raw:true});
@@ -1918,6 +2044,10 @@ function sheetsOf(wb) {
         if(isAgedReportAOA(a)) {
             var t2 = parseAgedReport(a);
             if(t2) return t2;
+        }
+        if(isAbaStatementAOA(a)) {
+            var t3 = parseAbaStatement(a);
+            if(t3) return t3;
         }
         return mkTable(a);
     }).filter(Boolean);
@@ -2053,7 +2183,7 @@ function ingestAcc(t) {
     var kn = pick(fk, ['customer name','doctor name','doctor','name','ឈ្មោះ','party']);
     if(!kn) kn = pick(fk, ['customer id','customer no','customer','entry no','entry','code']);
 
-    var ka = pick(fk, ['accound aba','aba account','aba acc','account no','aba no','aba','bank acc','acct','acc']);
+    var ka = pick(fk, ['accound aba','account aba','aba account','aba acc','account no','aba no','aba','bank acc','acct','acc']);
     var ke = pick(fk, ['entry no','entry','source entry no','jv no','jv','code']);
     var kcid = pick(fk, ['customer id','customer no','customer','code']);
     var kc = pick(fk, ['class id','class']);
@@ -2064,14 +2194,17 @@ function ingestAcc(t) {
         var entryVal = String(x[ke]||'').trim();
         var custVal = String(x[kcid]||'').trim();
         var nameVal = String(x[kn]||'').trim();
-        var accVal = String(x[ka]||'').replace(/\D/g,'');
+        var rawAcc = ka ? String(x[ka]||'').trim() : '';
+        var accVal = rawAcc.replace(/\D/g,'');
         var classVal = String(x[kc]||'').trim();
         var bankVal = String(x[kb]||'').trim();
 
+        if(!custVal && /^[A-Z]\d{3,}/i.test(entryVal)) custVal = entryVal;
+        if(!entryVal && custVal) entryVal = custVal;
         if(!nameVal && custVal) nameVal = custVal;
         if(!nameVal && entryVal) nameVal = entryVal;
 
-        if(!entryVal && !nameVal && !custVal) return;
+        if(!entryVal && !nameVal && !custVal && !accVal) return;
 
         // If HDR has additional metadata for this entry, merge it
         if(entryVal && HDR[entryVal]) {
@@ -2080,29 +2213,54 @@ function ingestAcc(t) {
             if(!bankVal) bankVal = String(HDR[entryVal]['Cash/Bank Account ID'] || HDR[entryVal]['Cash/Bank Account'] || '').trim();
         }
 
-        var a = {
-            raw: x,
-            entry: entryVal,
-            name: nameVal,
-            acct: accVal,
-            customerId: custVal,
-            classId: classVal,
-            bankAcc: bankVal
-        };
-
-        var existing = ACC.find(o => (entryVal && o.entry && o.entry === entryVal) ||
-                                     (custVal && o.customerId && o.customerId === custVal) ||
-                                     (nameVal && o.name && o.name.toLowerCase() === nameVal.toLowerCase()));
+        var existing = ACC.find(o => 
+            (entryVal && o.entry && o.entry.toUpperCase() === entryVal.toUpperCase()) ||
+            (custVal && o.customerId && o.customerId.toUpperCase() === custVal.toUpperCase()) ||
+            (accVal && o.acct && o.acct === accVal) ||
+            (nameVal && o.name && o.name.toLowerCase() === nameVal.toLowerCase())
+        );
 
         if(existing) {
-            if(nameVal && (!existing.name || /^(OR\d+|C\d+|DEFAULT|\d+)$/i.test(existing.name))) existing.name = nameVal;
+            if(nameVal) existing.name = nameVal;
             if(!existing.entry && entryVal) existing.entry = entryVal;
             if(!existing.customerId && custVal) existing.customerId = custVal;
-            if(accVal && (!existing.acct || accVal.length >= 6 || String(x[ka]).includes(' '))) existing.acct = accVal;
+            if(accVal) existing.acct = accVal;
+            if(rawAcc) existing.rawAcct = rawAcc;
             if(!existing.bankAcc && bankVal) existing.bankAcc = bankVal;
             if(!existing.classId && classVal) existing.classId = classVal;
         } else {
-            ACC.push(a);
+            ACC.push({
+                raw: x,
+                entry: entryVal,
+                customerId: custVal || entryVal,
+                name: nameVal,
+                acct: accVal,
+                rawAcct: rawAcc,
+                classId: classVal,
+                bankAcc: bankVal
+            });
+        }
+
+        // Sync with CUSTOMER_PROFILES
+        var cCode = (custVal || entryVal || '').toUpperCase();
+        if(cCode && nameVal) {
+            var prof = CUSTOMER_PROFILES.find(p => p.code && p.code.toUpperCase() === cCode);
+            if(prof) {
+                prof.nameKh = nameVal;
+                prof.nameEn = nameVal;
+                if(accVal) prof.abaAcc = rawAcc || accVal;
+            } else {
+                CUSTOMER_PROFILES.push({
+                    code: cCode,
+                    nameKh: nameVal,
+                    nameEn: nameVal,
+                    phone: '',
+                    address: '',
+                    currency: 'USD',
+                    abaAcc: rawAcc || accVal
+                });
+            }
+            if(typeof saveCustomerProfiles === 'function') saveCustomerProfiles();
         }
 
     });
@@ -2512,10 +2670,23 @@ function run() {
     debts.forEach(d => {
         var pName = d.party || d.entry || 'គ្មានឈ្មោះ';
         var cIdRaw = d.custId || (pName.match(/^([A-Z]\d+)/i) ? pName.match(/^([A-Z]\d+)/i)[1] : '');
+        if(cIdRaw) cIdRaw = cIdRaw.toUpperCase();
+
+        // Check if ACC has a doctor/customer name for this ID (e.g. C00168 -> "Ong Mach")
+        var accMatch = ACC.find(a => 
+            (a.customerId && cIdRaw && a.customerId.toUpperCase() === cIdRaw) ||
+            (a.entry && cIdRaw && a.entry.toUpperCase() === cIdRaw) ||
+            (a.name && (a.name === pName || pName.indexOf(a.name) > -1 || a.name.indexOf(pName) > -1))
+        );
+
+        if(accMatch && accMatch.name) {
+            pName = cIdRaw ? (cIdRaw + ' - ' + accMatch.name) : accMatch.name;
+            d.party = pName;
+        }
+
         var profMatch = getCustomerProfile(pName, cIdRaw);
 
         if(!docs[pName]) {
-            var accMatch = ACC.find(a => (a.name && (a.name === pName || pName.indexOf(a.name) > -1 || a.name.indexOf(pName) > -1)) || (a.customerId && (a.customerId === pName || a.customerId === d.custId)));
             var mData = Object.assign({}, profMatch || {}, d.meta || (accMatch && accMatch.meta) || {});
             if(profMatch) {
                 if(profMatch.code) mData.custNo = profMatch.code;
@@ -2530,8 +2701,8 @@ function run() {
                 accItem: accMatch || null,
                 meta: mData,
                 entry: (accMatch && accMatch.entry) || d.entry || '',
-                customerId: (profMatch && profMatch.code) || (accMatch && accMatch.customerId) || d.custId || '',
-                bankAcc: (accMatch && (accMatch.bankAcc || accMatch.acct)) || '',
+                customerId: (profMatch && profMatch.code) || (accMatch && accMatch.customerId) || cIdRaw || d.custId || '',
+                bankAcc: (accMatch && (accMatch.bankAcc || accMatch.acct || accMatch.rawAcct)) || '',
                 inv: [],
                 pay: [],
                 al: aliases(pName)
@@ -2574,7 +2745,7 @@ function run() {
                     meta: mDataA,
                     entry: a.entry || '',
                     customerId: (profMatchA && profMatchA.code) || a.customerId || '',
-                    bankAcc: a.bankAcc || a.acct || '',
+                    bankAcc: a.bankAcc || a.acct || a.rawAcct || '',
                     inv: [],
                     pay: [],
                     al: aliases(dn)
@@ -2638,17 +2809,92 @@ function run() {
 
     var unmatched = [];
 
-    // 3. Match ABA
+    // 5. Match ABA Transactions
     aba.forEach(t => {
         if(t.date > to) return;
         var low = t.text.toLowerCase().replace(/\s+/g, ''), hit = assign[t.id] && docs[assign[t.id]] ? docs[assign[t.id]] : null;
 
+        // Priority 2: Account Number Matching from ABA Description / Cells
         if(!hit && ACC.length) {
-            for(var j = 0; j < ACC.length && !hit; j++) {
-                var A = ACC[j];
-                var accNum = (A.acct || A.bankAcc || '').replace(/\D/g, '');
-                if(accNum && accNum.length >= 4 && t.cells.some(c => c.replace(/\D/g, '').indexOf(accNum) > -1)) {
-                    hit = docs[A.name] || findDoc(A, docs, names);
+            var txAcc = extractAbaAccount(t.text);
+            var matchedAcc = null;
+
+            if(txAcc) {
+                matchedAcc = findAccountByAbaNo(txAcc);
+            }
+
+            if(!matchedAcc) {
+                for(var j = 0; j < ACC.length; j++) {
+                    var A = ACC[j];
+                    var accNum = String(A.acct || A.bankAcc || '').replace(/\D/g, '');
+                    if(accNum && accNum.length >= 5) {
+                        var cleanTextDigits = t.text.replace(/\D/g, '');
+                        if(cleanTextDigits.indexOf(accNum) > -1 || t.cells.some(c => String(c).replace(/\D/g, '').indexOf(accNum) > -1)) {
+                            matchedAcc = A;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if(matchedAcc) {
+                var targetId = (matchedAcc.customerId || matchedAcc.entry || '').toUpperCase();
+                var targetName = (matchedAcc.name || '').trim();
+
+                var hitDoc = null;
+                if(targetName && docs[targetName]) hitDoc = docs[targetName];
+                if(!hitDoc && targetId && docs[targetId]) hitDoc = docs[targetId];
+                if(!hitDoc && targetId && targetName && docs[targetId + ' - ' + targetName]) hitDoc = docs[targetId + ' - ' + targetName];
+
+                if(!hitDoc) {
+                    for(var dName in docs) {
+                        var DItem = docs[dName];
+                        var dCId = ((DItem.customerId || (DItem.meta && DItem.meta.custNo) || (dName.match(/^([A-Z]\d+)/i) ? dName.match(/^([A-Z]\d+)/i)[1] : '')) || '').toUpperCase();
+                        if(targetId && dCId === targetId) { hitDoc = DItem; break; }
+                        if(targetId && (dName.toUpperCase().indexOf(targetId) > -1 || (DItem.entry && DItem.entry.toUpperCase() === targetId))) { hitDoc = DItem; break; }
+                        if(targetName && (dName.toLowerCase().indexOf(targetName.toLowerCase()) > -1 || (DItem.name && DItem.name.toLowerCase().indexOf(targetName.toLowerCase()) > -1))) { hitDoc = DItem; break; }
+                        if(targetId && DItem.inv && DItem.inv.some(v => (v.custId && v.custId.toUpperCase() === targetId) || (v.entry && v.entry.toUpperCase() === targetId))) { hitDoc = DItem; break; }
+                    }
+                }
+
+                if(hitDoc) {
+                    // Update customer name to "Ong Mach" (or "C00168 - Ong Mach") as requested
+                    if(targetName) {
+                        var cleanOldName = hitDoc.name.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+                        if(cleanOldName !== targetName) {
+                            var newName = targetId ? (targetId + ' - ' + targetName) : targetName;
+                            var oldName = hitDoc.name;
+                            hitDoc.name = newName;
+                            if(hitDoc.meta) {
+                                hitDoc.meta.custKh = targetName;
+                                hitDoc.meta.custEn = targetName;
+                                if(targetId) hitDoc.meta.custNo = targetId;
+                            }
+                            docs[newName] = hitDoc;
+                            docs[targetName] = hitDoc;
+                            var nIdx = names.indexOf(oldName);
+                            if(nIdx > -1) names[nIdx] = newName;
+                            else if(names.indexOf(newName) === -1) names.push(newName);
+                        }
+                    }
+                    hit = hitDoc;
+                } else if(targetName || targetId) {
+                    var newCustName = targetId ? (targetId + ' - ' + (targetName || targetId)) : targetName;
+                    var newD = {
+                        name: newCustName,
+                        accItem: matchedAcc,
+                        meta: { custNo: targetId, custKh: targetName, custEn: targetName },
+                        entry: targetId,
+                        customerId: targetId,
+                        bankAcc: matchedAcc.acct || matchedAcc.rawAcct || '',
+                        inv: [],
+                        pay: [],
+                        al: aliases(newCustName)
+                    };
+                    docs[newCustName] = newD;
+                    if(targetName) docs[targetName] = newD;
+                    names.push(newCustName);
+                    hit = newD;
                 }
             }
         }
