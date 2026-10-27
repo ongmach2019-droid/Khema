@@ -177,10 +177,45 @@ export function parseCustomerProfiles(): Record<string, any> {
 
 // Parse accounts mapping
 export function parseAccountsMap(): any[] {
-  return readJsonFile<any[]>('accounts_map.json', [
+  let list = readJsonFile<any[]>('accounts_map.json', [
     { entry: 'C00168', customerId: 'C00168', name: 'Ong Mach', acct: '000428736', rawAcct: '000 428 736' },
     { entry: 'C00007', customerId: 'C00007', name: 'Aesthetic Dental Clinic', acct: '000111222', rawAcct: '000 111 222' }
   ]);
+
+  const accCandidates = [
+    path.join(dataDir, 'Account id aba.xlsx'),
+    path.join(process.cwd(), 'Account id aba.xlsx'),
+    path.join(dataDir, 'accounts.xlsx'),
+    path.join(dataDir, 'accounts.xls')
+  ];
+  for (const c of accCandidates) {
+    if (fs.existsSync(c)) {
+      try {
+        const wb = xlsx.readFile(c);
+        const s = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[] = xlsx.utils.sheet_to_json(s);
+        rows.forEach(r => {
+          const entry = String(r['Entry No'] || r['Entry'] || r['Code'] || '').trim();
+          const name = String(r['Name'] || r['Customer Name'] || '').trim();
+          const rawAcc = String(r['accound aba'] || r['account aba'] || r['aba account'] || '').trim();
+          const acct = rawAcc.replace(/\D/g, '');
+          if (entry || name || acct) {
+            const existing = list.find(x => (entry && x.entry === entry) || (name && x.name && x.name.toLowerCase() === name.toLowerCase()));
+            if (existing) {
+              if (name) existing.name = name;
+              if (acct) existing.acct = acct;
+              if (rawAcc) existing.rawAcct = rawAcc;
+            } else {
+              list.push({ entry, customerId: entry, name, acct, rawAcct: rawAcc });
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('Error reading account file candidate:', c, err);
+      }
+    }
+  }
+  return list;
 }
 
 // Parse Telegram directory
@@ -405,6 +440,66 @@ export function computeAbaReconciliation(): AbaState {
     }
   }
 
+  // 2.5. Read accounts.xlsx for OR/JV payments and accounts mapping
+  const accCandidates = ['accounts.xlsx', 'accounts.xls'];
+  let accFile = '';
+  for (const c of accCandidates) {
+    const p = path.join(dataDir, c);
+    if (fs.existsSync(p)) { accFile = p; break; }
+  }
+
+  if (accFile) {
+    try {
+      const wb = xlsx.readFile(accFile);
+      const s1Name = wb.SheetNames.find((s: string) => s.toUpperCase() === 'SHEET1') || wb.SheetNames[0];
+      const s2Name = wb.SheetNames.find((s: string) => s.toUpperCase() === 'SHEET2') || wb.SheetNames[1];
+
+      if (s1Name && s2Name) {
+        const rowsS1: any[] = xlsx.utils.sheet_to_json(wb.Sheets[s1Name]);
+        const rowsS2: any[] = xlsx.utils.sheet_to_json(wb.Sheets[s2Name]);
+
+        const orMap: Record<string, { custId: string; date: string; entryNo: string }> = {};
+        rowsS1.forEach(r => {
+          const entryNo = String(r['Entry No'] || '').trim();
+          const custId = String(r['Customer ID'] || '').trim().toUpperCase();
+          const dVal = String(r['Date (dd-MMM-YYYY)'] || r['Date'] || '').trim();
+          if (entryNo && custId) {
+            orMap[entryNo] = { custId, date: dVal, entryNo };
+          }
+        });
+
+        rowsS2.forEach(r => {
+          const entryNo = String(r['Entry No'] || '').trim();
+          const invNo = String(r['Invoice No/Account ID'] || r['Invoice No'] || '').trim();
+          const paidAmt = parseFloat(String(r['Receive to Cash Acc./Amount'] || r['Amount'] || '').replace(/[^0-9.-]/g, '')) || 0;
+          const desc = String(r['Description'] || '').trim();
+          const orInfo = orMap[entryNo];
+
+          if (orInfo && orInfo.custId && paidAmt > 0) {
+            let hitDoc = doctorsMap[orInfo.custId];
+            if (!hitDoc) {
+              for (const name of doctorOrder) {
+                if (doctorsMap[name] && doctorsMap[name].customerId === orInfo.custId) {
+                  hitDoc = doctorsMap[name];
+                  break;
+                }
+              }
+            }
+            if (hitDoc) {
+              hitDoc.payments.push({
+                date: orInfo.date,
+                amt: paidAmt,
+                text: `${entryNo} (${invNo}): ${desc || 'Payment in OR'}`
+              });
+            }
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Error reading accounts.xlsx on server:', err);
+    }
+  }
+
   // 3. Reconcile invoices and calculate totals for each doctor
   let totalOwed = 0;
   let totalPaid = 0;
@@ -458,9 +553,17 @@ export function computeAbaReconciliation(): AbaState {
     (D as any).before = 0;
     (D as any).per = D.payments.reduce((s, p) => s + p.amt, 0);
 
-    const fullDoc = D.rem <= 0.005;
+    const fullDoc = D.rem <= 0.005 && D.paidTotal > 0;
     D.status = fullDoc ? 'Fully Paid' : (D.paidTotal > 0 ? 'Partially Paid' : 'Unpaid');
     D.statusKh = fullDoc ? 'សងគ្រប់' : (D.paidTotal > 0 ? 'សងមួយផ្នែក' : 'មិនទាន់សង');
+
+    // Sort invoices inside doctor: paid invoices first (សងគ្រប់/សងខ្លះ នៅខាងលើ)
+    D.invoices.sort((a, b) => {
+      const aPaid = (a.paidNow > 0 || a.remaining <= 0.005) ? 1 : 0;
+      const bPaid = (b.paidNow > 0 || b.remaining <= 0.005) ? 1 : 0;
+      if (aPaid !== bPaid) return bPaid - aPaid;
+      return a.no - b.no;
+    });
 
     if (D.tgSent) tgSentCount++;
     else tgNotSentCount++;
@@ -471,6 +574,22 @@ export function computeAbaReconciliation(): AbaState {
 
     resultDoctors.push(D);
   }
+
+  // SORT DOCTORS: Fully Paid (សងគ្រប់) FIRST (ខាងលើគេ), then Partially Paid (សងមួយផ្នែក), then Unpaid (មិនទាន់សង)
+  resultDoctors.sort((a, b) => {
+    const rank = (d: DoctorStatement) => {
+      if (d.rem <= 0.005 && d.paidTotal > 0) return 0; // សងគ្រប់ (Fully Paid)
+      if (d.paidTotal > 0) return 1;                   // សងមួយផ្នែក (Partially Paid)
+      return 2;                                        // មិនទាន់សង (Unpaid)
+    };
+    const rA = rank(a);
+    const rB = rank(b);
+    if (rA !== rB) return rA - rB;
+    if (rA < 2 && b.paidTotal !== a.paidTotal) {
+      return b.paidTotal - a.paidTotal; // Higher paid amount first
+    }
+    return 0; // Keep code order within same group
+  });
 
   const finalState: AbaState = {
     success: true,
@@ -485,7 +604,7 @@ export function computeAbaReconciliation(): AbaState {
     fileNames: {
       aba: abaFile ? path.basename(abaFile) : '',
       debt: debtFile ? path.basename(debtFile) : '',
-      acc: fs.existsSync(path.join(dataDir, 'customers.xls')) ? 'customers.xls' : ''
+      acc: accFile ? path.basename(accFile) : (fs.existsSync(path.join(dataDir, 'customers.xls')) ? 'customers.xls' : '')
     },
     doctors: resultDoctors,
     unmatched,
@@ -505,16 +624,56 @@ export function getAbaState(): AbaState {
   return computeAbaReconciliation();
 }
 
-// Save uploaded file and recompute
+// Save uploaded file and recompute (with archive backup in data/aba/uploads/)
 export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string, buffer: Buffer): AbaState {
   ensureDataDir();
   const ext = path.extname(fileName) || '.xlsx';
+  const cleanOriginalName = path.basename(fileName);
   let targetName = '';
-  if (fileType === 'aba') targetName = `aba_statement${ext}`;
-  else if (fileType === 'debt') targetName = `debts${ext}`;
-  else if (fileType === 'acc') targetName = `customers${ext}`;
 
+  if (fileType === 'aba') {
+    targetName = `aba_statement${ext}`;
+  } else if (fileType === 'debt') {
+    targetName = `debts${ext}`;
+  } else if (fileType === 'acc') {
+    const low = cleanOriginalName.toLowerCase();
+    if (low.includes('customer') || low.includes('អតិថិជន') || low.includes('profile')) {
+      targetName = `customers${ext}`;
+    } else {
+      targetName = `accounts${ext}`;
+    }
+  }
+
+  // 1. Save active file in data/aba/
   fs.writeFileSync(path.join(dataDir, targetName), buffer);
+
+  // 2. Also save permanent copy in data/aba/uploads/ for safe drive storage
+  const uploadsDir = path.join(dataDir, 'uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  const timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const backupFileName = `${timeStr}_${fileType}_${cleanOriginalName}`;
+  fs.writeFileSync(path.join(uploadsDir, backupFileName), buffer);
+
+  // 3. Record upload in history
+  const histPath = path.join(dataDir, 'uploads_history.json');
+  let history: any[] = [];
+  if (fs.existsSync(histPath)) {
+    try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch {}
+  }
+  history.unshift({
+    id: Date.now(),
+    fileType,
+    originalName: cleanOriginalName,
+    savedAs: targetName,
+    backupFile: backupFileName,
+    size: buffer.length,
+    uploadedAt: new Date().toISOString()
+  });
+  if (history.length > 100) history = history.slice(0, 100);
+  fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
+
+  // Recompute and return state
   return computeAbaReconciliation();
 }
 

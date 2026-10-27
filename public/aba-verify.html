@@ -141,6 +141,9 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button type="button" id="btnOpenAmeExports" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="មើល និងទាញយកហ្វាល់ Excel សម្រាប់ AME ដែលបានរក្សាទុក">
+      📂 ហ្វាល់ AME (<span id="btnAmeCount">0</span>)
+    </button>
     <button type="button" id="btnResetServer" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="សម្អាតទិន្នន័យនៅលើ Server និងក្នុងកម្មវិធីដើម្បីដាក់ឯកសារថ្មី">
       🧹 សម្អាតទិន្នន័យ (Reset)
     </button>
@@ -516,6 +519,67 @@ summary:hover{background:var(--bg)}
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
         <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់ទូរស័ព្ទ ឬអាសយដ្ឋានដើម្បីកែប្រែភ្លាមៗ (Auto-save)</span>
         <button type="button" id="btnCloseCustManagerModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
+          ✕ បិទ
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- AME Exports & Upload Archive Modal -->
+<div id="ameExportsModal" class="modal-overlay">
+  <div class="modal-content" style="max-width:880px;width:95%;max-height:85vh;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2)">
+    <!-- Header -->
+    <div style="background:#059669;color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:1.3rem">📂</span>
+        <h3 style="margin:0;font-size:1.05rem;font-weight:600">ហ្វាល់ AME និងប្រវត្តិឯកសារក្នុង Drive (Storage Archive)</h3>
+      </div>
+      <button type="button" id="btnCloseAmeModal" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px">
+      <!-- Tabs -->
+      <div style="display:flex;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:8px">
+        <button type="button" id="tabBtnAmeExports" class="btn-cust-tab on" style="font-size:0.82rem;padding:6px 14px;border-radius:6px;cursor:pointer">
+          📊 ហ្វាល់ AME សម្រាប់ទាញយក (<span id="ameTabCount">0</span>)
+        </button>
+        <button type="button" id="tabBtnUploadsHistory" class="btn-cust-tab" style="font-size:0.82rem;padding:6px 14px;border-radius:6px;cursor:pointer;background:#fff;color:#475569;border:1px solid #cbd5e1">
+          📥 ប្រវត្តិហ្វាល់ដែលបានបញ្ជូល (Uploads) (<span id="uploadsTabCount">0</span>)
+        </button>
+        <button type="button" id="btnRefreshAmeData" style="margin-left:auto;background:#f8fafc;border:1px solid #cbd5e1;color:#334155;padding:4px 10px;border-radius:6px;font-size:0.8rem;cursor:pointer;font-weight:600">
+          🔄 ផ្ទុកឡើងវិញ
+        </button>
+      </div>
+
+      <!-- Info banner -->
+      <div id="ameTabBanner" style="background:#f0fdf4;padding:10px 14px;border-radius:8px;border:1px solid #bbf7d0;font-size:0.82rem;color:#166534">
+        💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>data/aba/ame_exports/</code>)។
+      </div>
+
+      <!-- Table Section -->
+      <div style="overflow-x:auto;max-height:48vh;border:1px solid #e2e8f0;border-radius:6px">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+          <thead>
+            <tr style="background:#f8fafc;position:sticky;top:0">
+              <th id="thColName" style="padding:8px 10px;border-bottom:2px solid #e2e8f0;text-align:left">ឈ្មោះហ្វាល់ (File Name)</th>
+              <th id="thColDate" style="padding:8px 10px;border-bottom:2px solid #e2e8f0;text-align:left;width:170px">កាលបរិច្ឆេទ</th>
+              <th id="thColSize" style="padding:8px 10px;border-bottom:2px solid #e2e8f0;text-align:right;width:90px">ទំហំ</th>
+              <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;text-align:center;width:110px">សកម្មភាព</th>
+            </tr>
+          </thead>
+          <tbody id="ameArchiveTableBody">
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8">កំពុងទាញយកទិន្នន័យ...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
+        <span class="mu" id="ameArchiveStatusMsg">ទិន្នន័យត្រូវបានរក្សាទុកដោយសុវត្ថិភាពលើ Drive/Server</span>
+        <button type="button" id="btnCloseAmeModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
           ✕ បិទ
         </button>
       </div>
@@ -2222,9 +2286,25 @@ function applyServerState(state) {
             v.rem = v.remaining != null ? v.remaining : (v.rem != null ? v.rem : 0);
             v.amt = v.amt != null ? v.amt : (v.bal != null ? v.bal : 0);
         });
+        // Sort invoices inside doctor: paid invoices first
+        d.inv.sort((a, b) => {
+            var pa = ((a.pp || 0) > 0 || a.rem <= 0.005) ? 0 : 1;
+            var pb = ((b.pp || 0) > 0 || b.rem <= 0.005) ? 0 : 1;
+            if(pa !== pb) return pa - pb;
+            return (a.no || 0) - (b.no || 0);
+        });
         docs[d.name] = d;
         if(d.customerId) docs[d.customerId] = d;
         names.push(d.name);
+    });
+
+    // Ensure doctors are strictly sorted: Fully Paid (0) -> Partially Paid (1) -> Unpaid (2)
+    names = Array.from(new Set(names)).sort((a, b) => {
+        var da = docs[a], db = docs[b];
+        var ra = (da && (da.rem <= 0.005 || da.status === 'Fully Paid')) ? 0 : ((da && (da.paidTotal > 0 || da.status === 'Partially Paid')) ? 1 : 2);
+        var rb = (db && (db.rem <= 0.005 || db.status === 'Fully Paid')) ? 0 : ((db && (db.paidTotal > 0 || db.status === 'Partially Paid')) ? 1 : 2);
+        if(ra !== rb) return ra - rb;
+        return (a || '').localeCompare(b || '');
     });
 
     res = {
@@ -3107,10 +3187,25 @@ function run() {
         D.paidTotal = D.paidCurrent;
         D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
 
+        // Sort invoices inside doctor: paid invoices first
+        D.inv.sort((a, b) => {
+            var pa = ((a.pp || 0) > 0 || a.rem <= 0.005) ? 0 : 1;
+            var pb = ((b.pp || 0) > 0 || b.rem <= 0.005) ? 0 : 1;
+            if(pa !== pb) return pa - pb;
+            return (a.no || 0) - (b.no || 0);
+        });
+
         tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
     });
 
-    names = Array.from(new Set(names));
+    // Sort doctors strictly: Fully Paid (0) -> Partially Paid (1) -> Unpaid (2)
+    names = Array.from(new Set(names)).sort((a, b) => {
+        var da = docs[a], db = docs[b];
+        var ra = (da && (da.rem <= 0.005 || da.status === 'Fully Paid')) ? 0 : ((da && (da.paidTotal > 0 || da.status === 'Partially Paid')) ? 1 : 2);
+        var rb = (db && (db.rem <= 0.005 || db.status === 'Fully Paid')) ? 0 : ((db && (db.paidTotal > 0 || db.status === 'Partially Paid')) ? 1 : 2);
+        if(ra !== rb) return ra - rb;
+        return (a || '').localeCompare(b || '');
+    });
     res = {docs: docs, names: names, unmatched: unmatched, tot: tot, from: from};
     if(typeof syncDoctorsFromLoadedFiles === 'function') syncDoctorsFromLoadedFiles(false);
     render();
@@ -4273,12 +4368,172 @@ $('go').onclick = () => run();
 
 
 // ============================================================================
-
-// 6. EXPORTS
-
+// 6. EXPORTS & ARCHIVES (AME Software & Drive Storage)
 // ============================================================================
 
-function saveWB(wb, fn) { try { XLSX.writeFile(wb, fn); } catch(e) { alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || '')); } }
+var currentAmeTab = 'exports'; // 'exports' | 'uploads'
+
+function saveWB(wb, fn) {
+    try {
+        XLSX.writeFile(wb, fn);
+    } catch(e) {
+        alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || ''));
+    }
+    // Also save copy to server / drive in data/aba/ame_exports/
+    try {
+        var b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        fetch('/api/aba/save-export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: fn, fileBase64: b64, source: 'AME' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if(res && res.success) {
+                console.log('✓ Saved copy of ' + fn + ' to drive storage.');
+                updateAmeBadge();
+            }
+        })
+        .catch(function(err) {
+            console.warn('Could not save export copy to server:', err);
+        });
+    } catch(err) {
+        console.warn('Export encoding error:', err);
+    }
+}
+
+function updateAmeBadge() {
+    fetch('/api/aba/exports')
+        .then(r => r.json())
+        .then(data => {
+            if(data && data.exports) {
+                var cnt = data.exports.length;
+                if($('btnAmeCount')) $('btnAmeCount').textContent = cnt;
+                if($('ameTabCount')) $('ameTabCount').textContent = cnt;
+            }
+        })
+        .catch(() => {});
+    fetch('/api/aba/uploads-history')
+        .then(r => r.json())
+        .then(data => {
+            if(data && data.uploads) {
+                var cnt = data.uploads.length;
+                if($('uploadsTabCount')) $('uploadsTabCount').textContent = cnt;
+            }
+        })
+        .catch(() => {});
+}
+
+function openAmeExportsModal() {
+    var m = $('ameExportsModal');
+    if(!m) return;
+    m.classList.add('active');
+    loadAmeArchiveData();
+}
+
+function closeAmeExportsModal() {
+    var m = $('ameExportsModal');
+    if(!m) return;
+    m.classList.remove('active');
+}
+
+function switchAmeTab(tab) {
+    currentAmeTab = tab;
+    var btnExp = $('tabBtnAmeExports');
+    var btnUp = $('tabBtnUploadsHistory');
+    var banner = $('ameTabBanner');
+    var thColDate = $('thColDate');
+
+    if(tab === 'exports') {
+        if(btnExp) { btnExp.classList.add('on'); btnExp.style.background = '#059669'; btnExp.style.color = '#fff'; }
+        if(btnUp) { btnUp.classList.remove('on'); btnUp.style.background = '#fff'; btnUp.style.color = '#475569'; }
+        if(banner) banner.innerHTML = '💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>data/aba/ame_exports/</code>)។';
+        if(thColDate) thColDate.textContent = 'កាលបរិច្ឆេទរក្សាទុក';
+    } else {
+        if(btnUp) { btnUp.classList.add('on'); btnUp.style.background = '#059669'; btnUp.style.color = '#fff'; }
+        if(btnExp) { btnExp.classList.remove('on'); btnExp.style.background = '#fff'; btnExp.style.color = '#475569'; }
+        if(banner) banner.innerHTML = '📥 <b>ប្រវត្តិហ្វាល់ដែលបានបញ្ជូល (Uploads)៖</b> រាល់ពេលអ្នកផ្ទុកឯកសារចូលប្រអប់ទាំង ៣ កម្មវិធីនឹងចម្លងរក្សាទុកមួយច្បាប់ក្នុង Drive (<code>data/aba/uploads/</code>) ដើម្បីធានាថាមិនបាត់បង់ឯកសារដើម។';
+        if(thColDate) thColDate.textContent = 'កាលបរិច្ឆេទ Upload';
+    }
+    loadAmeArchiveData();
+}
+
+function loadAmeArchiveData() {
+    var tbody = $('ameArchiveTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:#94a3b8">កំពុងទាញយកទិន្នន័យពី Server...</td></tr>';
+
+    if(currentAmeTab === 'exports') {
+        fetch('/api/aba/exports')
+            .then(r => r.json())
+            .then(data => {
+                var list = (data && data.exports) || [];
+                if($('btnAmeCount')) $('btnAmeCount').textContent = list.length;
+                if($('ameTabCount')) $('ameTabCount').textContent = list.length;
+                if(!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#94a3b8">មិនទាន់មានហ្វាល់ Excel សម្រាប់ AME ត្រូវបានរក្សាទុកនៅឡើយទេ<br><small>ចុចទាញយក ALL OR ឬ ALL JV ដើម្បីចាប់ផ្តើមបង្កើតហ្វាល់</small></td></tr>';
+                    return;
+                }
+                var rows = '';
+                list.forEach(item => {
+                    var sizeKb = item.size ? (item.size / 1024).toFixed(1) + ' KB' : '—';
+                    var dateStr = item.savedAt ? new Date(item.savedAt).toLocaleString('km-KH') : '—';
+                    var dlUrl = '/api/aba/download-export/' + encodeURIComponent(item.fileName);
+                    rows += '<tr style="border-bottom:1px solid #f1f5f9">' +
+                        '<td style="padding:8px 10px;font-weight:600;color:#0f172a">' + esc(item.fileName) + '</td>' +
+                        '<td style="padding:8px 10px;color:#64748b;font-size:0.75rem">' + esc(dateStr) + '</td>' +
+                        '<td style="padding:8px 10px;text-align:right;color:#64748b">' + esc(sizeKb) + '</td>' +
+                        '<td style="padding:8px 10px;text-align:center">' +
+                            '<a href="' + dlUrl + '" download="' + esc(item.fileName) + '" style="background:#059669;color:#fff;padding:3px 10px;border-radius:4px;text-decoration:none;font-size:0.75rem;font-weight:600;display:inline-block">⬇️ ទាញយក</a>' +
+                        '</td>' +
+                    '</tr>';
+                });
+                tbody.innerHTML = rows;
+            })
+            .catch(err => {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:#ef4444">កំហុសក្នុងការទាញយកទិន្នន័យ៖ ' + esc(err.message) + '</td></tr>';
+            });
+    } else {
+        fetch('/api/aba/uploads-history')
+            .then(r => r.json())
+            .then(data => {
+                var list = (data && data.uploads) || [];
+                if($('uploadsTabCount')) $('uploadsTabCount').textContent = list.length;
+                if(!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#94a3b8">មិនទាន់មានប្រវត្តិផ្ទុកឯកសារនៅឡើយទេ</td></tr>';
+                    return;
+                }
+                var rows = '';
+                list.forEach(item => {
+                    var sizeKb = item.size ? (item.size / 1024).toFixed(1) + ' KB' : '—';
+                    var dateStr = item.uploadedAt ? new Date(item.uploadedAt).toLocaleString('km-KH') : '—';
+                    var dlFile = item.backupFile || item.savedAs || item.originalName;
+                    var dlUrl = '/api/aba/download-upload/' + encodeURIComponent(dlFile);
+                    var typeBadge = item.fileType === 'aba' ? '<span class="tag ok" style="margin-right:4px">ABA</span>' : (item.fileType === 'debt' ? '<span class="tag wa" style="margin-right:4px">វិក័យបត្រ</span>' : '<span class="tag" style="margin-right:4px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">គណនី</span>');
+                    rows += '<tr style="border-bottom:1px solid #f1f5f9">' +
+                        '<td style="padding:8px 10px;color:#0f172a">' + typeBadge + '<b>' + esc(item.originalName) + '</b></td>' +
+                        '<td style="padding:8px 10px;color:#64748b;font-size:0.75rem">' + esc(dateStr) + '</td>' +
+                        '<td style="padding:8px 10px;text-align:right;color:#64748b">' + esc(sizeKb) + '</td>' +
+                        '<td style="padding:8px 10px;text-align:center">' +
+                            '<a href="' + dlUrl + '" download="' + esc(item.originalName) + '" style="background:#0284c7;color:#fff;padding:3px 10px;border-radius:4px;text-decoration:none;font-size:0.75rem;font-weight:600;display:inline-block">⬇️ ទាញយក</a>' +
+                        '</td>' +
+                    '</tr>';
+                });
+                tbody.innerHTML = rows;
+            })
+            .catch(err => {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:#ef4444">កំហុសក្នុងការទាញយកប្រវត្តិ Uploads៖ ' + esc(err.message) + '</td></tr>';
+            });
+    }
+}
+
+if($('btnOpenAmeExports')) $('btnOpenAmeExports').onclick = () => openAmeExportsModal();
+if($('btnCloseAmeModal')) $('btnCloseAmeModal').onclick = () => closeAmeExportsModal();
+if($('btnCloseAmeModal2')) $('btnCloseAmeModal2').onclick = () => closeAmeExportsModal();
+if($('btnRefreshAmeData')) $('btnRefreshAmeData').onclick = () => loadAmeArchiveData();
+if($('tabBtnAmeExports')) $('tabBtnAmeExports').onclick = () => switchAmeTab('exports');
+if($('tabBtnUploadsHistory')) $('tabBtnUploadsHistory').onclick = () => switchAmeTab('uploads');
+if($('ameExportsModal')) $('ameExportsModal').onclick = e => { if(e.target === $('ameExportsModal')) closeAmeExportsModal(); };
 
 function parseTx(s) {
 
@@ -4617,14 +4872,17 @@ function restoreSavedData() {
                         syncTgMapFromDirectory();
                     }
                 });
+                updateAmeBadge();
                 return;
             }
             restoreFromLocalIndexedDB();
+            updateAmeBadge();
         })
         .catch(err => {
             hideServerLoading();
             console.warn('Server state fetch failed, falling back to local DB:', err);
             restoreFromLocalIndexedDB();
+            updateAmeBadge();
         });
 }
 

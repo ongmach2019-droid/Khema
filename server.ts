@@ -124,6 +124,100 @@ app.post('/api/aba/reset', (_req, res) => {
   }
 });
 
+// Save exported Excel file for AME software reconciliation
+app.post('/api/aba/save-export', (req, res) => {
+  try {
+    const { fileName, fileBase64, source } = req.body;
+    if (!fileName || !fileBase64) {
+      return res.status(400).json({ success: false, error: 'Missing fileName or fileBase64' });
+    }
+    const dataDir = path.join(process.cwd(), 'data', 'aba');
+    const ameDir = path.join(dataDir, 'ame_exports');
+    if (!fs.existsSync(ameDir)) fs.mkdirSync(ameDir, { recursive: true });
+
+    const cleanB64 = fileBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(cleanB64, 'base64');
+    const safeName = path.basename(fileName);
+    fs.writeFileSync(path.join(ameDir, safeName), buffer);
+
+    const histPath = path.join(dataDir, 'exports_history.json');
+    let history: any[] = [];
+    if (fs.existsSync(histPath)) {
+      try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch {}
+    }
+    history.unshift({
+      id: Date.now(),
+      fileName: safeName,
+      size: buffer.length,
+      source: source || 'AME',
+      savedAt: new Date().toISOString()
+    });
+    if (history.length > 100) history = history.slice(0, 100);
+    fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
+
+    res.json({ success: true, fileName: safeName, totalExports: history.length });
+  } catch (err: any) {
+    console.error('Error in /api/aba/save-export:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// List saved AME exports
+app.get('/api/aba/exports', (_req, res) => {
+  try {
+    const histPath = path.join(process.cwd(), 'data', 'aba', 'exports_history.json');
+    let history: any[] = [];
+    if (fs.existsSync(histPath)) {
+      try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch {}
+    }
+    res.json({ success: true, exports: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Download saved AME export file
+app.get('/api/aba/download-export/:fileName', (req, res) => {
+  try {
+    const safeName = path.basename(req.params.fileName);
+    const filePath = path.join(process.cwd(), 'data', 'aba', 'ame_exports', safeName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+    res.download(filePath, safeName);
+  } catch (err: any) {
+    res.status(500).send(err.message);
+  }
+});
+
+// List upload history
+app.get('/api/aba/uploads-history', (_req, res) => {
+  try {
+    const histPath = path.join(process.cwd(), 'data', 'aba', 'uploads_history.json');
+    let history: any[] = [];
+    if (fs.existsSync(histPath)) {
+      try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch {}
+    }
+    res.json({ success: true, uploads: history });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Download archived uploaded file
+app.get('/api/aba/download-upload/:fileName', (req, res) => {
+  try {
+    const safeName = path.basename(req.params.fileName);
+    const filePath = path.join(process.cwd(), 'data', 'aba', 'uploads', safeName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+    res.download(filePath, safeName);
+  } catch (err: any) {
+    res.status(500).send(err.message);
+  }
+});
+
 // Telegram Send Endpoint
 app.post('/api/send-telegram', async (req, res) => {
   try {
