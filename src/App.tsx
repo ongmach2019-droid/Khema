@@ -77,10 +77,15 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
-          setTransactions(data.data);
-          try {
-            localStorage.setItem('khema_user_transactions', JSON.stringify(data.data));
-          } catch (e) {}
+          setTransactions((prev) => {
+            if (prev.length === data.data.length && JSON.stringify(prev) === JSON.stringify(data.data)) {
+              return prev;
+            }
+            try {
+              localStorage.setItem('khema_user_transactions', JSON.stringify(data.data));
+            } catch (e) {}
+            return data.data;
+          });
         }
       }
     } catch (e) {

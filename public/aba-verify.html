@@ -2958,6 +2958,7 @@ function run() {
         tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
     });
 
+    names = Array.from(new Set(names));
     res = {docs: docs, names: names, unmatched: unmatched, tot: tot, from: from};
     if(typeof syncDoctorsFromLoadedFiles === 'function') syncDoctorsFromLoadedFiles(false);
     render();
@@ -3170,9 +3171,10 @@ function render() {
 
     if(R.unmatched && R.unmatched.length) {
 
+        var doctorSelectOptions = '<option value="">— ជ្រើសរើស —</option>' + R.names.map(n => '<option>' + esc(n) + '</option>').join('');
         h += '<div class="card"><h2>ABA រកមិនឃើញគ្រូពេទ្យ (' + R.unmatched.length + ')</h2><div class="tw"><table><tr><th>កាលបរិច្ឆេទ</th><th>ពិពណ៌នា</th><th class="n">ចំនួន</th><th>គ្រូពេទ្យ</th></tr>';
 
-        R.unmatched.slice(0, 100).forEach(t => { h += '<tr><td>' + dmy(t.date) + '</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">' + esc(t.text) + '</td><td class="n">' + fmt(t.amt) + '</td><td><select data-as="' + t.id + '"><option value="">— ជ្រើសរើស —</option>' + R.names.map(n => '<option>' + esc(n) + '</option>').join('') + '</select></td></tr>'; });
+        R.unmatched.slice(0, 100).forEach(t => { h += '<tr><td>' + dmy(t.date) + '</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">' + esc(t.text) + '</td><td class="n">' + fmt(t.amt) + '</td><td><select data-as="' + t.id + '">' + doctorSelectOptions + '</select></td></tr>'; });
 
         h += '</table></div></div>';
 
