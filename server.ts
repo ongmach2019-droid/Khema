@@ -6,6 +6,12 @@ import path from 'path';
 import fs from 'fs';
 import { execSync } from 'child_process';
 import * as XLSX from 'xlsx';
+import {
+  getAbaState,
+  uploadAbaFile,
+  markAbaTelegramSent,
+  resetAbaState
+} from './server/abaReconciliation.ts';
 
 // Load .env.local first (local development / secrets), then .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -59,6 +65,63 @@ app.get('/api/exchange-rate', (_req, res) => {
     updatedAt: new Date().toISOString(),
     source: 'National Bank of Cambodia (ធនាគារជាតិនៃកម្ពុជា)',
   });
+});
+
+// ============================================================================
+// ABA RECONCILIATION SERVER-BACKED API (High Performance, No Browser Freeze)
+// ============================================================================
+
+// Get current reconciliation state
+app.get('/api/aba/state', (_req, res) => {
+  try {
+    const state = getAbaState();
+    res.json(state);
+  } catch (err: any) {
+    console.error('Error in /api/aba/state:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Upload and process file on server (non-blocking)
+app.post('/api/aba/upload', (req, res) => {
+  try {
+    const fileType = req.body.fileType;
+    const fileName = req.body.fileName;
+    const rawB64 = req.body.fileBase64 || req.body.fileData;
+    if (!fileType || !fileName || !rawB64) {
+      return res.status(400).json({ success: false, error: 'Missing fileType, fileName, or fileBase64/fileData' });
+    }
+    const cleanB64 = rawB64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(cleanB64, 'base64');
+    const state = uploadAbaFile(fileType, fileName, buffer);
+    res.json({ success: true, state });
+  } catch (err: any) {
+    console.error('Error in /api/aba/upload:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Mark Telegram sent on server
+app.post('/api/aba/mark-tg', (req, res) => {
+  try {
+    const { name, custId, target } = req.body;
+    const state = markAbaTelegramSent(name, custId, target);
+    res.json({ success: true, state });
+  } catch (err: any) {
+    console.error('Error in /api/aba/mark-tg:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reset ABA state on server
+app.post('/api/aba/reset', (_req, res) => {
+  try {
+    const state = resetAbaState();
+    res.json({ success: true, state });
+  } catch (err: any) {
+    console.error('Error in /api/aba/reset:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Telegram Send Endpoint

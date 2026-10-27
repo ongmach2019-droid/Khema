@@ -141,6 +141,9 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button type="button" id="btnResetServer" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="សម្អាតទិន្នន័យនៅលើ Server និងក្នុងកម្មវិធីដើម្បីដាក់ឯកសារថ្មី">
+      🧹 សម្អាតទិន្នន័យ (Reset)
+    </button>
     <button type="button" id="btnOpenCustomerManager" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
       👥 បញ្ជីអតិថិជន (<span id="btnCustCount">0</span>)
     </button>
@@ -630,37 +633,57 @@ var FILE_NAMES = {
     acc: localStorage.getItem('acc_file_name') || ''
 };
 
+function showServerLoading(msg) {
+    var overlay = $('serverLoadingOverlay');
+    if(!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'serverLoadingOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;backdrop-filter:blur(3px)';
+        overlay.innerHTML = '<div style="width:44px;height:44px;border:4px solid #cbd5e1;border-top-color:#0b6bcb;border-radius:50%;animation:spin 0.8s linear infinite"></div><div id="serverLoadingMsg" style="font-weight:700;color:#0f172a;font-size:0.95rem"></div>';
+        document.body.appendChild(overlay);
+    }
+    var msgEl = $('serverLoadingMsg');
+    if(msgEl) msgEl.textContent = msg || 'កំពុងដំណើរការលើ Server...';
+    overlay.style.display = 'flex';
+}
+
+function hideServerLoading() {
+    var overlay = $('serverLoadingOverlay');
+    if(overlay) overlay.style.display = 'none';
+}
+
 function updateBoxUI() {
     // 1. ABA Box
-    var hasAba = !!(RAW.aba && RAW.aba.rows && RAW.aba.rows.length);
+    var nmAba = FILE_NAMES.aba || localStorage.getItem('aba_file_name') || '';
+    var hasAba = !!nmAba || !!(RAW.aba && RAW.aba.rows && RAW.aba.rows.length);
     if(hasAba) {
         if($('delAba')) $('delAba').style.display = 'inline-block';
-        var nmAba = FILE_NAMES.aba || localStorage.getItem('aba_file_name') || 'ឯកសារ ABA';
-        var cntAba = (aba && aba.length) ? aba.length : (RAW.aba.rows ? RAW.aba.rows.length : 0);
-        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAba) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + cntAba + ' ប្រតិបត្តិការ';
+        var cntAba = (aba && aba.length) ? (aba.length + ' ប្រតិបត្តិការ') : (res && res.unmatched ? 'បានផ្ទៀងផ្ទាត់' : 'រក្សាទុកលើ Server');
+        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAba || 'ឯកសារ ABA') + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntAba;
     } else {
         if($('delAba')) $('delAba').style.display = 'none';
         $('sAba').innerHTML = '';
     }
 
     // 2. Debts Box
-    var hasDebt = !!(FILES && FILES.length);
+    var nmDebt = FILE_NAMES.debt || localStorage.getItem('debt_file_name') || '';
+    var hasDebt = !!nmDebt || !!(FILES && FILES.length);
     if(hasDebt) {
         if($('delDebt')) $('delDebt').style.display = 'inline-block';
-        var nmDebt = FILE_NAMES.debt || localStorage.getItem('debt_file_name') || (FILES.length + ' ឯកសារ');
-        var cntInv = (debts && debts.length) ? debts.length : (FILES.reduce((s, f) => s + (f.rows ? f.rows.length : 0), 0));
-        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmDebt) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + FILES.length + ' ឯកសារ · ' + cntInv + ' វិក័យបត្រ';
+        var cntInv = (res && res.names && res.names.length) ? (res.names.length + ' គ្រូពេទ្យ') : (FILES && FILES.length ? (FILES.length + ' ឯកសារ') : 'រក្សាទុកលើ Server');
+        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmDebt || 'ឯកសារវិក័យបត្រ') + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntInv;
     } else {
         if($('delDebt')) $('delDebt').style.display = 'none';
         $('sDebt').innerHTML = '';
     }
 
     // 3. Accounts Box
-    var hasAcc = !!(ACC && ACC.length);
+    var nmAcc = FILE_NAMES.acc || localStorage.getItem('acc_file_name') || '';
+    var hasAcc = !!nmAcc || !!(ACC && ACC.length);
     if(hasAcc) {
         if($('delAcc')) $('delAcc').style.display = 'inline-block';
-        var nmAcc = FILE_NAMES.acc || localStorage.getItem('acc_file_name') || 'ឯកសារគណនី';
-        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAcc) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span><br>' + ACC.length + ' គណនី';
+        var cntAcc = (ACC && ACC.length) ? (ACC.length + ' គណនី') : 'រក្សាទុកលើ Server';
+        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAcc || 'ឯកសារគណនី/អតិថិជន') + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntAcc;
     } else {
         if($('delAcc')) $('delAcc').style.display = 'none';
         $('sAcc').innerHTML = '';
@@ -670,15 +693,15 @@ function updateBoxUI() {
 function initBoxPlaceholders() {
     if(FILE_NAMES.aba) {
         if($('delAba')) $('delAba').style.display = 'inline-block';
-        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.aba) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.aba) + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span>';
     }
     if(FILE_NAMES.debt) {
         if($('delDebt')) $('delDebt').style.display = 'inline-block';
-        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.debt) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.debt) + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span>';
     }
     if(FILE_NAMES.acc) {
         if($('delAcc')) $('delAcc').style.display = 'inline-block';
-        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.acc) + '</span> <span class="tag ok" style="font-size:0.65rem">បានចងចាំ</span>';
+        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.acc) + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span>';
     }
 }
 
@@ -1567,6 +1590,11 @@ function markTelegramSent(custName, custNo, target) {
     try {
         localStorage.setItem('aba_tg_sent', JSON.stringify(TG_SENT));
         if(typeof dbSet === 'function') dbSet('aba_tg_sent', TG_SENT);
+        fetch('/api/aba/mark-tg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: custName, custId: custNo, target: record.target })
+        }).catch(() => {});
     } catch(e) {}
     render();
 }
@@ -1582,6 +1610,11 @@ function unmarkTelegramSent(custName) {
     try {
         localStorage.setItem('aba_tg_sent', JSON.stringify(TG_SENT));
         if(typeof dbSet === 'function') dbSet('aba_tg_sent', TG_SENT);
+        fetch('/api/aba/mark-tg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: custName, custId: '', target: '' })
+        }).catch(() => {});
     } catch(e) {}
     render();
 }
@@ -2153,24 +2186,102 @@ function smart(kind, t) {
 
 // ============================================================================
 
-// 3. FILE LOADERS
+// 3. SERVER & FILE LOADERS (Freeze-free server processing)
 
 // ============================================================================
 
-$('fAba').onchange = e => {
+function applyServerState(state) {
+    if(!state || !state.doctors || !state.doctors.length) return false;
+    
+    if(state.fileNames) {
+        if(state.fileNames.aba) {
+            FILE_NAMES.aba = state.fileNames.aba;
+            localStorage.setItem('aba_file_name', state.fileNames.aba);
+        }
+        if(state.fileNames.debt) {
+            FILE_NAMES.debt = state.fileNames.debt;
+            localStorage.setItem('debt_file_name', state.fileNames.debt);
+        }
+        if(state.fileNames.acc) {
+            FILE_NAMES.acc = state.fileNames.acc;
+            localStorage.setItem('acc_file_name', state.fileNames.acc);
+        }
+    }
 
-    if(!e.target.files[0]) return;
-    var f = e.target.files[0];
+    var docs = {};
+    var names = [];
+    state.doctors.forEach(d => {
+        d.inv = d.invoices || d.inv || [];
+        d.pay = d.payments || d.pay || [];
+        d.before = 0;
+        d.per = d.pay.reduce((s, p) => s + (p.amt || 0), 0);
+        d.paidBeforeTotal = d.paidBeforeTotal || 0;
+        d.inv.forEach(v => {
+            v.pp = v.paidNow != null ? v.paidNow : (v.pp != null ? v.pp : 0);
+            v.pb = v.paidBefore != null ? v.paidBefore : (v.pb != null ? v.pb : 0);
+            v.rem = v.remaining != null ? v.remaining : (v.rem != null ? v.rem : 0);
+            v.amt = v.amt != null ? v.amt : (v.bal != null ? v.bal : 0);
+        });
+        docs[d.name] = d;
+        if(d.customerId) docs[d.customerId] = d;
+        names.push(d.name);
+    });
 
+    res = {
+        docs: docs,
+        names: names,
+        unmatched: state.unmatched || [],
+        tot: state.summary || { owed: 0, paid: 0, rem: 0 },
+        from: null
+    };
+
+    updateBoxUI();
+    render();
+    return true;
+}
+
+function uploadAbaFileToServer(fileType, file) {
+    showServerLoading('កំពុងផ្ទុកឯកសារ ' + file.name + ' និងគណនាលើ Server (កុំបារម្ភ មិនគាំងទេ)...');
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var base64Data = e.target.result;
+        fetch('/api/aba/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fileType: fileType,
+                fileName: file.name,
+                fileBase64: base64Data
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            hideServerLoading();
+            if(data && data.success && data.state) {
+                applyServerState(data.state);
+            } else {
+                alert('កំហុសពី Server៖ ' + ((data && data.error) || 'មិនអាចគណនាបាន'));
+            }
+        })
+        .catch(err => {
+            hideServerLoading();
+            console.warn('Server upload failed, falling back:', err);
+            if(fileType === 'aba') localProcessAba(file);
+            else if(fileType === 'debt') localProcessDebt([file]);
+            else if(fileType === 'acc') localProcessAcc(file);
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+function localProcessAba(f) {
     readWB(f, wb => {
-
         var allSheets = sheetsOf(wb);
         allSheets.forEach(s => {
             ingestCustomerList(s);
             ingestTelegramMap(s);
         });
         var t = allSheets.sort((a,b) => b.rows.length - a.rows.length)[0];
-
         if(t) {
             RAW.aba = t;
             RAW.aba.m = smart('aba', RAW.aba);
@@ -2182,9 +2293,12 @@ $('fAba').onchange = e => {
             dbSet('aba_state', { name: f.name, raw: RAW.aba, m: M.aba, count: aba.length });
             updateBoxUI();
         }
-
     });
+}
 
+$('fAba').onchange = e => {
+    if(!e.target.files[0]) return;
+    uploadAbaFileToServer('aba', e.target.files[0]);
 };
 
 function ingestAcc(t) {
@@ -2311,48 +2425,32 @@ function ingestAccInvoices(t) {
     });
 }
 
-$('fDebt').onchange = e => {
-
-    var fs = [].slice.call(e.target.files), n = fs.length, got = [], cnt = 0;
-
+function localProcessDebt(fs) {
+    var n = fs.length, got = [], cnt = 0;
     if(!n) return; HDR = {};
-
     fs.forEach((f, k) => {
-
         readWB(f, wb => {
-
             var ts = sheetsOf(wb), dt = null;
-
             ts.forEach(t => {
-
                 ingestCustomerList(t);
                 ingestTelegramMap(t);
-
                 if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice|inv|វិក័យ/i)) ingestAcc(t);
-
                 else if(hasH(t, /entry/i) && (hasH(t, /customer/i) || hasH(t, /type/i) || hasH(t, /cash|bank/i) || hasH(t, /prefix/i)) && !hasH(t, /invoice|inv|វិក័យ|វិក្កយ/i)) {
                     var enKey = t.h.find(h => /entry/i.test(h)) || 'Entry No';
                     t.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) HDR[en] = x; });
                     ingestAcc(t);
                 } 
-
                 else if(!dt && hasH(t, /invoice|inv|វិក័យ|វិក្កយ|bill|doc/i)) dt = t;
-
             });
-
-            // Also ingest any additional account sheets (e.g. Sheet3 with accound aba)
             ts.forEach(t => {
                 if(t !== dt && (hasH(t, /acc|aba/i) || hasH(t, /^name$|ឈ្មោះ/i))) ingestAcc(t);
             });
-
             if(!dt) dt = ts.slice().sort((a,b) => b.rows.length - a.rows.length)[0];
-
             if(dt) {
                 dt.name = f.name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, '');
                 dt.m = smart('debt', dt);
                 got[k] = dt;
             }
-
             cnt++;
             if(cnt === n) {
                 FILES = got.filter(Boolean);
@@ -2370,24 +2468,22 @@ $('fDebt').onchange = e => {
                 dbSet('debt_state', { names: fs.map(x => x.name), files: FILES, hdr: HDR, count: debts.length });
                 updateBoxUI();
             }
-
         });
-
     });
+}
 
+$('fDebt').onchange = e => {
+    var fs = [].slice.call(e.target.files);
+    if(!fs.length) return;
+    uploadAbaFileToServer('debt', fs[0]);
 };
 
-$('fAcc').onchange = e => {
-
-    if(!e.target.files[0]) return;
-    var f = e.target.files[0];
-
+function localProcessAcc(f) {
     readWB(f, wb => {
         var ts = sheetsOf(wb);
         if(ts && ts.length) {
             ACC = [];
             ACC_INVOICES = [];
-
             ts.forEach(s => {
                 ingestCustomerList(s);
                 ingestTelegramMap(s);
@@ -2403,7 +2499,6 @@ $('fAcc').onchange = e => {
                     ingestAccInvoices(s);
                 }
             });
-
             FILE_NAMES.acc = f.name;
             localStorage.setItem('acc_file_name', f.name);
             run();
@@ -2413,8 +2508,51 @@ $('fAcc').onchange = e => {
             $('sAcc').textContent = 'រកមិនឃើញជួរគណនី';
         }
     });
+}
 
+$('fAcc').onchange = e => {
+    var f = e.target.files[0];
+    if(!f) return;
+    uploadAbaFileToServer('acc', f);
 };
+
+// Reset All Data & Box Handlers
+if($('btnResetServer')) {
+    $('btnResetServer').onclick = () => {
+        if(!confirm('តើអ្នកប្រាកដជាចង់សម្អាតទិន្នន័យទាំងអស់លើ Server និងក្នុង Browser ដើម្បីផ្ទុកឯកសារថ្មីឡើងវិញមែនទេ?')) return;
+        showServerLoading('កំពុងសម្អាតទិន្នន័យទាំងអស់...');
+        fetch('/api/aba/reset', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                hideServerLoading();
+                localStorage.removeItem('aba_file_name');
+                localStorage.removeItem('debt_file_name');
+                localStorage.removeItem('acc_file_name');
+                FILE_NAMES = { aba: '', debt: '', acc: '' };
+                dbDel('aba_state');
+                dbDel('debt_state');
+                dbDel('acc_state');
+                RAW.aba = null; M.aba = {}; aba = []; assign = {};
+                FILES = []; debts = []; HDR = {}; sel = {};
+                ACC = []; ACC_INVOICES = [];
+                $('fAba').value = '';
+                $('fDebt').value = '';
+                $('fAcc').value = '';
+                if(data && data.state && data.state.doctors && data.state.doctors.length > 0) {
+                    applyServerState(data.state);
+                } else {
+                    res = { docs: {}, names: [], unmatched: [], tot: { owed:0, paid:0, rem:0 }, from: null };
+                    render();
+                }
+                updateBoxUI();
+                alert('បានសម្អាតទិន្នន័យជោគជ័យ! អ្នកអាចផ្ទុកឯកសារថ្មីបាន។');
+            })
+            .catch(err => {
+                hideServerLoading();
+                alert('កំហុស៖ ' + err.message);
+            });
+    };
+}
 
 // Delete Handlers for 3 file boxes
 $('delAba').onclick = () => {
@@ -2424,7 +2562,6 @@ $('delAba').onclick = () => {
     $('fAba').value = '';
     dbDel('aba_state');
     updateBoxUI();
-    run();
 };
 
 $('delDebt').onclick = () => {
@@ -2434,7 +2571,6 @@ $('delDebt').onclick = () => {
     $('fDebt').value = '';
     dbDel('debt_state');
     updateBoxUI();
-    run();
 };
 
 $('delAcc').onclick = () => {
@@ -2445,7 +2581,6 @@ $('delAcc').onclick = () => {
     $('fAcc').value = '';
     dbDel('acc_state');
     updateBoxUI();
-    run();
 };
 
 
@@ -4363,8 +4498,7 @@ $('exUn').onclick = () => {
 
 };
 
-function restoreSavedData() {
-    initBoxPlaceholders();
+function restoreFromLocalIndexedDB() {
     Promise.all([
         dbGet('acc_state'),
         dbGet('debt_state'),
@@ -4443,9 +4577,55 @@ function restoreSavedData() {
             updateBoxUI();
         }
     }).catch(err => {
-        console.warn('restoreSavedData error:', err);
+        console.warn('restoreFromLocalIndexedDB error:', err);
         updateBoxUI();
     });
+}
+
+function restoreSavedData() {
+    initBoxPlaceholders();
+    showServerLoading('កំពុងផ្ទុកទិន្នន័យពី Server (កុំបារម្ភ មិនគាំងទេ)...');
+
+    fetch('/api/aba/state')
+        .then(r => r.json())
+        .then(data => {
+            hideServerLoading();
+            var state = (data && data.state) ? data.state : data;
+            if(state && state.doctors && state.doctors.length > 0) {
+                console.log('✓ Loaded ready state from server:', state.summary);
+                applyServerState(state);
+
+                // Load Telegram and Customer profiles in background
+                dbGet('khema_customer_profiles').then(cp => {
+                    if(cp && typeof cp === 'object') CUSTOMER_PROFILES = Object.assign(CUSTOMER_PROFILES, cp);
+                    loadDefaultCustomerProfiles();
+                    updateCustomerCountBadge();
+                });
+                dbGet('aba_tg_directory').then(tgDirData => {
+                    if(Array.isArray(tgDirData) && tgDirData.length) {
+                        tgDirData.forEach(item => {
+                            if(!item || !item.id) return;
+                            var existing = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === item.id.toUpperCase());
+                            if(existing) {
+                                if(item.tg) existing.tg = item.tg;
+                                if(item.name && !existing.name) existing.name = item.name;
+                                if(item.phone && !existing.phone) existing.phone = item.phone;
+                            } else {
+                                TG_DIRECTORY.push(item);
+                            }
+                        });
+                        syncTgMapFromDirectory();
+                    }
+                });
+                return;
+            }
+            restoreFromLocalIndexedDB();
+        })
+        .catch(err => {
+            hideServerLoading();
+            console.warn('Server state fetch failed, falling back to local DB:', err);
+            restoreFromLocalIndexedDB();
+        });
 }
 
 restoreSavedData();
