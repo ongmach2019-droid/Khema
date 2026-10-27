@@ -1650,7 +1650,9 @@ var KEYS = {
         db: ['debit'],
         bal: ['balance','សមតុល្យ'],
         entry: ['entry no','entry','source entry no','jv no','jv'],
-        desc: ['description','desc','particular','ពិពណ៌នា']
+        desc: ['description','desc','particular','ពិពណ៌នា'],
+        orig: ['original amount','original_amount','orig amt','ចំនួនដើម','ទឹកប្រាក់ដើម'],
+        payStatus: ['payment status','pay status','payment_status','ស្ថានភាពទូទាត់','ស្ថានភាពបង់']
     }
 
 };
@@ -1659,7 +1661,7 @@ var LBL = {
 
     aba: {date: 'កាលបរិច្ឆេទ', text: 'ពិពណ៌នា', ref: 'Reference', cr: 'ប្រាក់ចូល (Credit)', am: 'Amount (បើគ្មាន Credit)'},
 
-    debt: {inv: 'លេខវិក័យបត្រ (Invoice No)', date: 'កាលបរិច្ឆេទ', party: 'ឈ្មោះគ្រូពេទ្យ', cr: 'ចំនួនទឹកប្រាក់', db: 'Debit', bal: 'Balance', entry: 'Entry No', desc: 'Description'}
+    debt: {inv: 'លេខវិក័យបត្រ (Invoice No)', date: 'កាលបរិច្ឆេទ', party: 'ឈ្មោះគ្រូពេទ្យ', cr: 'ចំនួនទឹកប្រាក់', db: 'Debit', bal: 'Balance', entry: 'Entry No', desc: 'Description', orig: 'Original Amount', payStatus: 'Payment Status'}
 
 };
 
@@ -1708,6 +1710,9 @@ function parseAgedReport(aoa) {
     var colRef = h.findIndex(k => /^ref/i.test(k));
     var colMod = h.findIndex(k => /module|source/i.test(k));
     var colDesc = h.findIndex(k => /remark|desc|particular/i.test(k));
+    var colStatus = h.findIndex(k => /^status$/i.test(k));
+    var colPayStatus = h.findIndex(k => /payment\s*status/i.test(k));
+    var colOrigAmt = h.findIndex(k => /original\s*amount|ដើម/i.test(k));
     
     var colBal = h.findIndex(k => /^balance$/i.test(k));
     if(colBal < 0) colBal = h.findIndex(k => /balance/i.test(k));
@@ -1739,10 +1744,17 @@ function parseAgedReport(aoa) {
 
         var invVal = colInv >= 0 ? String(r[colInv]||'').trim() : '';
         if(/^INV/i.test(invVal) || (colMod >= 0 && /AR-IN/i.test(String(r[colMod]||'')) && invVal)) {
-            var amt = colBal >= 0 ? parseFloat(String(r[colBal]).replace(/[^0-9.-]/g,'')) : 0;
-            if(isNaN(amt)) amt = 0;
+            var bal = colBal >= 0 ? parseFloat(String(r[colBal]).replace(/[^0-9.-]/g,'')) : 0;
+            if(isNaN(bal)) bal = 0;
 
-            custRunningBal[currentCust] = (custRunningBal[currentCust] || 0) + amt;
+            var origAmt = colOrigAmt >= 0 ? parseFloat(String(r[colOrigAmt]).replace(/[^0-9.-]/g,'')) : bal;
+            if(isNaN(origAmt) || origAmt === 0) origAmt = bal;
+
+            var paidBefore = Math.max(0, Math.round((origAmt - bal) * 100) / 100);
+            var payStatus = colPayStatus >= 0 ? String(r[colPayStatus]||'').trim() : (paidBefore > 0.005 ? 'Partially Paid' : 'Unpaid');
+            var status = colStatus >= 0 ? String(r[colStatus]||'').trim() : 'Posted';
+
+            custRunningBal[currentCust] = (custRunningBal[currentCust] || 0) + bal;
             custInvoiceIndex[currentCust] = (custInvoiceIndex[currentCust] || 0) + 1;
 
             var obj = {
@@ -1755,8 +1767,12 @@ function parseAgedReport(aoa) {
                 'Reference': colRef >= 0 ? String(r[colRef]||'').trim() : '',
                 'Date': colDate >= 0 ? r[colDate] : '',
                 'Description': colDesc >= 0 ? String(r[colDesc]||'').trim() : '',
-                'Amount': amt,
-                'Balance': amt,
+                'Original Amount': origAmt,
+                'Amount': origAmt,
+                'Balance': bal,
+                'Paid Before': paidBefore,
+                'Payment Status': payStatus,
+                'Status': status,
                 'Running Balance': Math.round(custRunningBal[currentCust] * 100) / 100
             };
 
@@ -1769,7 +1785,7 @@ function parseAgedReport(aoa) {
     }
 
     return {
-        h: ['Customer Name', 'Customer ID', 'No', 'Module', 'Entry No', 'Invoice No', 'Reference', 'Date', 'Description', 'Amount', 'Running Balance'].concat(h),
+        h: ['Customer Name', 'Customer ID', 'No', 'Module', 'Entry No', 'Invoice No', 'Reference', 'Date', 'Description', 'Original Amount', 'Amount', 'Balance', 'Paid Before', 'Payment Status', 'Status', 'Running Balance'].concat(h),
         rows: rows,
         isAgedReport: true
     };
@@ -2342,6 +2358,23 @@ function build() {
             var v = (balKey && !isNaN(num(x[balKey]))) ? num(x[balKey]) : (m.db ? num(x[m.db]) : ((m.cr && !/running/i.test(m.cr) ? num(x[m.cr]) : 0) || 0));
             var en = m.entry ? String(x[m.entry]||'').trim() : '';
 
+            // Original Amount key detection
+            var origKey = null;
+            if(m.orig && x[m.orig] != null && String(x[m.orig]).trim() !== '') {
+                origKey = m.orig;
+            } else if(x['Original Amount'] != null && String(x['Original Amount']).trim() !== '') {
+                origKey = 'Original Amount';
+            } else if(x['original_amount'] != null && String(x['original_amount']).trim() !== '') {
+                origKey = 'original_amount';
+            } else if(x['Amount'] != null && String(x['Amount']).trim() !== '' && balKey !== 'Amount') {
+                origKey = 'Amount';
+            }
+            var origVal = (origKey && !isNaN(num(x[origKey]))) ? num(x[origKey]) : v;
+            if(origVal === 0 && v > 0) origVal = v;
+            var balVal = v;
+            var paidBeforeVal = x['Paid Before'] != null ? num(x['Paid Before']) : Math.max(0, Math.round((origVal - balVal) * 100) / 100);
+            var payStatusVal = x['Payment Status'] || (m.payStatus ? String(x[m.payStatus]||'') : '') || (paidBeforeVal > 0.005 ? 'Partially Paid' : 'Unpaid');
+
             // Invoice No detection: strictly prioritize invoice numbers starting with INV
             var inv = '';
             if(x['Invoice No'] && /^INV/i.test(String(x['Invoice No']).trim())) {
@@ -2415,7 +2448,11 @@ function build() {
                 date: dVal,
                 party: p,
                 custId: custIdVal,
-                amt: v,
+                amt: origVal,
+                origAmt: origVal,
+                bal: balVal,
+                paidBefore: paidBeforeVal,
+                payStatus: payStatusVal,
                 runBal: x['Running Balance'] != null ? x['Running Balance'] : null,
                 entry: en,
                 desc: descVal,
@@ -2586,7 +2623,8 @@ function run() {
         var running = 0;
         D.inv.forEach((v, idx) => {
             v.no = idx + 1;
-            running += v.amt;
+            var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+            running += bAmt;
             v.runBal = Math.round(running * 100) / 100;
         });
     });
@@ -2638,26 +2676,31 @@ function run() {
         D.before = before; D.per = per; D.lastD = lastD || to; D.owed = 0;
 
         D.inv.forEach(v => {
+            var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+            var initPaid = (v.paidBefore != null && !isNaN(v.paidBefore)) ? v.paidBefore : 0;
+
             if(v.paidInOR != null && v.paidInOR > 0 && per === 0 && before === 0) {
-                v.pb = 0;
+                v.pb = initPaid;
                 v.pp = v.paidInOR;
-                v.rem = Math.max(0, v.amt - v.pp);
+                v.rem = Math.max(0, Math.round((bAmt - v.pp) * 100) / 100);
             } else {
-                var a = Math.min(v.amt, before);
-                v.pb = a;
+                var a = Math.min(bAmt, before);
+                v.pb = Math.round((initPaid + a) * 100) / 100;
                 before -= a;
-                var b = Math.min(v.amt - v.pb, per);
-                v.pp = b;
+                var b = Math.min(bAmt - a, per);
+                v.pp = Math.round(b * 100) / 100;
                 per -= b;
-                v.rem = Math.max(0, v.amt - v.pb - v.pp);
+                v.rem = Math.max(0, Math.round((bAmt - a - b) * 100) / 100);
             }
-            D.owed += v.amt;
+            D.owed += bAmt;
         });
 
         D.extra = before + per;
-        D.paidTotal = D.inv.reduce((s, v) => s + (v.pb||0) + (v.pp||0), 0);
-        D.paidPer = D.inv.reduce((s, v) => s + (v.pp||0), 0);
-        D.rem = Math.max(0, D.owed - D.paidTotal);
+        D.paidCurrent = D.inv.reduce((s, v) => s + (v.pp||0), 0);
+        D.paidBeforeTotal = D.inv.reduce((s, v) => s + (v.pb||0), 0);
+        D.origTotal = D.inv.reduce((s, v) => s + (v.origAmt || v.amt || 0), 0);
+        D.paidTotal = D.paidCurrent;
+        D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
 
         tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
     });
@@ -2775,7 +2818,7 @@ function render() {
         h += '<details' + (filterTxt ? ' open' : '') + '><summary>' +
              '<div><b>' + esc(n) + '</b></div>' +
              '<div class="row" style="gap:8px;align-items:center">' +
-             '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + ' · នៅសល់ ' + remHtml + '</span> ' +
+             '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + (D.paidBeforeTotal > 0.005 ? ' (សងមុន ' + fmt(D.paidBeforeTotal) + ')' : '') + ' · នៅសល់ ' + remHtml + '</span> ' +
              st + ' ' +
              tgBadge + ' ' +
              (hasInv ? '<button type="button" class="btn-print-mini" data-print="' + esc(n) + '" title="បោះពុម្ពឯកសារយោង (Print Reference Statement)" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer">🖨️ Print</button>' : '') +
@@ -2805,7 +2848,10 @@ function render() {
                   '</div></div>';
 
             h += tgBanner;
-            h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p>' +
+            h += '<p class="mu" style="margin-top:0">' +
+                 (D.paidBeforeTotal > 0.005 ? '<span style="color:#b45309;font-weight:600">សងមុនសរុប៖ ' + fmt(D.paidBeforeTotal) + '</span> · ' : '') +
+                 'ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រពេលនេះ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') +
+                 ' · <b style="color:var(--tx)">បំណុលនៅសល់ជាក់ស្ដែង៖ ' + fmt(D.rem) + '</b></p>' +
                  '<div class="row" style="margin-bottom:8px">' +
                  '<button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button>' +
                  '<button data-cl="' + esc(n) + '">✗ សម្អាត</button>' +
@@ -2834,7 +2880,14 @@ function render() {
                  '</tr></thead><tbody>';
 
             D.inv.forEach((v, idx) => {
-                var s = v.rem <= 0.005 ? '<span class="ok">សងគ្រប់</span>' : ((v.pb + v.pp) > 0 ? '<span class="wa">សងមួយផ្នែក</span>' : '<span class="er">មិនទាន់</span>');
+                var s = '';
+                if(v.rem <= 0.005) {
+                    s = '<span class="ok">សងគ្រប់</span>';
+                } else if(v.pp > 0 || v.pb > 0 || (v.payStatus && /partial/i.test(v.payStatus))) {
+                    s = '<span class="wa">សងមួយផ្នែក</span>';
+                } else {
+                    s = '<span class="er">មិនទាន់</span>';
+                }
                 var hasPaid = (v.pp > 0) || (v.pb > 0) || (v.paidInOR != null && v.paidInOR > 0);
                 h += '<tr>' +
                      '<td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (hasPaid ? '' : ' disabled') + '></td>' +
@@ -2844,11 +2897,11 @@ function render() {
                      '<td>' + esc(v.ref || '') + '</td>' +
                      '<td>' + (v.date ? dmy(v.date) : '') + '</td>' +
                      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(v.desc) + '">' + esc(v.desc) + '</td>' +
-                     '<td class="n">' + fmt(v.amt) + '</td>' +
-                     '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : v.amt) + '</td>' +
-                     '<td class="n">' + fmt(v.pb) + '</td>' +
+                     '<td class="n">' + fmt(v.origAmt != null ? v.origAmt : v.amt) + '</td>' +
+                     '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : (v.bal != null ? v.bal : v.amt)) + '</td>' +
+                     '<td class="n" style="' + (v.pb > 0 ? 'color:#b45309;font-weight:600' : '') + '">' + fmt(v.pb) + '</td>' +
                      '<td class="n" style="font-weight:bold;color:' + (v.pp > 0 ? 'var(--ok)' : 'inherit') + '">' + fmt(v.pp) + '</td>' +
-                     '<td class="n">' + fmt(v.rem) + '</td>' +
+                     '<td class="n" style="font-weight:600">' + fmt(v.rem) + '</td>' +
                      '<td>' + s + '</td>' +
                      '</tr>';
             });
@@ -2920,15 +2973,20 @@ function openPrintModal(custName) {
     var rowsHtml = '';
 
     D.inv.forEach((v, idx) => {
-        totalAmt += v.amt;
+        var invAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+        totalAmt += invAmt;
+        var descText = esc(v.desc || '');
+        if(v.paidBefore > 0.005) {
+            descText += ' <span style="color:#b45309;font-size:0.75rem">(ដើម $' + fmt(v.origAmt) + ' - សងមុន $' + fmt(v.paidBefore) + ')</span>';
+        }
         rowsHtml += '<tr>' +
             '<td style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (idx + 1) + '</td>' +
             '<td style="border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.module || 'AR-IN') + '</td>' +
             '<td style="border:1px solid #cbd5e1;padding:5px 6px"><b>' + esc(v.inv) + '</b></td>' +
             '<td style="border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.ref || '') + '</td>' +
             '<td style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (v.date ? dmy(v.date) : '') + '</td>' +
-            '<td style="max-width:280px;white-space:normal;word-break:break-word;border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.desc || '') + '</td>' +
-            '<td class="n" style="text-align:right;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(v.amt) + '</td>' +
+            '<td style="max-width:280px;white-space:normal;word-break:break-word;border:1px solid #cbd5e1;padding:5px 6px">' + descText + '</td>' +
+            '<td class="n" style="text-align:right;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(invAmt) + '</td>' +
             '<td class="n" style="text-align:right;font-weight:600;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(v.runBal != null ? v.runBal : totalAmt) + '</td>' +
         '</tr>';
     });
@@ -3124,15 +3182,20 @@ function exportCustomerStatementExcel(custName) {
 
     var totalAmt = 0;
     D.inv.forEach((v, idx) => {
-        totalAmt += v.amt;
+        var invAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+        totalAmt += invAmt;
+        var descText = v.desc || '';
+        if(v.paidBefore > 0.005) {
+            descText += ' (ដើម $' + fmt(v.origAmt) + ' - សងមុន $' + fmt(v.paidBefore) + ')';
+        }
         s1.push([
             idx + 1,
             v.module || 'AR-IN',
             v.inv || '',
             v.ref || '',
             v.date ? dmy(v.date) : '',
-            v.desc || '',
-            v.amt,
+            descText,
+            invAmt,
             v.runBal != null ? v.runBal : Math.round(totalAmt * 100) / 100
         ]);
     });
@@ -3215,15 +3278,20 @@ function exportCustomerStatementCSV(custName) {
 
     var totalAmt = 0;
     D.inv.forEach((v, idx) => {
-        totalAmt += v.amt;
+        var invAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+        totalAmt += invAmt;
+        var descText = v.desc || '';
+        if(v.paidBefore > 0.005) {
+            descText += ' (ដើម $' + fmt(v.origAmt) + ' - សងមុន $' + fmt(v.paidBefore) + ')';
+        }
         rows.push([
             idx + 1,
             q(v.module || 'AR-IN'),
             q(v.inv || ''),
             q(v.ref || ''),
             q(v.date ? dmy(v.date) : ''),
-            q(v.desc || ''),
-            v.amt,
+            q(descText),
+            invAmt,
             v.runBal != null ? v.runBal : Math.round(totalAmt * 100) / 100
         ]);
     });
@@ -3541,10 +3609,13 @@ function openTelegramModal(custName, autoSend) {
     $('tgUsernameInput').value = targetTg || (custNo === 'C00007' ? '@OngMach2026' : '');
     if($('tgBotTokenInput')) $('tgBotTokenInput').value = localStorage.getItem('aba_tg_bot_token') || ($('cfgTgBotToken') ? $('cfgTgBotToken').value.trim() : '');
 
-    var totalAmt = D.inv.reduce((s, v) => s + v.amt, 0);
+    var totalAmt = D.inv.reduce((s, v) => s + ((v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0)), 0);
+    var origTotalAmt = D.inv.reduce((s, v) => s + (v.origAmt || v.amt || 0), 0);
+    var paidBeforeAmt = D.inv.reduce((s, v) => s + (v.paidBefore || 0), 0);
     $('tgStatementSummary').innerHTML = 
         'កាលបរិច្ឆេទ៖ <b>' + dmy(new Date()) + '</b><br>' +
         'ចំនួនវិក័យបត្រ៖ <b>' + D.inv.length + ' សន្លឹក</b><br>' +
+        (paidBeforeAmt > 0.005 ? 'ចំនួនដើមសរុប៖ <b>$' + fmt(origTotalAmt) + '</b> · សងមុន៖ <b style="color:#b45309">$' + fmt(paidBeforeAmt) + '</b><br>' : '') +
         'សមតុល្យសរុប (Total Balance)៖ <b style="color:var(--er);font-size:1.05em">$' + fmt(totalAmt) + '</b>';
 
     $('tgStatusMsg').style.display = 'none';
