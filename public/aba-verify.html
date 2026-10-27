@@ -288,6 +288,7 @@ summary:hover{background:var(--bg)}
         <button id="btnSaveExcel" style="background:#16a34a;border-color:#16a34a;color:#fff">📊 រក្សាទុក Excel</button>
         <button id="btnSaveCSV" style="background:#475569;border-color:#475569;color:#fff">📄 រក្សាទុក CSV</button>
         <button id="btnSendTelegram" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>
+        <button id="btnCopyInvoice" style="background:#4f46e5;border-color:#4338ca;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:4px" title="ចម្លងរូបភាព និងព័ត៌មានវិក័យបត្រ Statement ចូល Clipboard">📋 Copy invoice</button>
         <button id="btnCloseModal" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626">✕ បិទ</button>
       </div>
     </div>
@@ -3633,6 +3634,150 @@ function closePrintModal() {
     $('printModal').classList.remove('active');
 }
 
+function showToast(msg) {
+    var toast = document.getElementById('globalToast');
+    if(!toast) {
+        toast = document.createElement('div');
+        toast.id = 'globalToast';
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0f172a;color:#fff;padding:12px 20px;border-radius:8px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.3);font-size:0.86rem;font-weight:500;z-index:99999;transition:opacity 0.3s,transform 0.3s;opacity:0;transform:translateY(10px);pointer-events:none;max-width:440px;line-height:1.45';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+    }, 3500);
+}
+
+async function copyInvoiceStatement(custName) {
+    custName = custName || currentPrintCustomer;
+    if(!res || !res.docs || !res.docs[custName]) {
+        alert('សូមបើកមើលវិក័យបត្ររបស់អតិថិជនជាមុន');
+        return;
+    }
+
+    var btn = $('btnCopyInvoice');
+    var origText = btn ? btn.innerHTML : '📋 Copy invoice';
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ កំពុងចម្លង...';
+    }
+
+    var docEl = document.getElementById('printDocument');
+    if(!docEl) {
+        if(btn) { btn.disabled = false; btn.innerHTML = origText; }
+        alert('មិនទាន់មានទិន្នន័យវិក័យបត្រសម្រាប់ចម្លងទេ');
+        return;
+    }
+
+    var D = res.docs[custName];
+    var meta = D.meta || {};
+    var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
+    var prof = (typeof getCustomerProfile === 'function') ? getCustomerProfile(custName, custNo) : null;
+    var phone = (prof && prof.phone) || meta.phone || '-';
+    var address = (prof && prof.address) || meta.address || '-';
+    var curDateStr = dmy(new Date());
+
+    // Build structured text summary
+    var totalAmt = (D.owed != null ? D.owed : (D.rem != null ? D.rem : 0));
+    var textLines = [];
+    textLines.push('ខេមា ឌីជីថល ដេនថល សូលូសិន (Khema Digital Dental Solution)');
+    textLines.push('របាយការណ៍អតិថិជន / CUSTOMER STATEMENT');
+    textLines.push('----------------------------------------');
+    textLines.push('អតិថិជន (Customer): ' + custName + (custNo ? ' (' + custNo + ')' : ''));
+    if(phone && phone !== '-') textLines.push('ទូរស័ព្ទ (Telephone): ' + phone);
+    if(address && address !== '-') textLines.push('អាសយដ្ឋាន (Address): ' + address);
+    textLines.push('កាលបរិច្ឆេទ (Date): ' + curDateStr);
+    textLines.push('----------------------------------------');
+    textLines.push('បញ្ជីវិក័យបត្រ (Invoices):');
+    if(D.inv && D.inv.length) {
+        D.inv.forEach((v, idx) => {
+            var invAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+            var refStr = v.ref ? (' | Ref: ' + v.ref) : '';
+            var descStr = v.desc ? ('\n   ' + v.desc) : '';
+            textLines.push((idx + 1) + '. ' + v.inv + refStr + ' | ថ្ងៃ: ' + (v.date ? dmy(v.date) : '-') + ' | ចំនួន: $' + fmt(invAmt) + descStr);
+        });
+    }
+    textLines.push('----------------------------------------');
+    textLines.push('សមតុល្យសរុប (Total Balance): $' + fmt(totalAmt));
+    var textSummary = textLines.join('\n');
+
+    try {
+        var copySuccess = false;
+
+        // 1. Capture and copy high-res image of the statement
+        if(typeof html2canvas === 'function' && navigator.clipboard && window.ClipboardItem) {
+            try {
+                var canvas = await html2canvas(docEl, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                var blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if(blob) {
+                    try {
+                        var clipData = { 'image/png': blob };
+                        if(window.Blob) {
+                            clipData['text/plain'] = new Blob([textSummary], { type: 'text/plain' });
+                        }
+                        await navigator.clipboard.write([new ClipboardItem(clipData)]);
+                        copySuccess = true;
+                    } catch(multiErr) {
+                        try {
+                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                            copySuccess = true;
+                        } catch(imgErr) {
+                            console.warn('Image-only clipboard write failed:', imgErr);
+                        }
+                    }
+                }
+            } catch(canvasErr) {
+                console.warn('html2canvas capture error:', canvasErr);
+            }
+        }
+
+        // 2. Fallback to writing text if image copy didn't succeed
+        if(!copySuccess) {
+            if(navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(textSummary);
+                copySuccess = true;
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = textSummary;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                copySuccess = true;
+            }
+        }
+
+        // 3. Success feedback
+        if(btn) {
+            btn.innerHTML = '✅ បានចម្លង (Copied)!';
+            btn.style.background = '#16a34a';
+            btn.style.borderColor = '#15803d';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                btn.style.background = '#4f46e5';
+                btn.style.borderColor = '#4338ca';
+            }, 2500);
+        }
+
+        showToast('✅ បានចម្លង (Copy) រូបភាពវិក័យបត្រ Statement ចូល Clipboard រួចរាល់!<br><small>លោកអ្នកអាចចុច <b>Ctrl+V (Paste)</b> ក្នុង Telegram ឬកម្មវិធីផ្សេងៗបានភ្លាមៗ</small>');
+
+    } catch(err) {
+        console.error('Copy invoice failed:', err);
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
+        alert('មិនអាចចម្លងវិក័យបត្របានទេ៖ ' + (err.message || ''));
+    }
+}
+
 function exportModalPNG(custName) {
     var el = document.getElementById('printDocument');
     if(!el) return;
@@ -4012,6 +4157,7 @@ $('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
 $('btnSaveExcel').onclick = () => exportCustomerStatementExcel(currentPrintCustomer);
 $('btnSaveCSV').onclick = () => exportCustomerStatementCSV(currentPrintCustomer);
 $('btnSendTelegram').onclick = () => openTelegramModal(currentPrintCustomer, true);
+if($('btnCopyInvoice')) $('btnCopyInvoice').onclick = () => copyInvoiceStatement(currentPrintCustomer);
 $('btnCloseModal').onclick = () => closePrintModal();
 $('printModal').onclick = e => { if(e.target === $('printModal')) closePrintModal(); };
 
