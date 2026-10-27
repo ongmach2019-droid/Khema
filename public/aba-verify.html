@@ -1954,7 +1954,7 @@ function isAbaStatementAOA(aoa) {
     if(!aoa || !aoa.length) return false;
     for(var i = 0; i < Math.min(aoa.length, 120); i++) {
         var str = (aoa[i] || []).join(' ');
-        if(/ACCOUNT ACTIVITY|FUNDS RECEIVED FROM|ORIGINAL AMOUNT|REF#\s*100FT/i.test(str)) return true;
+        if(/ACCOUNT ACTIVITY|FUNDS RECEIVED FROM|REF#\s*100FT|FUNDS TRANSFER/i.test(str)) return true;
     }
     return false;
 }
@@ -4426,18 +4426,6 @@ function restoreSavedData() {
 }
 
 restoreSavedData();
-
-window.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible' && (!RAW.aba || !FILES.length)) {
-        restoreSavedData();
-    }
-});
-
-window.addEventListener('focus', () => {
-    if(!RAW.aba || !FILES.length) {
-        restoreSavedData();
-    }
-});
 
 </script>
 

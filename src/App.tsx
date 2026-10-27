@@ -309,13 +309,11 @@ export default function App() {
               />
             )}
 
-            <div
-              className={`w-full flex-1 flex flex-col ${
-                currentTab === 'aba-verify' ? '' : 'hidden'
-              }`}
-            >
-              <AbaVerifyScreen />
-            </div>
+            {currentTab === 'aba-verify' && (
+              <div className="w-full flex-1 flex flex-col">
+                <AbaVerifyScreen />
+              </div>
+            )}
 
             {currentTab === 'upload-ingestion' && (
               <UploadIngestionScreen
