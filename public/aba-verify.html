@@ -117,6 +117,10 @@ summary:hover{background:var(--bg)}
 .btn-tg-pending{padding:2px 8px;font-size:.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer;font-weight:600}
 .btn-tgf{padding:3px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
 .btn-tgf.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
+.btn-tg-tab{padding:4px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
+.btn-tg-tab.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
+.tg-dir-input{width:100%;height:28px;font-size:.82rem;padding:3px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#0284c7;font-weight:600}
+.tg-dir-input:focus{border-color:#0284c7;outline:none;background:#f0f9ff}
 </style>
 
 </head>
@@ -125,9 +129,13 @@ summary:hover{background:var(--bg)}
 
 <main>
 
-<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;gap:8px">
 
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
+
+  <button type="button" id="btnOpenTgManager" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+    📱 តារាង Telegram គ្រូពេទ្យ (<span id="btnTgCount">0</span>)
+  </button>
 
 </div>
 
@@ -287,8 +295,13 @@ summary:hover{background:var(--bg)}
           គណនី Telegram ឬ លេខទូរសព្ទគ្រូពេទ្យ (Telegram Username / Phone):
         </label>
         <input type="text" id="tgUsernameInput" placeholder="@username ឬ លេខទូរសព្ទ (ឧ. @OngMach2026 ឬ 0975973959)" style="width:100%;height:36px;font-size:0.92rem;font-weight:600;color:#0284c7;padding:4px 10px;border:1.5px solid #0284c7;border-radius:6px">
-        <div class="mu" style="font-size:0.75rem;margin-top:4px">
-          💡 អាចបញ្ចូល Username <b>@OngMach2026</b> ឬ លេខទូរសព្ទ <b>0975973959</b> សម្រាប់គ្រូពេទ្យ <b>C00007</b>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px">
+          <div class="mu" style="font-size:0.75rem" id="tgCustomerHint">
+            💡 អាចបញ្ចូល Username ឬ លេខទូរសព្ទសម្រាប់គ្រូពេទ្យនេះ
+          </div>
+          <button type="button" id="btnManageTgFromModal" style="background:#f0f9ff;border:1px solid #bae6fd;color:#0284c7;cursor:pointer;font-size:0.75rem;padding:3px 8px;border-radius:4px;font-weight:600">
+            📋 បើកតារាង Telegram គ្រូពេទ្យទាំងអស់
+          </button>
         </div>
       </div>
 
@@ -311,6 +324,89 @@ summary:hover{background:var(--bg)}
           🤖 ផ្ញើអូតូតាម Bot (ផ្ញើតែរូបភាព)
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Telegram Doctor Directory / Manager Modal -->
+<div id="tgManagerModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:860px;height:90vh;max-height:850px">
+    <div class="modal-header" style="background:#0284c7;color:#fff">
+      <div>
+        <h3 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px">
+          📱 តារាងគណនី Telegram គ្រូពេទ្យ (Doctor Telegram Directory)
+        </h3>
+        <span style="font-size:0.75rem;color:#e0f2fe">គ្រប់គ្រង និងបន្ថែម Username Telegram ឬលេខទូរសព្ទសម្រាប់គ្រូពេទ្យទាំងអស់</span>
+      </div>
+      <button type="button" id="btnCloseTgManagerModal" style="background:transparent;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+    
+    <div class="modal-body" style="padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+      
+      <!-- 1. Add New Doctor Telegram Form -->
+      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px">
+        <div style="font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:8px">
+          ➕ បន្ថែមគណនី Telegram ថ្មី (Add Doctor Telegram):
+        </div>
+        <div class="row" style="gap:8px">
+          <input type="text" id="newTgDocId" placeholder="លេខកូដ (ឧ. C00045)" style="width:130px;font-weight:600;text-transform:uppercase">
+          <input type="text" id="newTgDocName" placeholder="ឈ្មោះពេទ្យ / គ្លីនិក (ជម្រើស)" style="flex:1;min-width:160px">
+          <input type="text" id="newTgUsername" placeholder="Telegram @username ឬ លេខទូរសព្ទ" style="width:220px;font-weight:600;color:#0284c7">
+          <button type="button" id="btnAddTgDoc" style="background:#0284c7;color:#fff;border:none;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer">
+            + បន្ថែម
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Controls & Actions Bar -->
+      <div class="row" style="justify-content:space-between;gap:8px;align-items:center">
+        <div class="row" style="gap:6px;flex:1">
+          <input type="text" id="searchTgDir" placeholder="🔍 ស្វែងរកតាម ID, ឈ្មោះ, ឬ Telegram..." style="width:240px;height:30px">
+          <button type="button" class="btn-tg-tab on" data-tgtab="all">ទាំងអស់ (<span id="tgTotalCnt">0</span>)</button>
+          <button type="button" class="btn-tg-tab" data-tgtab="has" style="color:#047857">✓ មាន Telegram (<span id="tgHasCnt">0</span>)</button>
+          <button type="button" class="btn-tg-tab" data-tgtab="missing" style="color:#b91c1c">⚠️ ខ្វះ Telegram (<span id="tgMissCnt">0</span>)</button>
+        </div>
+        <div class="row" style="gap:6px">
+          <button type="button" id="btnSyncFromLoaded" title="ទាញយកឈ្មោះ និង ID គ្រូពេទ្យទាំងអស់ពីឯកសារដែលបានបញ្ចូល" style="background:#f0f9ff;border:1px solid #bae6fd;color:#0284c7;font-weight:600;font-size:0.78rem;padding:4px 10px;border-radius:4px;cursor:pointer">
+            ⚡ ផ្ទុកគ្រូពេទ្យពីឯកសារ
+          </button>
+          <button type="button" id="btnImportTgExcel" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-size:0.78rem;padding:4px 10px;border-radius:4px;cursor:pointer">
+            📥 នាំចូល Excel
+          </button>
+          <button type="button" id="btnExportTgExcel" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-size:0.78rem;padding:4px 10px;border-radius:4px;cursor:pointer">
+            📤 ទាញយក Excel
+          </button>
+          <input type="file" id="fImportTg" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
+      </div>
+
+      <!-- 3. Directory Table View -->
+      <div style="flex:1;overflow-y:auto;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+          <thead style="position:sticky;top:0;background:#f1f5f9;z-index:2">
+            <tr>
+              <th style="width:40px;text-align:center;padding:8px 4px">ល.រ</th>
+              <th style="width:110px;padding:8px 6px">លេខកូដ (ID)</th>
+              <th style="padding:8px 8px">ឈ្មោះគ្រូពេទ្យ / គ្លីនិក</th>
+              <th style="width:240px;padding:8px 8px">Telegram Username / លេខទូរសព្ទ</th>
+              <th style="width:90px;text-align:center;padding:8px 6px">ស្ថានភាព</th>
+              <th style="width:100px;text-align:center;padding:8px 6px">សកម្មភាព</th>
+            </tr>
+          </thead>
+          <tbody id="tgDirTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 4. Footer -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
+        <span class="mu" id="tgDirStatusMsg">💡 ចុចលើប្រអប់ Telegram ក្នុងតារាងដើម្បីកែប្រែភ្លាមៗ (Auto-save)</span>
+        <button type="button" id="btnCloseTgManagerModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
+          ✕ បិទ
+        </button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -567,25 +663,73 @@ try {
     if(savedTgMap) TG_MAP = Object.assign(TG_MAP, JSON.parse(savedTgMap));
 } catch(e) {}
 
+// ============================================================================
+// DOCTOR TELEGRAM DIRECTORY (គ្រប់គ្រងតារាង Telegram គ្រូពេទ្យ)
+// ============================================================================
+var DEFAULT_TG_DIRECTORY = [
+    { id: 'C00007', name: 'Aesthetic Dental Clinic', tg: '@OngMach2026', phone: '0975973959' },
+    { id: 'C00013', name: 'Narun Dental Clinic', tg: '@Ziinea0024', phone: '' }
+];
+
+var TG_DIRECTORY = DEFAULT_TG_DIRECTORY.slice();
+try {
+    var savedDir = localStorage.getItem('aba_tg_directory');
+    if(savedDir) {
+        var parsedDir = JSON.parse(savedDir);
+        if(Array.isArray(parsedDir) && parsedDir.length) TG_DIRECTORY = parsedDir;
+    }
+} catch(e) {}
+
+function syncTgMapFromDirectory() {
+    TG_DIRECTORY.forEach(item => {
+        if(item.id && item.tg) {
+            var idUpper = String(item.id).trim().toUpperCase();
+            TG_MAP[String(item.id).trim()] = String(item.tg).trim();
+            TG_MAP[idUpper] = String(item.tg).trim();
+        }
+        if(item.name && item.tg) {
+            TG_MAP[String(item.name).trim()] = String(item.tg).trim();
+        }
+    });
+    localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+    localStorage.setItem('aba_tg_directory', JSON.stringify(TG_DIRECTORY));
+    if(typeof dbSet === 'function') dbSet('aba_tg_directory', TG_DIRECTORY);
+    updateTgCountBadge();
+}
+
+function updateTgCountBadge() {
+    var mapped = TG_DIRECTORY.filter(x => x.tg && String(x.tg).trim()).length;
+    var btn = $('btnTgCount');
+    if(btn) btn.textContent = mapped;
+}
+
 function ingestTelegramMap(t) {
     if(!t || !t.h || !t.rows) return;
     var fk = {}; t.h.forEach(k => { fk[k.toLowerCase()] = k; });
-    var kid = fk['id'] || fk['customer id'] || fk['customer no'] || fk['code'];
-    var ktg = fk['telegram name'] || fk['telegram'] || fk['tg name'] || fk['tg'] || fk['username'];
+    var kid = fk['id'] || fk['customer id'] || fk['customer no'] || fk['code'] || fk['doctor id'];
+    var kname = fk['name'] || fk['customer name'] || fk['doctor name'] || fk['doctor'] || fk['clinic'];
+    var ktg = fk['telegram name'] || fk['telegram'] || fk['tg name'] || fk['tg'] || fk['username'] || fk['telegram username / phone'] || fk['phone'];
     if(kid && ktg) {
         var added = 0;
         t.rows.forEach(r => {
-            var cid = String(r[kid]||'').trim();
+            var cid = String(r[kid]||'').trim().toUpperCase();
             var tg = String(r[ktg]||'').trim();
+            var name = kname ? String(r[kname]||'').trim() : '';
             if(cid && tg) {
                 if(!tg.startsWith('@') && !/^\+?\d+$/.test(tg)) tg = '@' + tg;
-                TG_MAP[cid] = tg;
-                TG_MAP[cid.toUpperCase()] = tg;
+                var existing = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cid);
+                if(existing) {
+                    existing.tg = tg;
+                    if(name && !existing.name) existing.name = name;
+                } else {
+                    TG_DIRECTORY.push({ id: cid, name: name || cid, tg: tg, phone: '' });
+                }
                 added++;
             }
         });
         if(added > 0) {
-            localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+            syncTgMapFromDirectory();
+            renderTgDirectoryTable();
         }
     }
 }
@@ -620,6 +764,8 @@ function formatTelegramTarget(target) {
 function getTelegramForCustomer(custName, custNo) {
     if(custNo) {
         var cUpper = String(custNo).trim().toUpperCase();
+        var item1 = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
+        if(item1 && item1.tg) return item1.tg;
         if(TG_MAP[cUpper]) return TG_MAP[cUpper];
         if(TG_MAP[custNo]) return TG_MAP[custNo];
     }
@@ -627,13 +773,299 @@ function getTelegramForCustomer(custName, custNo) {
         var mMatch = String(custName).match(/^([A-Z]\d{4,})/i);
         if(mMatch) {
             var cCode = mMatch[1].toUpperCase();
+            var item2 = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cCode);
+            if(item2 && item2.tg) return item2.tg;
             if(TG_MAP[cCode]) return TG_MAP[cCode];
         }
+        var cleanCustName = custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
+        var item3 = TG_DIRECTORY.find(x => x.name && (x.name === custName || x.name === cleanCustName));
+        if(item3 && item3.tg) return item3.tg;
         if(TG_MAP[custName]) return TG_MAP[custName];
     }
     if(custNo === 'C00007' || /C00007/i.test(custName)) return '@OngMach2026';
     if(custNo === 'C00013' || /C00013/i.test(custName)) return '@Ziinea0024';
     return '';
+}
+
+var currentTgManagerTab = 'all'; // 'all' | 'has' | 'missing'
+
+function openTelegramManagerModal(filterText) {
+    syncDoctorsFromLoadedFiles(false);
+    if(filterText) {
+        var searchInput = $('searchTgDir');
+        if(searchInput) searchInput.value = filterText;
+    }
+    renderTgDirectoryTable();
+    $('tgManagerModal').classList.add('active');
+}
+
+function closeTelegramManagerModal() {
+    $('tgManagerModal').classList.remove('active');
+}
+
+function syncDoctorsFromLoadedFiles(showNotice) {
+    if(!res || !res.names || !res.names.length) {
+        if(showNotice) alert('មិនទាន់មានទិន្នន័យគ្រូពេទ្យពីឯកសារដែលបានបញ្ចូលនៅឡើយទេ');
+        return;
+    }
+    var added = 0;
+    res.names.forEach(n => {
+        var D = res.docs[n];
+        var custNo = (D && D.meta && D.meta.custNo) || (D && D.customerId) || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
+        var cleanName = n.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim() || n;
+        if(custNo) custNo = custNo.toUpperCase();
+
+        var existing = TG_DIRECTORY.find(x => (custNo && x.id && x.id.toUpperCase() === custNo) || (x.name && x.name === cleanName) || (x.id && x.id === n));
+        if(!existing) {
+            var mappedTg = getTelegramForCustomer(n, custNo);
+            TG_DIRECTORY.push({
+                id: custNo || n,
+                name: cleanName,
+                tg: mappedTg || '',
+                phone: ''
+            });
+            added++;
+        } else if(!existing.tg) {
+            var mappedTg2 = getTelegramForCustomer(n, custNo);
+            if(mappedTg2) {
+                existing.tg = mappedTg2;
+            }
+        }
+    });
+
+    if(added > 0 || showNotice) {
+        syncTgMapFromDirectory();
+        renderTgDirectoryTable();
+        if(showNotice) {
+            alert('បានផ្ទុកទិន្នន័យគ្រូពេទ្យ ' + res.names.length + ' នាក់ពីឯកសារជោគជ័យ (បន្ថែមថ្មី ' + added + ' នាក់)!');
+        }
+    }
+}
+
+function renderTgDirectoryTable() {
+    var tbody = $('tgDirTableBody');
+    if(!tbody) return;
+
+    var search = ($('searchTgDir') ? $('searchTgDir').value : '').trim().toLowerCase();
+    var list = TG_DIRECTORY.slice();
+
+    list.sort((a, b) => {
+        var aId = a.id || '';
+        var bId = b.id || '';
+        var aNum = aId.match(/\d+/);
+        var bNum = bId.match(/\d+/);
+        if(aNum && bNum && aId.charAt(0) === bId.charAt(0)) {
+            return parseInt(aNum[0]) - parseInt(bNum[0]);
+        }
+        return aId.localeCompare(bId);
+    });
+
+    var hasCount = list.filter(x => x.tg && String(x.tg).trim()).length;
+    var missCount = list.length - hasCount;
+
+    if($('tgTotalCnt')) $('tgTotalCnt').textContent = list.length;
+    if($('tgHasCnt')) $('tgHasCnt').textContent = hasCount;
+    if($('tgMissCnt')) $('tgMissCnt').textContent = missCount;
+    updateTgCountBadge();
+
+    if(currentTgManagerTab === 'has') {
+        list = list.filter(x => x.tg && String(x.tg).trim());
+    } else if(currentTgManagerTab === 'missing') {
+        list = list.filter(x => !x.tg || !String(x.tg).trim());
+    }
+
+    if(search) {
+        list = list.filter(x => 
+            (x.id && x.id.toLowerCase().includes(search)) ||
+            (x.name && x.name.toLowerCase().includes(search)) ||
+            (x.tg && x.tg.toLowerCase().includes(search)) ||
+            (x.phone && x.phone.includes(search))
+        );
+    }
+
+    if(!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#64748b">រកមិនឃើញទិន្នន័យគ្រូពេទ្យឡើយ</td></tr>';
+        return;
+    }
+
+    var html = '';
+    list.forEach((item, idx) => {
+        var hasTg = item.tg && String(item.tg).trim();
+        var statusBadge = hasTg 
+            ? '<span class="tag ok" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:0.7rem;padding:2px 6px">✓ ភ្ជាប់រួច</span>'
+            : '<span class="tag wa" style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;font-size:0.7rem;padding:2px 6px">⚠️ ខ្វះ TG</span>';
+
+        html += '<tr style="border-bottom:1px solid #f1f5f9;background:' + (idx % 2 === 0 ? '#fff' : '#fafafa') + '">' +
+            '<td style="text-align:center;color:#94a3b8;font-size:0.75rem">' + (idx + 1) + '</td>' +
+            '<td style="font-weight:700;color:#0369a1">' + esc(item.id || '-') + '</td>' +
+            '<td style="font-weight:500;color:#1e293b">' + esc(item.name || '-') + '</td>' +
+            '<td>' +
+                '<input type="text" class="tg-dir-input" data-id="' + esc(item.id) + '" value="' + esc(item.tg || '') + '" placeholder="@username ឬ លេខទូរសព្ទ">' +
+            '</td>' +
+            '<td style="text-align:center">' + statusBadge + '</td>' +
+            '<td style="text-align:center">' +
+                '<div style="display:flex;gap:4px;justify-content:center">' +
+                    (hasTg 
+                        ? '<button type="button" class="btn-test-tg" data-test-tg="' + esc(item.tg) + '" title="សាកល្បង Chat ក្នុង Telegram" style="padding:2px 6px;font-size:0.72rem;background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;border-radius:4px;cursor:pointer">✈️</button>'
+                        : '') +
+                    '<button type="button" class="btn-del-tg" data-del-id="' + esc(item.id) + '" title="លុបចេញពីតារាង" style="padding:2px 6px;font-size:0.72rem;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:4px;cursor:pointer">🗑️</button>' +
+                '</div>' +
+            '</td>' +
+        '</tr>';
+    });
+
+    tbody.innerHTML = html;
+}
+
+function saveDoctorTg(id, rawVal, name) {
+    if(!id) return;
+    var val = (rawVal || '').trim();
+    if(val && !val.startsWith('@') && !/^\+?\d+$/.test(val)) {
+        val = '@' + val;
+    }
+    var item = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === id.toUpperCase());
+    if(item) {
+        item.tg = val;
+        if(name && !item.name) item.name = name;
+    } else {
+        TG_DIRECTORY.push({ id: id, name: name || id, tg: val, phone: /^\+?\d+$/.test(val) ? val : '' });
+    }
+    syncTgMapFromDirectory();
+    renderTgDirectoryTable();
+    if(typeof render === 'function') render();
+    
+    var msg = $('tgDirStatusMsg');
+    if(msg) {
+        msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានរក្សាទុក ' + esc(id) + ' → ' + esc(val || 'គ្មាន') + ' ដោយជោគជ័យ!</span>';
+        setTimeout(() => {
+            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់ Telegram ក្នុងតារាងដើម្បីកែប្រែភ្លាមៗ (Auto-save)';
+        }, 3000);
+    }
+}
+
+function addDoctorTgFromForm() {
+    var idInput = $('newTgDocId');
+    var nameInput = $('newTgDocName');
+    var tgInput = $('newTgUsername');
+    
+    var id = (idInput.value || '').trim().toUpperCase();
+    var name = (nameInput.value || '').trim();
+    var tg = (tgInput.value || '').trim();
+
+    if(!id) {
+        alert('សូមបញ្ចូលលេខកូដគ្រូពេទ្យ (ឧ. C00045)');
+        idInput.focus();
+        return;
+    }
+    if(!tg) {
+        alert('សូមបញ្ចូល Telegram @username ឬ លេខទូរសព្ទ');
+        tgInput.focus();
+        return;
+    }
+    if(!tg.startsWith('@') && !/^\+?\d+$/.test(tg)) {
+        tg = '@' + tg;
+    }
+
+    var existing = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === id);
+    if(existing) {
+        existing.tg = tg;
+        if(name) existing.name = name;
+    } else {
+        TG_DIRECTORY.push({
+            id: id,
+            name: name || id,
+            tg: tg,
+            phone: /^\+?\d+$/.test(tg) ? tg : ''
+        });
+    }
+
+    syncTgMapFromDirectory();
+    renderTgDirectoryTable();
+    if(typeof render === 'function') render();
+
+    idInput.value = '';
+    nameInput.value = '';
+    tgInput.value = '';
+    idInput.focus();
+
+    var msg = $('tgDirStatusMsg');
+    if(msg) {
+        msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានបន្ថែម ' + esc(id) + ' (' + esc(tg) + ') ទៅក្នុងតារាងរួចរាល់!</span>';
+        setTimeout(() => {
+            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់ Telegram ក្នុងតារាងដើម្បីកែប្រែភ្លាមៗ (Auto-save)';
+        }, 3000);
+    }
+}
+
+function deleteDoctorTg(id) {
+    if(!id) return;
+    if(!confirm('តើអ្នកចង់លុបគណនី Telegram របស់ ' + id + ' មែនទេ?')) return;
+    TG_DIRECTORY = TG_DIRECTORY.filter(x => !x.id || x.id.toUpperCase() !== id.toUpperCase());
+    delete TG_MAP[id];
+    delete TG_MAP[id.toUpperCase()];
+    syncTgMapFromDirectory();
+    renderTgDirectoryTable();
+    if(typeof render === 'function') render();
+}
+
+function exportTgDirectoryExcel() {
+    var data = [
+        ['Customer ID', 'Customer Name', 'Telegram Username / Phone', 'Status']
+    ];
+    TG_DIRECTORY.forEach(item => {
+        data.push([
+            item.id || '',
+            item.name || '',
+            item.tg || '',
+            (item.tg && item.tg.trim()) ? 'Mapped' : 'Missing'
+        ]);
+    });
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 25 }, { wch: 12 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Doctor_Telegram');
+    XLSX.writeFile(wb, 'Khema_Doctor_Telegram_List_' + iso(new Date()) + '.xlsx');
+}
+
+function importTgDirectoryExcel(file) {
+    readWB(file, wb => {
+        var ts = sheetsOf(wb);
+        if(!ts || !ts.length) { alert('រកមិនឃើញសន្លឹកទិន្នន័យ'); return; }
+        var added = 0;
+        ts.forEach(t => {
+            if(!t.h || !t.rows) return;
+            var fk = {}; t.h.forEach(k => { fk[k.toLowerCase()] = k; });
+            var kid = fk['id'] || fk['customer id'] || fk['customer no'] || fk['code'] || fk['doctor id'];
+            var kname = fk['name'] || fk['customer name'] || fk['doctor name'] || fk['doctor'] || fk['clinic'];
+            var ktg = fk['telegram name'] || fk['telegram'] || fk['tg name'] || fk['tg'] || fk['username'] || fk['telegram username / phone'] || fk['phone'];
+            if(kid && ktg) {
+                t.rows.forEach(r => {
+                    var cid = String(r[kid]||'').trim().toUpperCase();
+                    var tg = String(r[ktg]||'').trim();
+                    var name = kname ? String(r[kname]||'').trim() : '';
+                    if(cid && tg) {
+                        if(!tg.startsWith('@') && !/^\+?\d+$/.test(tg)) tg = '@' + tg;
+                        var existing = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cid);
+                        if(existing) {
+                            existing.tg = tg;
+                            if(name && !existing.name) existing.name = name;
+                        } else {
+                            TG_DIRECTORY.push({ id: cid, name: name || cid, tg: tg, phone: '' });
+                        }
+                        added++;
+                    }
+                });
+            }
+        });
+        if(added > 0) {
+            syncTgMapFromDirectory();
+            renderTgDirectoryTable();
+            if(typeof render === 'function') render();
+            alert('បាននាំចូលគណនី Telegram ចំនួន ' + added + ' ជោគជ័យ!');
+        } else {
+            alert('រកមិនឃើញជួរឈរ ID និង Telegram ក្នុងឯកសារនេះទេ (សូមពិនិត្យមើលឈ្មោះជួរឈរ ID និង Telegram)');
+        }
+    });
 }
 
 var tgFilter = 'all'; // 'all' | 'sent' | 'notsent'
@@ -1731,6 +2163,7 @@ function run() {
     });
 
     res = {docs: docs, names: names, unmatched: unmatched, tot: tot, from: from};
+    if(typeof syncDoctorsFromLoadedFiles === 'function') syncDoctorsFromLoadedFiles(false);
     render();
 }
 
@@ -1860,12 +2293,16 @@ function render() {
             var tgBanner = sentInfo
                 ? '<div style="display:flex;align-items:center;justify-content:space-between;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;padding:6px 12px;margin-bottom:10px;font-size:0.82rem;color:#047857">' +
                   '<span>✓ <b>បានផ្ញើទៅ Telegram រួចរាល់៖</b> ' + esc(sentInfo.target || getTelegramForCustomer(n, custNo) || 'Telegram') + (sentInfo.sentAt ? ' · ' + dmy(new Date(sentInfo.sentAt)) + ' ' + (new Date(sentInfo.sentAt)).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '') + '</span>' +
+                  '<div style="display:flex;gap:8px;align-items:center">' +
+                  '<button type="button" data-open-tg-manager="' + esc(custNo || n) + '" style="background:none;border:none;color:#0284c7;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">⚙️ កែ Telegram</button>' +
                   '<button type="button" data-untg="' + esc(n) + '" style="background:none;border:none;color:#64748b;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">ដោះសញ្ញាវិញ (Unmark)</button>' +
-                  '</div>'
+                  '</div></div>'
                 : '<div style="display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 12px;margin-bottom:10px;font-size:0.82rem;color:#b91c1c">' +
                   '<span>⏳ <b>មិនទាន់បានផ្ញើវិក័យបត្រតាម Telegram ទៅគ្រូពេទ្យនៅឡើយទេ</b>' + (getTelegramForCustomer(n, custNo) ? ' (Telegram: ' + esc(getTelegramForCustomer(n, custNo)) + ')' : '') + '</span>' +
-                  '<button type="button" data-marktg="' + esc(n) + '" style="background:none;border:none;color:#0284c7;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">សម្គាល់ថាបានផ្ញើរួច</button>' +
-                  '</div>';
+                  '<div style="display:flex;gap:8px;align-items:center">' +
+                  '<button type="button" data-open-tg-manager="' + esc(custNo || n) + '" style="background:none;border:none;color:#0284c7;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">⚙️ កំណត់ Telegram</button>' +
+                  '<button type="button" data-marktg="' + esc(n) + '" style="background:none;border:none;color:#15803d;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0">សម្គាល់ថាបានផ្ញើរួច</button>' +
+                  '</div></div>';
 
             h += tgBanner;
             h += '<p class="mu" style="margin-top:0">ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') + '</p>' +
@@ -1876,6 +2313,7 @@ function render() {
                  (sentInfo
                     ? '<button class="p" data-tg="' + esc(n) + '" style="background:#059669;border-color:#059669;color:#fff;font-weight:600">✓ ផ្ញើ Telegram ម្ដងទៀត</button>'
                     : '<button class="p" data-tg="' + esc(n) + '" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>') +
+                 '<button class="p" data-open-tg-manager="' + esc(custNo || n) + '" style="background:#f8fafc;border-color:#cbd5e1;color:#334155" title="កំណត់ ឬកែប្រែគណនី Telegram របស់គ្រូពេទ្យនេះ">📱 តារាង Telegram</button>' +
                  '<button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button>' +
                  '</div>' +
                  '<div class="tw"><table>' +
@@ -2273,6 +2711,11 @@ document.addEventListener('change', e => {
 
     var t = e.target;
 
+    if(t.classList && t.classList.contains('tg-dir-input')) {
+        saveDoctorTg(t.dataset.id, t.value.trim());
+        return;
+    }
+
     if(t.dataset.id != null) { sel[t.dataset.id] = t.checked; updateSelBtn(); }
 
     if(t.dataset.as != null && t.value) { assign[t.dataset.as] = t.value; run(); }
@@ -2284,6 +2727,38 @@ document.addEventListener('change', e => {
 document.addEventListener('click', e => {
 
     var t = e.target, n;
+
+    if(t.dataset.tgtab) {
+        e.stopPropagation();
+        e.preventDefault();
+        currentTgManagerTab = t.dataset.tgtab;
+        document.querySelectorAll('.btn-tg-tab').forEach(b => b.classList.remove('on'));
+        t.classList.add('on');
+        renderTgDirectoryTable();
+        return;
+    }
+
+    if(n = t.dataset.testTg) {
+        e.stopPropagation();
+        e.preventDefault();
+        var info = formatTelegramTarget(n);
+        window.open(info.url, '_blank');
+        return;
+    }
+
+    if(n = t.dataset.delId) {
+        e.stopPropagation();
+        e.preventDefault();
+        deleteDoctorTg(n);
+        return;
+    }
+
+    if(n = t.dataset.openTgManager) {
+        e.stopPropagation();
+        e.preventDefault();
+        openTelegramManagerModal(n);
+        return;
+    }
 
     if(t.dataset.tgf) {
         e.stopPropagation();
@@ -2365,6 +2840,42 @@ $('tgModal').onclick = e => { if(e.target === $('tgModal')) closeTelegramModal()
 $('btnTgSendAuto').onclick = () => sendTelegramAuto();
 $('btnTgDirectChat').onclick = () => openTelegramDirectChat();
 
+if($('btnOpenTgManager')) $('btnOpenTgManager').onclick = () => openTelegramManagerModal();
+if($('btnCloseTgManagerModal')) $('btnCloseTgManagerModal').onclick = () => closeTelegramManagerModal();
+if($('btnCloseTgManagerModal2')) $('btnCloseTgManagerModal2').onclick = () => closeTelegramManagerModal();
+if($('tgManagerModal')) $('tgManagerModal').onclick = e => { if(e.target === $('tgManagerModal')) closeTelegramManagerModal(); };
+if($('btnManageTgFromModal')) $('btnManageTgFromModal').onclick = () => { closeTelegramModal(); openTelegramManagerModal(currentPrintCustomer); };
+if($('btnAddTgDoc')) $('btnAddTgDoc').onclick = () => addDoctorTgFromForm();
+if($('searchTgDir')) $('searchTgDir').oninput = () => renderTgDirectoryTable();
+if($('btnSyncFromLoaded')) $('btnSyncFromLoaded').onclick = () => syncDoctorsFromLoadedFiles(true);
+if($('btnExportTgExcel')) $('btnExportTgExcel').onclick = () => exportTgDirectoryExcel();
+if($('btnImportTgExcel')) $('btnImportTgExcel').onclick = () => { if($('fImportTg')) $('fImportTg').click(); };
+if($('fImportTg')) $('fImportTg').onchange = e => { if(e.target.files && e.target.files[0]) { importTgDirectoryExcel(e.target.files[0]); e.target.value = ''; } };
+
+['newTgDocId', 'newTgDocName', 'newTgUsername'].forEach(id => {
+    var el = $(id);
+    if(el) {
+        el.addEventListener('keydown', e => {
+            if(e.key === 'Enter') {
+                e.preventDefault();
+                addDoctorTgFromForm();
+            }
+        });
+    }
+});
+
+document.addEventListener('blur', e => {
+    if(e.target && e.target.classList && e.target.classList.contains('tg-dir-input')) {
+        saveDoctorTg(e.target.dataset.id, e.target.value.trim());
+    }
+}, true);
+
+document.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('tg-dir-input')) {
+        e.target.blur();
+    }
+});
+
 if($('custSearch')) $('custSearch').oninput = () => render();
 
 // ============================================================================
@@ -2422,10 +2933,11 @@ async function sendTelegramAuto() {
         return;
     }
 
-    // Save to TG_MAP
+    // Save to TG_MAP and TG_DIRECTORY
     if(custNo) TG_MAP[custNo] = target;
     TG_MAP[custName] = target;
     localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+    if(typeof saveDoctorTg === 'function') saveDoctorTg(custNo || custName, target, custName);
 
     var botToken = ($('tgBotTokenInput') ? $('tgBotTokenInput').value.trim() : '') || ($('cfgTgBotToken') ? $('cfgTgBotToken').value.trim() : '') || localStorage.getItem('aba_tg_bot_token') || '';
     if(botToken) {
@@ -2524,6 +3036,7 @@ async function openTelegramDirectChat() {
     if(custNo) TG_MAP[custNo] = target;
     TG_MAP[custName] = target;
     localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+    if(typeof saveDoctorTg === 'function') saveDoctorTg(custNo || custName, target, custName);
 
     var stBox = $('tgStatusMsg');
     stBox.style.display = 'block';
@@ -2859,16 +3372,44 @@ $('exUn').onclick = () => {
 
 function restoreSavedData() {
     initBoxPlaceholders();
-    Promise.all([dbGet('acc_state'), dbGet('debt_state'), dbGet('aba_state'), dbGet('aba_tg_sent')]).then(results => {
+    Promise.all([
+        dbGet('acc_state'),
+        dbGet('debt_state'),
+        dbGet('aba_state'),
+        dbGet('aba_tg_sent'),
+        dbGet('aba_tg_directory'),
+        dbGet('aba_tg_map')
+    ]).then(results => {
         var accData = results[0];
         var debtData = results[1];
         var abaData = results[2];
         var sentData = results[3];
+        var tgDirData = results[4];
+        var tgMapData = results[5];
         var shouldRun = false;
 
         if(sentData && typeof sentData === 'object') {
             TG_SENT = Object.assign(TG_SENT, sentData);
         }
+
+        if(Array.isArray(tgDirData) && tgDirData.length) {
+            tgDirData.forEach(item => {
+                if(!item || !item.id) return;
+                var existing = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === item.id.toUpperCase());
+                if(existing) {
+                    if(item.tg) existing.tg = item.tg;
+                    if(item.name && !existing.name) existing.name = item.name;
+                    if(item.phone && !existing.phone) existing.phone = item.phone;
+                } else {
+                    TG_DIRECTORY.push(item);
+                }
+            });
+        }
+
+        if(tgMapData && typeof tgMapData === 'object') {
+            TG_MAP = Object.assign(TG_MAP, tgMapData);
+        }
+        if(typeof syncTgMapFromDirectory === 'function') syncTgMapFromDirectory();
 
         if(accData && accData.acc && accData.acc.length) {
             ACC = accData.acc;
