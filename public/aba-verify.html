@@ -1750,12 +1750,16 @@ function parseAgedReport(aoa) {
             var origAmt = colOrigAmt >= 0 ? parseFloat(String(r[colOrigAmt]).replace(/[^0-9.-]/g,'')) : bal;
             if(isNaN(origAmt) || origAmt === 0) origAmt = bal;
 
-            var paidBefore = Math.max(0, Math.round((origAmt - bal) * 100) / 100);
-            var payStatus = colPayStatus >= 0 ? String(r[colPayStatus]||'').trim() : (paidBefore > 0.005 ? 'Partially Paid' : 'Unpaid');
+            var payStatus = colPayStatus >= 0 ? String(r[colPayStatus]||'').trim() : (bal < origAmt ? 'Partially Paid' : 'Unpaid');
             var status = colStatus >= 0 ? String(r[colStatus]||'').trim() : 'Posted';
 
             custRunningBal[currentCust] = (custRunningBal[currentCust] || 0) + bal;
             custInvoiceIndex[currentCust] = (custInvoiceIndex[currentCust] || 0) + 1;
+
+            var descVal = colDesc >= 0 ? String(r[colDesc]||'').trim() : '';
+            if(origAmt > bal && !descVal.includes('ដើម $')) {
+                descVal += ' (ដើម $' + origAmt + ')';
+            }
 
             var obj = {
                 'Customer Name': currentCust,
@@ -1766,11 +1770,11 @@ function parseAgedReport(aoa) {
                 'Invoice No': invVal,
                 'Reference': colRef >= 0 ? String(r[colRef]||'').trim() : '',
                 'Date': colDate >= 0 ? r[colDate] : '',
-                'Description': colDesc >= 0 ? String(r[colDesc]||'').trim() : '',
+                'Description': descVal,
                 'Original Amount': origAmt,
-                'Amount': origAmt,
+                'Amount': bal,
                 'Balance': bal,
-                'Paid Before': paidBefore,
+                'Paid Before': 0,
                 'Payment Status': payStatus,
                 'Status': status,
                 'Running Balance': Math.round(custRunningBal[currentCust] * 100) / 100
@@ -2372,8 +2376,8 @@ function build() {
             var origVal = (origKey && !isNaN(num(x[origKey]))) ? num(x[origKey]) : v;
             if(origVal === 0 && v > 0) origVal = v;
             var balVal = v;
-            var paidBeforeVal = x['Paid Before'] != null ? num(x['Paid Before']) : Math.max(0, Math.round((origVal - balVal) * 100) / 100);
-            var payStatusVal = x['Payment Status'] || (m.payStatus ? String(x[m.payStatus]||'') : '') || (paidBeforeVal > 0.005 ? 'Partially Paid' : 'Unpaid');
+            var paidBeforeVal = (x['Paid Before'] != null && !isNaN(num(x['Paid Before']))) ? num(x['Paid Before']) : 0;
+            var payStatusVal = x['Payment Status'] || (m.payStatus ? String(x[m.payStatus]||'') : '') || (balVal < origVal ? 'Partially Paid' : 'Unpaid');
 
             // Invoice No detection: strictly prioritize invoice numbers starting with INV
             var inv = '';
@@ -2437,6 +2441,9 @@ function build() {
             var refVal = x['Reference'] || x['ref'] || (m.ref ? String(x[m.ref]||'').trim() : '');
             var modVal = x['Module'] || 'AR-IN';
             var descVal = x['Description'] || (m.desc ? String(x[m.desc]||'') : '') || x['Remark'] || '';
+            if(origVal > balVal && !descVal.includes('ដើម $')) {
+                descVal += ' (ដើម $' + origVal + ')';
+            }
             var custIdVal = x['Customer ID'] || (p.match(/^([A-Z]\d{4,})/i) ? p.match(/^([A-Z]\d{4,})/i)[1] : '');
 
             debts.push({
@@ -2448,7 +2455,7 @@ function build() {
                 date: dVal,
                 party: p,
                 custId: custIdVal,
-                amt: origVal,
+                amt: balVal,
                 origAmt: origVal,
                 bal: balVal,
                 paidBefore: paidBeforeVal,
@@ -2897,7 +2904,7 @@ function render() {
                      '<td>' + esc(v.ref || '') + '</td>' +
                      '<td>' + (v.date ? dmy(v.date) : '') + '</td>' +
                      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(v.desc) + '">' + esc(v.desc) + '</td>' +
-                     '<td class="n">' + fmt(v.origAmt != null ? v.origAmt : v.amt) + '</td>' +
+                     '<td class="n">' + fmt(v.amt) + '</td>' +
                      '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : (v.bal != null ? v.bal : v.amt)) + '</td>' +
                      '<td class="n" style="' + (v.pb > 0 ? 'color:#b45309;font-weight:600' : '') + '">' + fmt(v.pb) + '</td>' +
                      '<td class="n" style="font-weight:bold;color:' + (v.pp > 0 ? 'var(--ok)' : 'inherit') + '">' + fmt(v.pp) + '</td>' +
