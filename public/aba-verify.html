@@ -121,6 +121,13 @@ summary:hover{background:var(--bg)}
 .btn-tg-tab.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
 .tg-dir-input{width:100%;height:28px;font-size:.82rem;padding:3px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#0284c7;font-weight:600}
 .tg-dir-input:focus{border-color:#0284c7;outline:none;background:#f0f9ff}
+.btn-cust-tab{padding:4px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
+.btn-cust-tab.on{background:#059669;border-color:#059669;color:#fff !important}
+.cust-dir-input{width:100%;height:28px;font-size:.82rem;padding:3px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#1e293b}
+.cust-dir-input:focus{border-color:#059669;outline:none;background:#f0fdf4}
+@media print {
+  #btnToggleEditCust, #custInfoEditPanel, .no-print { display: none !important; }
+}
 </style>
 
 </head>
@@ -133,9 +140,14 @@ summary:hover{background:var(--bg)}
 
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
-  <button type="button" id="btnOpenTgManager" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
-    📱 តារាង Telegram គ្រូពេទ្យ (<span id="btnTgCount">0</span>)
-  </button>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button type="button" id="btnOpenCustomerManager" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+      👥 បញ្ជីអតិថិជន (<span id="btnCustCount">0</span>)
+    </button>
+    <button type="button" id="btnOpenTgManager" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+      📱 តារាង Telegram គ្រូពេទ្យ (<span id="btnTgCount">0</span>)
+    </button>
+  </div>
 
 </div>
 
@@ -411,6 +423,104 @@ summary:hover{background:var(--bg)}
   </div>
 </div>
 
+<!-- Customer Profiles Directory Modal -->
+<div id="custManagerModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:980px;height:88vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="background:#059669;color:#fff">
+      <h3 style="color:#fff;margin:0;display:flex;align-items:center;gap:6px">
+        👥 តារាងគ្រប់គ្រងព័ត៌មានអតិថិជន (Customer Profiles & Directory)
+      </h3>
+      <button type="button" id="btnCloseCustManagerModal" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+    
+    <div class="modal-body" style="padding:14px;display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden">
+      <!-- 1. Quick Add / Update Form -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 12px">
+        <div style="font-weight:700;color:#166534;margin-bottom:6px;font-size:0.86rem">
+          ➕ បន្ថែម ឬ កែប្រែព័ត៌មានអតិថិជនថ្មី (នឹងចងចាំដោយស្វ័យប្រវត្តិ)
+        </div>
+        <div style="display:grid;grid-template-columns:120px 1.2fr 1.2fr 1.2fr 1.5fr auto;gap:8px;align-items:flex-end">
+          <div>
+            <label style="font-size:0.75rem;color:#475569;display:block">Code (ID):</label>
+            <input type="text" id="newCustCode" placeholder="C00007" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-weight:700;color:#059669">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:#475569;display:block">ឈ្មោះខ្មែរ (2nd Lang):</label>
+            <input type="text" id="newCustNameKh" placeholder="ពេទ្យធ្មេញ អេស្តេទិច" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:#475569;display:block">Company Name (EN):</label>
+            <input type="text" id="newCustNameEn" placeholder="Aesthetic Dental Clinic" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:#475569;display:block">ទូរស័ព្ទ / Telephone:</label>
+            <input type="text" id="newCustPhone" placeholder="077 731 777" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:#475569;display:block">អាសយដ្ឋាន / Address:</label>
+            <input type="text" id="newCustAddress" placeholder="ទល់មុខផ្សារម៉ាក្រូ" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
+          </div>
+          <button type="button" id="btnAddCustProfile" style="background:#059669;color:#fff;border:none;height:32px;padding:0 14px;border-radius:4px;font-weight:600;font-size:0.8rem;cursor:pointer;white-space:nowrap">
+            + រក្សាទុក
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Search, Filter, & Excel Controls -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:6px;align-items:center;flex:1;max-width:340px">
+          <input type="text" id="searchCustDir" placeholder="🔍 ស្វែងរក Code, ឈ្មោះ, ទូរស័ព្ទ, អាសយដ្ឋាន..." style="width:100%;height:32px;padding:4px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.82rem">
+        </div>
+
+        <div style="display:flex;gap:4px;align-items:center">
+          <button type="button" class="btn-cust-tab on" data-custtab="all">ទាំងអស់ (<span id="custTotalCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="has" style="color:#047857">✓ មានលេខទូរស័ព្ទ (<span id="custHasCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="missing" style="color:#b45309">⚠️ ខ្វះលេខទូរស័ព្ទ (<span id="custMissCnt">0</span>)</button>
+        </div>
+
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="file" id="fImportCust" accept=".xlsx,.xls,.csv" style="display:none">
+          <button type="button" id="btnImportCustExcel" style="background:#f0fdf4;border:1px solid #86efac;color:#047857;padding:5px 10px;font-size:0.75rem;border-radius:4px;cursor:pointer;font-weight:600">
+            📥 នាំចូល Excel
+          </button>
+          <button type="button" id="btnExportCustExcel" style="background:#f8fafc;border:1px solid #cbd5e1;color:#334155;padding:5px 10px;font-size:0.75rem;border-radius:4px;cursor:pointer;font-weight:600">
+            📤 នាំចេញ Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Directory Table View -->
+      <div style="flex:1;overflow-y:auto;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+          <thead style="position:sticky;top:0;background:#f1f5f9;z-index:2">
+            <tr>
+              <th style="width:40px;text-align:center;padding:8px 4px">ល.រ</th>
+              <th style="width:85px;padding:8px 6px">Code</th>
+              <th style="width:160px;padding:8px 8px">ឈ្មោះក្រុមហ៊ុន (ខ្មែរ)</th>
+              <th style="width:170px;padding:8px 8px">Company Name (EN)</th>
+              <th style="width:160px;padding:8px 8px">ទូរស័ព្ទ / Telephone</th>
+              <th style="padding:8px 8px">អាសយដ្ឋាន / Address</th>
+              <th style="width:70px;text-align:center;padding:8px 6px">សកម្មភាព</th>
+            </tr>
+          </thead>
+          <tbody id="custDirTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 4. Footer -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
+        <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់ទូរស័ព្ទ ឬអាសយដ្ឋានដើម្បីកែប្រែភ្លាមៗ (Auto-save)</span>
+        <button type="button" id="btnCloseCustManagerModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
+          ✕ បិទ
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 </main>
 
 
@@ -662,6 +772,358 @@ try {
     var savedTgMap = localStorage.getItem('aba_tg_map');
     if(savedTgMap) TG_MAP = Object.assign(TG_MAP, JSON.parse(savedTgMap));
 } catch(e) {}
+
+// ============================================================================
+// CUSTOMER PROFILES DIRECTORY (គ្រប់គ្រងព័ត៌មានអតិថិជន ឈ្មោះខ្មែរ/អង់គ្លេស ទូរស័ព្ទ អាសយដ្ឋាន)
+// ============================================================================
+var SEED_CUSTOMER_PROFILES = {
+    'C00001': { code: 'C00001', nameEn: 'Beung Bai Tong Dental Clinic', nameKh: 'ពេទ្យធ្មេញ  បឹងបៃតង', contact: '087 777 345', phone: '', address: 'ផ្សាបឺងបៃតង', currency: 'USD' },
+    'C00002': { code: 'C00002', nameEn: '24/80 Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ ២៤/៨០', contact: '', phone: '016 98 24 80', address: '#432 St.128 S.Mittapheap K.7 Makara Phnom penh Cambodia 12252', currency: 'USD' },
+    'C00003': { code: 'C00003', nameEn: 'Sophannarong Say', nameKh: '', contact: '', phone: '015993551', address: '#52E0 near Tela Gas Station', currency: 'USD' },
+    'C00004': { code: 'C00004', nameEn: '3D Dental Laboratory', nameKh: 'ឡាបូ 3D', contact: '', phone: '017 98 09 55', address: 'ក្រោយផ្សារសំណង់12', currency: 'USD' },
+    'C00005': { code: 'C00005', nameEn: '52-Teeth Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ៥២', contact: '', phone: '010 876 088', address: 'N0.17 ,ST.143, S.Beng Trabek, K. Chamka Morn , Phnom Penh Cambodia 12305', currency: 'USD' },
+    'C00006': { code: 'C00006', nameEn: '87 Design Dental Laboratory', nameKh: 'ឡេប 87', contact: '', phone: '095 387 587', address: 'សំណង់១២', currency: 'USD' },
+    'C00007': { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', contact: '', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD' },
+    'C00008': { code: 'C00008', nameEn: 'ARECA Dental Clinic', nameKh: 'បន្ទប់ព្យាបាលធ្មេញ អារីកា', contact: 'ទន្តបណ្ឌិត លីម ម៉ីហ័ង', phone: '017 61 62 78 , 093 61 62 78', address: '#291, St 369, ភូមិ ចំពុះក្អែក សង្កាត់ព្រែកថ្មី ខណ្ឌច្បារអំពៅ ភ្នំពេញ', currency: 'USD' },
+    'C00009': { code: 'C00009', nameEn: 'Alliance Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អាលីយ៉ង់', contact: 'Dr. KONG BUNLY (DDS)', phone: '089 53 53 08', address: '089 53 53 08 #East of Capitol Bus Station (Boeung Chhuk Market) Battambong Province', currency: 'USD' },
+    'C00010': { code: 'C00010', nameEn: 'Amatak Dental Clinic', nameKh: 'ពេទ្យធ្មេញ​ អមតះ', contact: 'Dr. Amatak', phone: '093 815 265', address: '', currency: 'USD' },
+    'C00011': { code: 'C00011', nameEn: 'Americain Dental Laboratory', nameKh: 'ឡាបូ អាមេរិកាំង', contact: '', phone: '017 74 04 53 , 098 74 04 53', address: 'Chomka Dong', currency: 'USD' },
+    'C00012': { code: 'C00012', nameEn: 'American Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ​ អាមេរិកាំង', contact: '', phone: '092 62 24 02 , 023 884 234', address: 'Road 289 (Samdach Penh Nout), Boeung Kok I, Phnom Penh', currency: 'USD' },
+    'C00013': { code: 'C00013', nameEn: 'Narun Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ណារុន', contact: 'ទន្តបណ្ឌិត ចេង ចណ្ណារុន', phone: '010 89 89 00 , 067 22 52 02', address: 'ផ្លូវជាតិលេខ 21 ភូមិព្រែកស៊ឹង ឃុំសំពៅពូន ស្រុកកោះធំ ខេត្តកណ្តាល​ (ហួស្ពានទី 74 ជ្រៃធំ ជិតទល់ដែនវៀតណាម)', currency: 'USD' },
+    'C00014': { code: 'C00014', nameEn: 'Amret Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អម្រឹត', contact: '', phone: '012 907 006', address: '#97A, ST.43, S.Olympic ,K. Chamkarmorn, Phnom Penh Cambodia 12312', currency: 'USD' },
+    'C00015': { code: 'C00015', nameEn: 'An Niroth Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អាន និរោធ', contact: '', phone: '099 91 99 96', address: 'ផ្សារកំបូល', currency: 'USD' },
+    'C00016': { code: 'C00016', nameEn: 'Anderkmeas Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ អណ្ដើកមាស', contact: '', phone: '010 358 738', address: 'SiemReap Province', currency: 'USD' },
+    'C00017': { code: 'C00017', nameEn: 'Angkor Borei Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អង្គរបូរី', contact: '', phone: '011 911 227 , 097 911 22 77', address: '', currency: 'USD' },
+    'C00018': { code: 'C00018', nameEn: 'Angkor Cheat Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អង្គរជាតិ', contact: '', phone: '096 600 0585', address: 'Prey Toteng, Kampong Cham Province', currency: 'USD' },
+    'C00019': { code: 'C00019', nameEn: 'Angkor Chom Dental Clinic', nameKh: 'ពេត្យធ្មេញ អង្គរជុំ', contact: '', phone: '097 33 85 777', address: 'S.  ,K. , Kratie Province', currency: 'USD' },
+    'C00020': { code: 'C00020', nameEn: 'Angkor Dental Association', nameKh: 'សមាគមពេទ្យធ្មេញ អង្គរ', contact: '', phone: '063 63 09 099 , 070 24 24 24', address: 'Siem Reap City, Siem Reap', currency: 'USD' },
+    'C00045': { code: 'C00045', nameEn: 'Beauty Smile Dental Clinic', nameKh: 'គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍', contact: '', phone: '012 647 758', address: 'Touk Kok , Camko', currency: 'USD' }
+};
+
+var CUSTOMER_PROFILES = Object.assign({}, SEED_CUSTOMER_PROFILES);
+try {
+    var savedProfiles = localStorage.getItem('khema_customer_profiles');
+    if(savedProfiles) {
+        var parsedProf = JSON.parse(savedProfiles);
+        if(parsedProf && typeof parsedProf === 'object') CUSTOMER_PROFILES = Object.assign(CUSTOMER_PROFILES, parsedProf);
+    }
+} catch(e) {}
+
+function saveCustomerProfiles() {
+    localStorage.setItem('khema_customer_profiles', JSON.stringify(CUSTOMER_PROFILES));
+    if(typeof dbSet === 'function') dbSet('khema_customer_profiles', CUSTOMER_PROFILES);
+    updateCustomerCountBadge();
+}
+
+function updateCustomerCountBadge() {
+    var cnt = Object.keys(CUSTOMER_PROFILES).length;
+    var el = $('btnCustCount');
+    if(el) el.textContent = cnt.toLocaleString();
+}
+
+function loadDefaultCustomerProfiles() {
+    fetch('/khema_customers.json')
+        .then(r => r.json())
+        .then(data => {
+            if(data && data.map) {
+                var added = 0;
+                for(var k in data.map) {
+                    var code = k.toUpperCase();
+                    if(!CUSTOMER_PROFILES[code]) {
+                        CUSTOMER_PROFILES[code] = data.map[k];
+                        added++;
+                    } else {
+                        var cur = CUSTOMER_PROFILES[code];
+                        var src = data.map[k];
+                        if(!cur.nameKh && src.nameKh) cur.nameKh = src.nameKh;
+                        if(!cur.nameEn && src.nameEn) cur.nameEn = src.nameEn;
+                        if(!cur.phone && src.phone) cur.phone = src.phone;
+                        if(!cur.address && src.address) cur.address = src.address;
+                        if(!cur.currency && src.currency) cur.currency = src.currency;
+                    }
+                }
+                saveCustomerProfiles();
+                console.log('Customer profiles loaded. Total:', Object.keys(CUSTOMER_PROFILES).length);
+                if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+            }
+        })
+        .catch(err => {
+            console.warn('loadDefaultCustomerProfiles notice:', err.message);
+        });
+}
+
+function getCustomerProfile(custName, custNo) {
+    if(custNo) {
+        var cUpper = String(custNo).trim().toUpperCase();
+        if(CUSTOMER_PROFILES[cUpper]) return CUSTOMER_PROFILES[cUpper];
+    }
+    if(custName) {
+        var mMatch = String(custName).match(/^([A-Z]\d{4,})/i);
+        if(mMatch) {
+            var cCode = mMatch[1].toUpperCase();
+            if(CUSTOMER_PROFILES[cCode]) return CUSTOMER_PROFILES[cCode];
+        }
+        var cleanCustName = custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim().toLowerCase();
+        for(var k in CUSTOMER_PROFILES) {
+            var p = CUSTOMER_PROFILES[k];
+            if(p.nameEn && p.nameEn.toLowerCase() === cleanCustName) return p;
+            if(p.nameKh && p.nameKh === cleanCustName) return p;
+            if(p.nameEn && cleanCustName.length >= 4 && (p.nameEn.toLowerCase().includes(cleanCustName) || cleanCustName.includes(p.nameEn.toLowerCase()))) return p;
+            if(p.nameKh && cleanCustName.length >= 4 && (p.nameKh.includes(cleanCustName) || cleanCustName.includes(p.nameKh))) return p;
+        }
+    }
+    if(custNo === 'C00007' || /C00007/i.test(custName)) {
+        return { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD' };
+    }
+    return null;
+}
+
+function saveCustomerProfile(code, data) {
+    if(!code) return;
+    var cUpper = String(code).trim().toUpperCase();
+    var existing = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
+    CUSTOMER_PROFILES[cUpper] = Object.assign(existing, data, { code: cUpper });
+    saveCustomerProfiles();
+    
+    // Auto-sync with TG_DIRECTORY if phone provided
+    if(data.phone) {
+        var tgItem = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
+        if(tgItem && !tgItem.phone) {
+            tgItem.phone = data.phone;
+            syncTgMapFromDirectory();
+        }
+    }
+
+    // Also update any active docs in memory
+    if(res && res.docs) {
+        for(var n in res.docs) {
+            var D = res.docs[n];
+            var dCode = (D.meta && D.meta.custNo) || D.customerId || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
+            if(dCode && dCode.toUpperCase() === cUpper) {
+                D.meta = Object.assign(D.meta || {}, CUSTOMER_PROFILES[cUpper]);
+                D.meta.custNo = cUpper;
+                if(data.nameKh) D.meta.custKh = data.nameKh;
+                if(data.nameEn) D.meta.custEn = data.nameEn;
+                if(data.phone) D.meta.phone = data.phone;
+                if(data.address) D.meta.address = data.address;
+            }
+        }
+    }
+    if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+}
+
+function ingestCustomerList(t) {
+    if(!t || !t.h || !t.rows) return;
+    var fk = {}; t.h.forEach(k => { fk[k.toLowerCase().trim()] = k; });
+    var kcode = fk['customer code'] || fk['code'] || fk['customer no'] || fk['customer id'] || fk['id'];
+    var knameEn = fk['customer name'] || fk['company name'] || fk['name'] || fk['clinic'];
+    var knameKh = fk['customer name (2nd lang.)'] || fk['customer name (2nd lang)'] || fk['name (2nd lang.)'] || fk['2nd lang'] || fk['customer name (khmer)'] || fk['ឈ្មោះខ្មែរ'] || fk['ឈ្មោះ'];
+    var kphone = fk['telephone'] || fk['phone'] || fk['tel'] || fk['ទូរស័ព្ទ'] || fk['លេខទូរស័ព្ទ'];
+    var kaddr = fk['address'] || fk['អាសយដ្ឋាន'] || fk['ទីតាំង'];
+    var kcur = fk['currency'] || fk['រូបិយប័ណ្ណ'];
+    var kcontact = fk['contact name'] || fk['contact'];
+
+    if(kcode && (knameEn || knameKh || kphone || kaddr)) {
+        var added = 0;
+        t.rows.forEach(r => {
+            var code = String(r[kcode] || '').trim().toUpperCase();
+            if(!code || !/^C\d{4,}/i.test(code)) return;
+            var nameEn = knameEn ? String(r[knameEn] || '').trim() : '';
+            var nameKh = knameKh ? String(r[knameKh] || '').trim() : '';
+            var phone = kphone ? String(r[kphone] || '').trim() : '';
+            var address = kaddr ? String(r[kaddr] || '').trim() : '';
+            var currency = kcur ? String(r[kcur] || 'USD').trim() : 'USD';
+            var contact = kcontact ? String(r[kcontact] || '').trim() : '';
+
+            var item = {
+                code: code,
+                nameEn: nameEn,
+                nameKh: nameKh,
+                phone: phone,
+                address: address,
+                currency: currency,
+                contact: contact
+            };
+            CUSTOMER_PROFILES[code] = Object.assign(CUSTOMER_PROFILES[code] || {}, item);
+            added++;
+
+            if(phone) {
+                var tgItem = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === code);
+                if(tgItem && !tgItem.phone) {
+                    tgItem.phone = phone;
+                }
+            }
+        });
+        if(added > 0) {
+            saveCustomerProfiles();
+            if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+            console.log('Ingested ' + added + ' customer profiles from sheet:', t.name);
+        }
+    }
+}
+
+var currentCustManagerTab = 'all'; // 'all' | 'has' | 'missing'
+
+function openCustomerManagerModal(filterText) {
+    if(filterText) {
+        var searchInput = $('searchCustDir');
+        if(searchInput) searchInput.value = filterText;
+    }
+    renderCustManagerTable();
+    $('custManagerModal').classList.add('active');
+}
+
+function closeCustomerManagerModal() {
+    $('custManagerModal').classList.remove('active');
+}
+
+function renderCustManagerTable() {
+    var tbody = $('custDirTableBody');
+    if(!tbody) return;
+
+    var search = ($('searchCustDir') ? $('searchCustDir').value : '').trim().toLowerCase();
+    var list = Object.values(CUSTOMER_PROFILES);
+
+    list.sort((a, b) => {
+        var aId = a.code || '';
+        var bId = b.code || '';
+        var aNum = aId.match(/\d+/);
+        var bNum = bId.match(/\d+/);
+        if(aNum && bNum && aId.charAt(0) === bId.charAt(0)) {
+            return parseInt(aNum[0]) - parseInt(bNum[0]);
+        }
+        return aId.localeCompare(bId);
+    });
+
+    var hasPhoneCount = list.filter(x => x.phone && String(x.phone).trim()).length;
+    var missPhoneCount = list.length - hasPhoneCount;
+
+    if($('custTotalCnt')) $('custTotalCnt').textContent = list.length.toLocaleString();
+    if($('custHasCnt')) $('custHasCnt').textContent = hasPhoneCount.toLocaleString();
+    if($('custMissCnt')) $('custMissCnt').textContent = missPhoneCount.toLocaleString();
+    updateCustomerCountBadge();
+
+    if(currentCustManagerTab === 'has') {
+        list = list.filter(x => x.phone && String(x.phone).trim());
+    } else if(currentCustManagerTab === 'missing') {
+        list = list.filter(x => !x.phone || !String(x.phone).trim());
+    }
+
+    if(search) {
+        list = list.filter(x => 
+            (x.code && x.code.toLowerCase().includes(search)) ||
+            (x.nameKh && x.nameKh.toLowerCase().includes(search)) ||
+            (x.nameEn && x.nameEn.toLowerCase().includes(search)) ||
+            (x.phone && x.phone.includes(search)) ||
+            (x.address && x.address.toLowerCase().includes(search))
+        );
+    }
+
+    if(!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b">រកមិនឃើញទិន្នន័យអតិថិជនឡើយ</td></tr>';
+        return;
+    }
+
+    // Render up to 200 items for instant performance
+    var displayList = list.slice(0, 200);
+    var html = '';
+    displayList.forEach((item, idx) => {
+        html += '<tr style="border-bottom:1px solid #f1f5f9;background:' + (idx % 2 === 0 ? '#fff' : '#fafafa') + '">' +
+            '<td style="text-align:center;color:#94a3b8;font-size:0.75rem">' + (idx + 1) + '</td>' +
+            '<td style="font-weight:700;color:#059669">' + esc(item.code || '-') + '</td>' +
+            '<td style="font-weight:600;color:#1e293b">' + esc(item.nameKh || '-') + '</td>' +
+            '<td style="color:#475569">' + esc(item.nameEn || '-') + '</td>' +
+            '<td><input type="text" class="cust-dir-input" data-field="phone" data-code="' + esc(item.code) + '" value="' + esc(item.phone || '') + '" placeholder="ទូរស័ព្ទ..."></td>' +
+            '<td><input type="text" class="cust-dir-input" data-field="address" data-code="' + esc(item.code) + '" value="' + esc(item.address || '') + '" placeholder="អាសយដ្ឋាន..."></td>' +
+            '<td style="text-align:center">' +
+                '<button type="button" class="btn-del-cust" data-del-cust="' + esc(item.code) + '" title="លុបអតិថិជននេះ" style="padding:2px 6px;font-size:0.72rem;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:4px;cursor:pointer">🗑️</button>' +
+            '</td>' +
+        '</tr>';
+    });
+
+    if(list.length > 200) {
+        html += '<tr><td colspan="7" style="text-align:center;padding:10px;color:#64748b;font-size:0.78rem"><i>បង្ហាញ ២០០ នាក់ដំបូងក្នុងចំណោម ' + list.length.toLocaleString() + ' នាក់ (សូមប្រើប្រអប់ស្វែងរកដើម្បីមើលជាក់លាក់)</i></td></tr>';
+    }
+
+    tbody.innerHTML = html;
+}
+
+function addCustomerProfileFromForm() {
+    var codeInp = $('newCustCode');
+    var khInp = $('newCustNameKh');
+    var enInp = $('newCustNameEn');
+    var phoneInp = $('newCustPhone');
+    var addrInp = $('newCustAddress');
+
+    var code = (codeInp.value || '').trim().toUpperCase();
+    var kh = (khInp.value || '').trim();
+    var en = (enInp.value || '').trim();
+    var phone = (phoneInp.value || '').trim();
+    var address = (addrInp.value || '').trim();
+
+    if(!code) {
+        alert('សូមបញ្ចូល Customer Code (ឧ. C00007)');
+        codeInp.focus();
+        return;
+    }
+
+    saveCustomerProfile(code, {
+        code: code,
+        nameKh: kh,
+        nameEn: en,
+        phone: phone,
+        address: address,
+        currency: 'USD'
+    });
+
+    codeInp.value = '';
+    khInp.value = '';
+    enInp.value = '';
+    phoneInp.value = '';
+    addrInp.value = '';
+    codeInp.focus();
+
+    var msg = $('custDirStatusMsg');
+    if(msg) {
+        msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានរក្សាទុកព័ត៌មាន ' + esc(code) + ' ដោយជោគជ័យ!</span>';
+        setTimeout(() => {
+            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់ទូរស័ព្ទ ឬអាសយដ្ឋានដើម្បីកែប្រែភ្លាមៗ (Auto-save)';
+        }, 3000);
+    }
+}
+
+function exportCustomerProfilesExcel() {
+    var data = [
+        ['Customer Code', 'Customer Name', 'Customer Name (2nd Lang.)', 'Telephone', 'Address', 'Currency']
+    ];
+    var list = Object.values(CUSTOMER_PROFILES);
+    list.sort((a,b) => (a.code||'').localeCompare(b.code||''));
+    list.forEach(item => {
+        data.push([
+            item.code || '',
+            item.nameEn || '',
+            item.nameKh || '',
+            item.phone || '',
+            item.address || '',
+            item.currency || 'USD'
+        ]);
+    });
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 30 }, { wch: 25 }, { wch: 45 }, { wch: 10 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Customer_List');
+    XLSX.writeFile(wb, 'Khema_Customer_List_' + iso(new Date()) + '.xlsx');
+}
+
+function importCustomerProfilesExcel(file) {
+    readWB(file, wb => {
+        var ts = sheetsOf(wb);
+        if(!ts || !ts.length) { alert('រកមិនឃើញសន្លឹកទិន្នន័យ'); return; }
+        ts.forEach(s => ingestCustomerList(s));
+        renderCustManagerTable();
+        alert('បាននាំចូលព័ត៌មានអតិថិជនពីឯកសារជោគជ័យ (សរុប ' + Object.keys(CUSTOMER_PROFILES).length.toLocaleString() + ' នាក់)!');
+    });
+}
 
 // ============================================================================
 // DOCTOR TELEGRAM DIRECTORY (គ្រប់គ្រងតារាង Telegram គ្រូពេទ្យ)
@@ -1542,7 +2004,10 @@ $('fAba').onchange = e => {
     readWB(f, wb => {
 
         var allSheets = sheetsOf(wb);
-        allSheets.forEach(s => ingestTelegramMap(s));
+        allSheets.forEach(s => {
+            ingestCustomerList(s);
+            ingestTelegramMap(s);
+        });
         var t = allSheets.sort((a,b) => b.rows.length - a.rows.length)[0];
 
         if(t) {
@@ -1671,6 +2136,7 @@ $('fDebt').onchange = e => {
 
             ts.forEach(t => {
 
+                ingestCustomerList(t);
                 ingestTelegramMap(t);
 
                 if(hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice|inv|វិក័យ/i)) ingestAcc(t);
@@ -1734,6 +2200,7 @@ $('fAcc').onchange = e => {
             ACC_INVOICES = [];
 
             ts.forEach(s => {
+                ingestCustomerList(s);
                 ingestTelegramMap(s);
                 if(hasH(s, /entry/i) && (hasH(s, /customer/i) || hasH(s, /type/i) || hasH(s, /cash|bank/i) || hasH(s, /prefix/i)) && !hasH(s, /invoice|inv|វិក័យ|វិក្កយ/i)) {
                     var enKey = s.h.find(h => /entry/i.test(h)) || 'Entry No';
@@ -2000,22 +2467,45 @@ function run() {
     // 1. If debts exist, extract customers in EXACT sequential order of appearance in the file! (តាមលំដាប់ ចាប់ពី C00007...)
     debts.forEach(d => {
         var pName = d.party || d.entry || 'គ្មានឈ្មោះ';
+        var cIdRaw = d.custId || (pName.match(/^([A-Z]\d+)/i) ? pName.match(/^([A-Z]\d+)/i)[1] : '');
+        var profMatch = getCustomerProfile(pName, cIdRaw);
+
         if(!docs[pName]) {
             var accMatch = ACC.find(a => (a.name && (a.name === pName || pName.indexOf(a.name) > -1 || a.name.indexOf(pName) > -1)) || (a.customerId && (a.customerId === pName || a.customerId === d.custId)));
+            var mData = Object.assign({}, profMatch || {}, d.meta || (accMatch && accMatch.meta) || {});
+            if(profMatch) {
+                if(profMatch.code) mData.custNo = profMatch.code;
+                if(profMatch.nameKh) mData.custKh = profMatch.nameKh;
+                if(profMatch.nameEn) mData.custEn = profMatch.nameEn;
+                if(profMatch.phone) mData.phone = profMatch.phone;
+                if(profMatch.address) mData.address = profMatch.address;
+                if(profMatch.currency) mData.currency = profMatch.currency;
+            }
             docs[pName] = {
                 name: pName,
                 accItem: accMatch || null,
-                meta: d.meta || (accMatch && accMatch.meta) || {},
+                meta: mData,
                 entry: (accMatch && accMatch.entry) || d.entry || '',
-                customerId: (accMatch && accMatch.customerId) || d.custId || '',
+                customerId: (profMatch && profMatch.code) || (accMatch && accMatch.customerId) || d.custId || '',
                 bankAcc: (accMatch && (accMatch.bankAcc || accMatch.acct)) || '',
                 inv: [],
                 pay: [],
                 al: aliases(pName)
             };
             names.push(pName);
-        } else if(d.meta && (!docs[pName].meta || !docs[pName].meta.custNo)) {
-            docs[pName].meta = d.meta;
+        } else {
+            if(d.meta && (!docs[pName].meta || !docs[pName].meta.custNo)) {
+                docs[pName].meta = Object.assign({}, docs[pName].meta || {}, d.meta);
+            }
+            if(profMatch && (!docs[pName].meta || !docs[pName].meta.phone || !docs[pName].meta.address || docs[pName].meta.phone === '-')) {
+                docs[pName].meta = Object.assign({}, profMatch, docs[pName].meta || {});
+                if(profMatch.code) docs[pName].meta.custNo = profMatch.code;
+                if(profMatch.nameKh) docs[pName].meta.custKh = profMatch.nameKh;
+                if(profMatch.nameEn) docs[pName].meta.custEn = profMatch.nameEn;
+                if(profMatch.phone) docs[pName].meta.phone = profMatch.phone;
+                if(profMatch.address) docs[pName].meta.address = profMatch.address;
+                if(profMatch.currency) docs[pName].meta.currency = profMatch.currency;
+            }
         }
         docs[pName].inv.push(d);
     });
@@ -2025,11 +2515,21 @@ function run() {
         ACC.forEach((a, idx) => {
             var dn = String(a.name || a.customerId || a.entry || ('គណនី ' + (idx + 1))).trim();
             if(!docs[dn]) {
+                var profMatchA = getCustomerProfile(dn, a.customerId || a.entry);
+                var mDataA = Object.assign({}, profMatchA || {}, a.meta || {});
+                if(profMatchA) {
+                    if(profMatchA.code) mDataA.custNo = profMatchA.code;
+                    if(profMatchA.nameKh) mDataA.custKh = profMatchA.nameKh;
+                    if(profMatchA.nameEn) mDataA.custEn = profMatchA.nameEn;
+                    if(profMatchA.phone) mDataA.phone = profMatchA.phone;
+                    if(profMatchA.address) mDataA.address = profMatchA.address;
+                }
                 docs[dn] = {
                     name: dn,
                     accItem: a,
+                    meta: mDataA,
                     entry: a.entry || '',
-                    customerId: a.customerId || '',
+                    customerId: (profMatchA && profMatchA.code) || a.customerId || '',
                     bankAcc: a.bankAcc || a.acct || '',
                     inv: [],
                     pay: [],
@@ -2403,12 +2903,17 @@ function openPrintModal(custName) {
     currentPrintCustomer = custName;
     var meta = D.meta || {};
     var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
-    var custKh = meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var custEn = meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var phone = meta.phone || '-';
-    var address = meta.address || '-';
+    var prof = getCustomerProfile(custName, custNo);
+    if(prof) {
+        if(!custNo && prof.code) custNo = prof.code;
+        meta = Object.assign({}, prof, meta);
+    }
+    var custKh = (prof && prof.nameKh) || meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var custEn = (prof && prof.nameEn) || meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var phone = (prof && prof.phone) || meta.phone || '-';
+    var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
-    var currency = ($('cur') && $('cur').value) || 'USD';
+    var currency = (prof && prof.currency) || meta.currency || ($('cur') && $('cur').value) || 'USD';
     var nowDT = nowDateTimeStr();
 
     var totalAmt = 0;
@@ -2454,21 +2959,52 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 3. CUSTOMER INFO BOX (ប្រអប់ព័ត៌មានអតិថិជន) -->' +
-            '<div style="border:1px solid #94a3b8;border-radius:6px;padding:8px 12px;margin-bottom:12px;background:#f8fafc">' +
-                '<div style="font-weight:700;font-size:0.88rem;margin-bottom:6px;color:#1e293b;border-bottom:1px dashed #cbd5e1;padding-bottom:4px">' +
-                    'អតិថិជន / Customer :' +
+            '<div style="border:1px solid #94a3b8;border-radius:6px;padding:8px 12px;margin-bottom:12px;background:#f8fafc;position:relative">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.88rem;margin-bottom:6px;color:#1e293b;border-bottom:1px dashed #cbd5e1;padding-bottom:4px">' +
+                    '<span>អតិថិជន / Customer :</span>' +
+                    '<button type="button" id="btnToggleEditCust" class="no-print" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;font-size:0.75rem;cursor:pointer;padding:2px 8px;border-radius:4px;font-weight:600">✏️ កែប្រែព័ត៌មានអតិថិជន</button>' +
                 '</div>' +
-                '<div style="display:flex;justify-content:space-between;gap:12px;font-size:0.84rem">' +
-                    '<div style="flex:1">' +
-                        '<div style="margin-bottom:3px"><span style="color:#64748b">ឈ្មោះក្រុមហ៊ុន ឬអតិថិជន :</span> <b style="color:#0f172a">' + esc(custKh) + '</b></div>' +
-                        '<div style="margin-bottom:3px"><span style="color:#64748b">Company Name / Customer :</span> <b style="color:#0f172a">' + esc(custEn) + '</b></div>' +
-                        '<div style="margin-bottom:3px"><span style="color:#64748b">ទូរស័ព្ទលេខ / Telephone :</span> <span style="color:#0f172a;font-weight:600">' + esc(phone) + '</span></div>' +
-                        '<div><span style="color:#64748b">អាសយដ្ឋាន / Address :</span> <span style="color:#0f172a">' + esc(address) + '</span></div>' +
+                '<div id="custInfoDisplay">' +
+                    '<div style="display:flex;justify-content:space-between;gap:12px;font-size:0.84rem">' +
+                        '<div style="flex:1">' +
+                            '<div style="margin-bottom:3px"><span style="color:#64748b">ឈ្មោះក្រុមហ៊ុន ឬអតិថិជន :</span> <b style="color:#0f172a" id="dispCustKh">' + esc(custKh) + '</b></div>' +
+                            '<div style="margin-bottom:3px"><span style="color:#64748b">Company Name / Customer :</span> <b style="color:#0f172a" id="dispCustEn">' + esc(custEn) + '</b></div>' +
+                            '<div style="margin-bottom:3px"><span style="color:#64748b">ទូរស័ព្ទលេខ / Telephone :</span> <span style="color:#0f172a;font-weight:600" id="dispCustPhone">' + esc(phone) + '</span></div>' +
+                            '<div><span style="color:#64748b">អាសយដ្ឋាន / Address :</span> <span style="color:#0f172a" id="dispCustAddress">' + esc(address) + '</span></div>' +
+                        '</div>' +
+                        '<div style="text-align:right;min-width:200px">' +
+                            '<div style="margin-bottom:4px"><span style="color:#64748b">លេខអតិថិជន / Customer No :</span> <b style="color:#0f172a;background:#e2e8f0;padding:2px 8px;border-radius:4px">' + esc(custNo) + '</b></div>' +
+                            '<div style="margin-bottom:4px"><span style="color:#64748b">ថ្ងៃ ខែ ឆ្នាំ / Date :</span> <b style="color:#0f172a">' + curDateStr + '</b></div>' +
+                            '<div><span style="color:#64748b">រូបិយប័ណ្ណ / Currency :</span> <b style="color:#0f172a">' + esc(currency) + '</b></div>' +
+                        '</div>' +
                     '</div>' +
-                    '<div style="text-align:right;min-width:200px">' +
-                        '<div style="margin-bottom:4px"><span style="color:#64748b">លេខអតិថិជន / Customer No :</span> <b style="color:#0f172a;background:#e2e8f0;padding:2px 8px;border-radius:4px">' + esc(custNo) + '</b></div>' +
-                        '<div style="margin-bottom:4px"><span style="color:#64748b">ថ្ងៃ ខែ ឆ្នាំ / Date :</span> <b style="color:#0f172a">' + curDateStr + '</b></div>' +
-                        '<div><span style="color:#64748b">រូបិយប័ណ្ណ / Currency :</span> <b style="color:#0f172a">' + esc(currency) + '</b></div>' +
+                '</div>' +
+                '<!-- Inline edit panel (shown when user clicks ✏️ កែប្រែព័ត៌មានអតិថិជន) -->' +
+                '<div id="custInfoEditPanel" class="no-print" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #94a3b8;background:#f0fdf4;padding:8px 10px;border-radius:6px">' +
+                    '<div style="font-weight:700;color:#166534;margin-bottom:6px;font-size:0.82rem">' +
+                      '✏️ កែប្រែព័ត៌មានអតិថិជន (' + esc(custNo || custName) + ') (នឹងចងចាំដោយស្វ័យប្រវត្តិ)' +
+                    '</div>' +
+                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.8rem">' +
+                        '<div>' +
+                            '<span style="color:#475569;font-weight:600">ឈ្មោះក្រុមហ៊ុន ឬអតិថិជន (ភាសាខ្មែរ):</span>' +
+                            '<input type="text" id="editInpCustKh" value="' + esc(custKh) + '" style="width:100%;height:30px;padding:3px 6px;border:1px solid #94a3b8;border-radius:4px;font-size:0.82rem">' +
+                        '</div>' +
+                        '<div>' +
+                            '<span style="color:#475569;font-weight:600">Company Name / Customer (English):</span>' +
+                            '<input type="text" id="editInpCustEn" value="' + esc(custEn) + '" style="width:100%;height:30px;padding:3px 6px;border:1px solid #94a3b8;border-radius:4px;font-size:0.82rem">' +
+                        '</div>' +
+                        '<div>' +
+                            '<span style="color:#475569;font-weight:600">ទូរស័ព្ទលេខ / Telephone:</span>' +
+                            '<input type="text" id="editInpCustPhone" value="' + esc(phone !== '-' ? phone : '') + '" placeholder="077 731 777 , 093 631 777" style="width:100%;height:30px;padding:3px 6px;border:1px solid #94a3b8;border-radius:4px;font-size:0.82rem">' +
+                        '</div>' +
+                        '<div>' +
+                            '<span style="color:#475569;font-weight:600">អាសយដ្ឋាន / Address:</span>' +
+                            '<input type="text" id="editInpCustAddress" value="' + esc(address !== '-' ? address : '') + '" placeholder="ទល់មុខផ្សារម៉ាក្រូ" style="width:100%;height:30px;padding:3px 6px;border:1px solid #94a3b8;border-radius:4px;font-size:0.82rem">' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px">' +
+                        '<button type="button" id="btnCancelEditCust" style="padding:3px 10px;font-size:0.75rem;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer">បោះបង់</button>' +
+                        '<button type="button" id="btnSaveEditCust" style="padding:3px 14px;font-size:0.75rem;background:#16a34a;color:#fff;border:none;border-radius:4px;font-weight:600;cursor:pointer">💾 រក្សាទុក & ចងចាំ (Save)</button>' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -2559,10 +3095,11 @@ function exportCustomerStatementExcel(custName) {
 
     var meta = D.meta || {};
     var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
-    var custKh = meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var custEn = meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var phone = meta.phone || '-';
-    var address = meta.address || '-';
+    var prof = getCustomerProfile(custName, custNo);
+    var custKh = (prof && prof.nameKh) || meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var custEn = (prof && prof.nameEn) || meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var phone = (prof && prof.phone) || meta.phone || '-';
+    var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
     var nowDT = nowDateTimeStr();
 
@@ -2647,10 +3184,11 @@ function exportCustomerStatementCSV(custName) {
 
     var meta = D.meta || {};
     var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
-    var custKh = meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var custEn = meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var phone = meta.phone || '-';
-    var address = meta.address || '-';
+    var prof = getCustomerProfile(custName, custNo);
+    var custKh = (prof && prof.nameKh) || meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var custEn = (prof && prof.nameEn) || meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var phone = (prof && prof.phone) || meta.phone || '-';
+    var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
     var nowDT = nowDateTimeStr();
 
@@ -2713,6 +3251,17 @@ document.addEventListener('change', e => {
 
     if(t.classList && t.classList.contains('tg-dir-input')) {
         saveDoctorTg(t.dataset.id, t.value.trim());
+        return;
+    }
+
+    if(t.classList && t.classList.contains('cust-dir-input')) {
+        var code = t.dataset.code;
+        var fld = t.dataset.field;
+        if(code && fld) {
+            var upd = {};
+            upd[fld] = t.value.trim();
+            saveCustomerProfile(code, upd);
+        }
         return;
     }
 
@@ -2819,6 +3368,63 @@ document.addEventListener('click', e => {
         return;
     }
 
+    if(t.dataset.custtab) {
+        e.stopPropagation();
+        e.preventDefault();
+        currentCustManagerTab = t.dataset.custtab;
+        document.querySelectorAll('.btn-cust-tab').forEach(b => b.classList.remove('on'));
+        t.classList.add('on');
+        renderCustManagerTable();
+        return;
+    }
+
+    if(n = t.dataset.delCust) {
+        e.stopPropagation();
+        e.preventDefault();
+        if(confirm('តើអ្នកចង់លុបព័ត៌មានអតិថិជន ' + n + ' មែនទេ?')) {
+            delete CUSTOMER_PROFILES[n.toUpperCase()];
+            saveCustomerProfiles();
+            renderCustManagerTable();
+        }
+        return;
+    }
+
+    if(t.id === 'btnToggleEditCust') {
+        e.stopPropagation();
+        e.preventDefault();
+        var p = $('custInfoEditPanel');
+        if(p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        return;
+    }
+
+    if(t.id === 'btnCancelEditCust') {
+        e.stopPropagation();
+        e.preventDefault();
+        var p = $('custInfoEditPanel');
+        if(p) p.style.display = 'none';
+        return;
+    }
+
+    if(t.id === 'btnSaveEditCust') {
+        e.stopPropagation();
+        e.preventDefault();
+        var newKh = ($('editInpCustKh') ? $('editInpCustKh').value : '').trim();
+        var newEn = ($('editInpCustEn') ? $('editInpCustEn').value : '').trim();
+        var newPh = ($('editInpCustPhone') ? $('editInpCustPhone').value : '').trim();
+        var newAd = ($('editInpCustAddress') ? $('editInpCustAddress').value : '').trim();
+        var metaCurr = (res && res.docs[currentPrintCustomer] && res.docs[currentPrintCustomer].meta) || {};
+        var cCode = metaCurr.custNo || (currentPrintCustomer.match(/^([A-Z]\d+)/i) ? currentPrintCustomer.match(/^([A-Z]\d+)/i)[1] : currentPrintCustomer);
+        saveCustomerProfile(cCode, {
+            code: cCode,
+            nameKh: newKh,
+            nameEn: newEn,
+            phone: newPh,
+            address: newAd
+        });
+        openPrintModal(currentPrintCustomer);
+        return;
+    }
+
     if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) sel[v.id] = true; }); render(); }
 
     if(n = t.dataset.cl) { res.docs[n].inv.forEach(v => { sel[v.id] = false; }); render(); }
@@ -2851,6 +3457,46 @@ if($('btnSyncFromLoaded')) $('btnSyncFromLoaded').onclick = () => syncDoctorsFro
 if($('btnExportTgExcel')) $('btnExportTgExcel').onclick = () => exportTgDirectoryExcel();
 if($('btnImportTgExcel')) $('btnImportTgExcel').onclick = () => { if($('fImportTg')) $('fImportTg').click(); };
 if($('fImportTg')) $('fImportTg').onchange = e => { if(e.target.files && e.target.files[0]) { importTgDirectoryExcel(e.target.files[0]); e.target.value = ''; } };
+
+if($('btnOpenCustomerManager')) $('btnOpenCustomerManager').onclick = () => openCustomerManagerModal();
+if($('btnCloseCustManagerModal')) $('btnCloseCustManagerModal').onclick = () => closeCustomerManagerModal();
+if($('btnCloseCustManagerModal2')) $('btnCloseCustManagerModal2').onclick = () => closeCustomerManagerModal();
+if($('custManagerModal')) $('custManagerModal').onclick = e => { if(e.target === $('custManagerModal')) closeCustomerManagerModal(); };
+if($('btnAddCustProfile')) $('btnAddCustProfile').onclick = () => addCustomerProfileFromForm();
+if($('searchCustDir')) $('searchCustDir').oninput = () => renderCustManagerTable();
+if($('btnExportCustExcel')) $('btnExportCustExcel').onclick = () => exportCustomerProfilesExcel();
+if($('btnImportCustExcel')) $('btnImportCustExcel').onclick = () => { if($('fImportCust')) $('fImportCust').click(); };
+if($('fImportCust')) $('fImportCust').onchange = e => { if(e.target.files && e.target.files[0]) { importCustomerProfilesExcel(e.target.files[0]); e.target.value = ''; } };
+
+['newCustCode', 'newCustNameKh', 'newCustNameEn', 'newCustPhone', 'newCustAddress'].forEach(id => {
+    var el = $(id);
+    if(el) {
+        el.addEventListener('keydown', e => {
+            if(e.key === 'Enter') {
+                e.preventDefault();
+                addCustomerProfileFromForm();
+            }
+        });
+    }
+});
+
+document.addEventListener('blur', e => {
+    if(e.target && e.target.classList && e.target.classList.contains('cust-dir-input')) {
+        var code = e.target.dataset.code;
+        var fld = e.target.dataset.field;
+        if(code && fld) {
+            var upd = {};
+            upd[fld] = e.target.value.trim();
+            saveCustomerProfile(code, upd);
+        }
+    }
+}, true);
+
+document.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('cust-dir-input')) {
+        e.target.blur();
+    }
+});
 
 ['newTgDocId', 'newTgDocName', 'newTgUsername'].forEach(id => {
     var el = $(id);
@@ -3378,7 +4024,8 @@ function restoreSavedData() {
         dbGet('aba_state'),
         dbGet('aba_tg_sent'),
         dbGet('aba_tg_directory'),
-        dbGet('aba_tg_map')
+        dbGet('aba_tg_map'),
+        dbGet('khema_customer_profiles')
     ]).then(results => {
         var accData = results[0];
         var debtData = results[1];
@@ -3386,11 +4033,18 @@ function restoreSavedData() {
         var sentData = results[3];
         var tgDirData = results[4];
         var tgMapData = results[5];
+        var custProfData = results[6];
         var shouldRun = false;
 
         if(sentData && typeof sentData === 'object') {
             TG_SENT = Object.assign(TG_SENT, sentData);
         }
+
+        if(custProfData && typeof custProfData === 'object') {
+            CUSTOMER_PROFILES = Object.assign(CUSTOMER_PROFILES, custProfData);
+        }
+        loadDefaultCustomerProfiles();
+        updateCustomerCountBadge();
 
         if(Array.isArray(tgDirData) && tgDirData.length) {
             tgDirData.forEach(item => {
