@@ -2171,16 +2171,20 @@ function findAccountByAbaNo(accNo) {
 
     for(var i = 0; i < ACC.length; i++) {
         var A = ACC[i];
-        var aNo = String(A.acct || A.bankAcc || '').replace(/\D/g, '');
-        if(!aNo) continue;
+        var accList = (A.accounts && A.accounts.length) ? A.accounts : [String(A.acct || A.bankAcc || '').replace(/\D/g, '')];
 
-        // Exact match of digits
-        if(cleanNo === aNo) return A;
-        // Match without leading zeroes (e.g. 428736 vs 000428736)
-        var s1 = cleanNo.replace(/^0+/, ''), s2 = aNo.replace(/^0+/, '');
-        if(s1 && s2 && s1 === s2 && s1.length >= 5) return A;
-        // Ends with (if account includes prefix)
-        if(cleanNo.length >= 6 && aNo.length >= 6 && (cleanNo.endsWith(aNo) || aNo.endsWith(cleanNo))) return A;
+        for(var k = 0; k < accList.length; k++) {
+            var aNo = accList[k];
+            if(!aNo) continue;
+
+            // Exact match of digits
+            if(cleanNo === aNo) return A;
+            // Match without leading zeroes (e.g. 428736 vs 000428736)
+            var s1 = cleanNo.replace(/^0+/, ''), s2 = aNo.replace(/^0+/, '');
+            if(s1 && s2 && s1 === s2 && s1.length >= 5) return A;
+            // Ends with (if account includes prefix)
+            if(cleanNo.length >= 6 && aNo.length >= 6 && (cleanNo.endsWith(aNo) || aNo.endsWith(cleanNo))) return A;
+        }
     }
     return null;
 }
@@ -2564,7 +2568,12 @@ function ingestAcc(t) {
         var custVal = String(x[kcid]||'').trim();
         var nameVal = String(x[kn]||'').trim();
         var rawAcc = ka ? String(x[ka]||'').trim() : '';
-        var accVal = rawAcc.replace(/\D/g,'');
+        
+        // Split multiple accounts by '/' (e.g. 025934450001/001 654 720)
+        var rawParts = rawAcc ? rawAcc.split('/').map(p => p.trim()).filter(Boolean) : [];
+        var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
+        var accVal = cleanParts[0] || rawAcc.replace(/\D/g,'');
+
         var classVal = String(x[kc]||'').trim();
         var bankVal = String(x[kb]||'').trim();
 
@@ -2573,7 +2582,7 @@ function ingestAcc(t) {
         if(!nameVal && custVal) nameVal = custVal;
         if(!nameVal && entryVal) nameVal = entryVal;
 
-        if(!entryVal && !nameVal && !custVal && !accVal) return;
+        if(!entryVal && !nameVal && !custVal && !accVal && !cleanParts.length) return;
 
         // If HDR has additional metadata for this entry, merge it
         if(entryVal && HDR[entryVal]) {
@@ -2585,16 +2594,27 @@ function ingestAcc(t) {
         var existing = ACC.find(o => 
             (entryVal && o.entry && o.entry.toUpperCase() === entryVal.toUpperCase()) ||
             (custVal && o.customerId && o.customerId.toUpperCase() === custVal.toUpperCase()) ||
-            (accVal && o.acct && o.acct === accVal) ||
-            (nameVal && o.name && o.name.toLowerCase() === nameVal.toLowerCase())
+            (nameVal && o.name && o.name.toLowerCase() === nameVal.toLowerCase()) ||
+            (cleanParts.length && o.accounts && o.accounts.some(a => cleanParts.includes(a))) ||
+            (accVal && o.acct && o.acct === accVal)
         );
 
         if(existing) {
             if(nameVal) existing.name = nameVal;
             if(!existing.entry && entryVal) existing.entry = entryVal;
             if(!existing.customerId && custVal) existing.customerId = custVal;
-            if(accVal) existing.acct = accVal;
-            if(rawAcc) existing.rawAcct = rawAcc;
+            if(cleanParts.length) {
+                var mergedClean = Array.from(new Set((existing.accounts || []).concat(cleanParts)));
+                var mergedRaw = Array.from(new Set((existing.rawAccounts || []).concat(rawParts)));
+                existing.accounts = mergedClean;
+                existing.rawAccounts = mergedRaw;
+                existing.acct = mergedClean[0] || '';
+                existing.rawAcct = mergedRaw.join(' / ');
+            } else if(accVal) {
+                existing.acct = accVal;
+                if(rawAcc) existing.rawAcct = rawAcc;
+                if(!existing.accounts || !existing.accounts.length) existing.accounts = [accVal];
+            }
             if(!existing.bankAcc && bankVal) existing.bankAcc = bankVal;
             if(!existing.classId && classVal) existing.classId = classVal;
         } else {
@@ -2603,8 +2623,10 @@ function ingestAcc(t) {
                 entry: entryVal,
                 customerId: custVal || entryVal,
                 name: nameVal,
-                acct: accVal,
-                rawAcct: rawAcc,
+                acct: cleanParts[0] || accVal,
+                rawAcct: rawParts.length > 1 ? rawParts.join(' / ') : rawAcc,
+                accounts: cleanParts.length ? cleanParts : (accVal ? [accVal] : []),
+                rawAccounts: rawParts.length ? rawParts : (rawAcc ? [rawAcc] : []),
                 classId: classVal,
                 bankAcc: bankVal
             });
@@ -3115,7 +3137,7 @@ function run() {
                 meta: mData,
                 entry: (accMatch && accMatch.entry) || d.entry || '',
                 customerId: (profMatch && profMatch.code) || (accMatch && accMatch.customerId) || cIdRaw || d.custId || '',
-                bankAcc: (accMatch && (accMatch.bankAcc || accMatch.acct || accMatch.rawAcct)) || '',
+                bankAcc: (accMatch && (accMatch.rawAcct || accMatch.bankAcc || accMatch.acct)) || '',
                 inv: [],
                 pay: [],
                 al: aliases(pName)
@@ -3158,7 +3180,7 @@ function run() {
                     meta: mDataA,
                     entry: a.entry || '',
                     customerId: (profMatchA && profMatchA.code) || a.customerId || '',
-                    bankAcc: a.bankAcc || a.acct || a.rawAcct || '',
+                    bankAcc: a.rawAcct || a.bankAcc || a.acct || '',
                     inv: [],
                     pay: [],
                     al: aliases(dn)
@@ -3245,14 +3267,18 @@ function run() {
             if(!matchedAcc) {
                 for(var j = 0; j < ACC.length; j++) {
                     var A = ACC[j];
-                    var accNum = String(A.acct || A.bankAcc || '').replace(/\D/g, '');
-                    if(accNum && accNum.length >= 5) {
-                        var cleanTextDigits = t.text.replace(/\D/g, '');
-                        if(cleanTextDigits.indexOf(accNum) > -1 || t.cells.some(c => String(c).replace(/\D/g, '').indexOf(accNum) > -1)) {
-                            matchedAcc = A;
-                            break;
+                    var accList = (A.accounts && A.accounts.length) ? A.accounts : [String(A.acct || A.bankAcc || '').replace(/\D/g, '')];
+                    var cleanTextDigits = t.text.replace(/\D/g, '');
+                    for(var k = 0; k < accList.length; k++) {
+                        var accNum = accList[k];
+                        if(accNum && accNum.length >= 5) {
+                            if(cleanTextDigits.indexOf(accNum) > -1 || t.cells.some(c => String(c).replace(/\D/g, '').indexOf(accNum) > -1)) {
+                                matchedAcc = A;
+                                break;
+                            }
                         }
                     }
+                    if(matchedAcc) break;
                 }
             }
 

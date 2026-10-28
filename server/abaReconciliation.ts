@@ -294,15 +294,39 @@ export function parseAccountsMap(): any[] {
           const entry = String(r['Entry No'] || r['Entry'] || r['Code'] || '').trim();
           const name = String(r['Name'] || r['Customer Name'] || '').trim();
           const rawAcc = String(r['accound aba'] || r['account aba'] || r['aba account'] || '').trim();
-          const acct = rawAcc.replace(/\D/g, '');
-          if (entry || name || acct) {
-            const existing = list.find(x => (entry && x.entry === entry) || (name && x.name && x.name.toLowerCase() === name.toLowerCase()));
+          
+          // Split multiple accounts by '/' (e.g. 025934450001/001 654 720)
+          const rawParts = rawAcc ? rawAcc.split('/').map(p => p.trim()).filter(Boolean) : [];
+          const cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
+          const acct = cleanParts[0] || rawAcc.replace(/\D/g, '');
+
+          if (entry || name || cleanParts.length || acct) {
+            const existing = list.find(x => 
+              (entry && x.entry && x.entry.toUpperCase() === entry.toUpperCase()) || 
+              (name && x.name && x.name.toLowerCase() === name.toLowerCase())
+            );
             if (existing) {
               if (name) existing.name = name;
-              if (acct) existing.acct = acct;
-              if (rawAcc) existing.rawAcct = rawAcc;
+              if (cleanParts.length) {
+                existing.accounts = Array.from(new Set([...(existing.accounts || []), ...cleanParts]));
+                existing.rawAccounts = Array.from(new Set([...(existing.rawAccounts || []), ...rawParts]));
+                existing.acct = existing.accounts[0] || '';
+                existing.rawAcct = existing.rawAccounts.join(' / ');
+              } else if (acct) {
+                existing.acct = acct;
+                if (rawAcc) existing.rawAcct = rawAcc;
+                if (!existing.accounts || !existing.accounts.length) existing.accounts = [acct];
+              }
             } else {
-              list.push({ entry, customerId: entry, name, acct, rawAcct: rawAcc });
+              list.push({ 
+                entry, 
+                customerId: entry, 
+                name, 
+                acct: cleanParts[0] || acct, 
+                rawAcct: rawParts.length > 1 ? rawParts.join(' / ') : rawAcc,
+                accounts: cleanParts.length ? cleanParts : (acct ? [acct] : []),
+                rawAccounts: rawParts.length ? rawParts : (rawAcc ? [rawAcc] : [])
+              });
             }
           }
         });
@@ -546,8 +570,19 @@ export function computeAbaReconciliation(): AbaState {
 
         // Match by account number in accMap
         for (const a of accMap) {
-          const cleanA = String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '');
-          if (cleanA && cleanA.length >= 5 && (cleanTextDigits.includes(cleanA) || (txAcc && txAcc === cleanA))) {
+          const accList: string[] = (a.accounts && a.accounts.length)
+            ? a.accounts
+            : [String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '')];
+
+          let hitThis = false;
+          for (const cleanA of accList) {
+            if (cleanA && cleanA.length >= 5 && (cleanTextDigits.includes(cleanA) || (txAcc && txAcc === cleanA))) {
+              hitThis = true;
+              break;
+            }
+          }
+
+          if (hitThis) {
             const targetId = (a.customerId || a.entry || '').toUpperCase();
             const targetName = (a.name || '').trim();
             if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
@@ -593,10 +628,13 @@ export function computeAbaReconciliation(): AbaState {
         // Auto-create customer entry if accMap has record but doctor had no debt row
         if (!hitDoc) {
           for (const a of accMap) {
-            const cleanA = String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '');
+            const accList: string[] = (a.accounts && a.accounts.length)
+              ? a.accounts
+              : [String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '')];
+            const matchAcc = accList.some(cleanA => cleanA && cleanA.length >= 5 && cleanTextDigits.includes(cleanA));
             const aName = (a.name || '').trim();
             const aId = (a.customerId || a.entry || '').toUpperCase();
-            const hasMatch = (cleanA && cleanA.length >= 5 && cleanTextDigits.includes(cleanA)) ||
+            const hasMatch = matchAcc ||
                              (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) ||
                              (aId && aId.length >= 4 && text.toUpperCase().includes(aId));
             if (hasMatch) {
