@@ -141,6 +141,9 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button type="button" id="btnConnectZDrive" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="ភ្ជាប់ជាមួយ Drive Z:\ ឬ Network Folder ដើម្បីរក្សាទុកឯកសារដោយស្វ័យប្រវត្តិ">
+      <span id="zDriveIcon">⚪</span> <span id="zDriveText">ភ្ជាប់ Z:\ (Network Drive)</span>
+    </button>
     <button type="button" id="btnOpenAmeExports" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="មើល និងទាញយកហ្វាល់ Excel សម្រាប់ AME ដែលបានរក្សាទុក">
       📂 ហ្វាល់ AME (<span id="btnAmeCount">0</span>)
     </button>
@@ -160,6 +163,15 @@ summary:hover{background:var(--bg)}
 
 
 <div class="card">
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:6px">
+  <div style="font-size:0.82rem" id="zDriveStatusText">
+    <span style="color:#64748b">💾 រក្សាទុកក្នុង Drive Z:\ ៖</span> <b style="color:#0284c7">Z:\InvoiceAI\data\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ Z:\" ដើម្បីបើក Auto-save ចូល Z: ផ្ទាល់)</span>
+  </div>
+  <button type="button" id="btnBrowseZDrive" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:3px 10px;font-size:0.75rem;cursor:pointer;color:#334155;font-weight:600">
+    📂 ជ្រើសរើស Folder Z:\
+  </button>
+</div>
 
 <div class="row">
 
@@ -2322,6 +2334,7 @@ function applyServerState(state) {
 }
 
 function uploadAbaFileToServer(fileType, file) {
+    if(typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive(fileType, file);
     showServerLoading('កំពុងផ្ទុកឯកសារ ' + file.name + ' និងគណនាលើ Server (កុំបារម្ភ មិនគាំងទេ)...');
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -4514,6 +4527,173 @@ $('go').onclick = () => run();
 
 
 // ============================================================================
+// 5.9 Z:\ DRIVE AUTO-SAVE & DIRECTORY STORAGE MANAGER
+// ============================================================================
+
+var zDirHandle = null;
+
+async function initZDrive() {
+    try {
+        var savedHandle = await dbGet('z_drive_handle');
+        var savedName = (await dbGet('z_drive_name')) || 'Z:';
+        if (savedHandle) {
+            var permission = await savedHandle.queryPermission({ mode: 'readwrite' });
+            if (permission === 'granted') {
+                zDirHandle = savedHandle;
+                updateZDriveUI(true, savedName);
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Init Z drive handle warning:', e);
+    }
+    updateZDriveUI(false);
+}
+
+function updateZDriveUI(connected, dirName) {
+    var icon = $('zDriveIcon');
+    var text = $('zDriveText');
+    var btn = $('btnConnectZDrive');
+    var statusText = $('zDriveStatusText');
+
+    if (connected) {
+        if (icon) icon.textContent = '🟢';
+        if (text) text.textContent = 'Z:\\ បានភ្ជាប់ (' + (dirName || 'Z:') + ')';
+        if (btn) {
+            btn.style.background = '#f0fdf4';
+            btn.style.borderColor = '#86efac';
+            btn.style.color = '#15803d';
+            btn.title = 'បានភ្ជាប់ជាមួយ Folder ' + (dirName || 'Z:') + ' (ចុចដើម្បីប្ដូរ Folder)';
+        }
+        if (statusText) {
+            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive Z:\\ (' + (dirName || 'Z:') + ') — រាល់ការ Upload ឯកសារទាំង៣ និង Export AME នឹងរក្សាទុកក្នុង Z:\\ ដោយស្វ័យប្រវត្តិ</b>';
+        }
+    } else {
+        if (icon) icon.textContent = '⚪';
+        if (text) text.textContent = 'ភ្ជាប់ Z:\\ (Network Drive)';
+        if (btn) {
+            btn.style.background = '#eff6ff';
+            btn.style.borderColor = '#bfdbfe';
+            btn.style.color = '#1d4ed8';
+            btn.title = 'ចុចដើម្បីជ្រើសរើស Folder Z:\\ ឬ Network Drive';
+        }
+        if (statusText) {
+            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive Z:\\ ៖</span> <b style="color:#0284c7">Z:\\InvoiceAI\\data\\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ Z:\\" ដើម្បីបើក Auto-save ចូល Z: ផ្ទាល់)</span>';
+        }
+    }
+}
+
+async function connectZDrive() {
+    if (!window.showDirectoryPicker) {
+        alert('Browser របស់អ្នកមិនទាន់គាំទ្រ File System Access API ទេ (សូមប្រើ Google Chrome ឬ Microsoft Edge ជំនាន់ថ្មី)');
+        return;
+    }
+    try {
+        var handle = await window.showDirectoryPicker({
+            id: 'z_drive_storage',
+            mode: 'readwrite',
+            startIn: 'desktop'
+        });
+        if (handle) {
+            var permission = await handle.requestPermission({ mode: 'readwrite' });
+            if (permission === 'granted') {
+                zDirHandle = handle;
+                await dbSet('z_drive_handle', handle);
+                await dbSet('z_drive_name', handle.name);
+                updateZDriveUI(true, handle.name);
+                showToast('✅ បានភ្ជាប់ទៅកាន់ Folder <b>' + esc(handle.name) + '</b> ដោយជោគជ័យ!<br><small>រាល់ពេល Upload ឯកសារទាំង ៣ ឬ Export AME នឹងចម្លងរក្សាទុកក្នុង Z:\\ ដោយស្វ័យប្រវត្តិ</small>');
+            }
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error('Error connecting to Z drive:', e);
+            alert('មិនអាចភ្ជាប់ Folder បានទេ៖ ' + (e.message || ''));
+        }
+    }
+}
+
+async function mirrorFileToZDrive(fileType, file) {
+    if (!zDirHandle) {
+        try {
+            var saved = await dbGet('z_drive_handle');
+            if (saved) {
+                var p = await saved.queryPermission({ mode: 'readwrite' });
+                if (p === 'granted') zDirHandle = saved;
+            }
+        } catch(e) {}
+    }
+    if (!zDirHandle) return;
+
+    try {
+        var ext = file.name.substring(file.name.lastIndexOf('.')) || '.xlsx';
+        var standardName = '';
+        if (fileType === 'aba') standardName = 'aba_statement' + ext;
+        else if (fileType === 'debt') standardName = 'debts' + ext;
+        else if (fileType === 'acc') standardName = 'accounts' + ext;
+
+        var baseDir = zDirHandle;
+        try {
+            baseDir = await zDirHandle.getDirectoryHandle('InvoiceAI', { create: true });
+            baseDir = await baseDir.getDirectoryHandle('data', { create: true });
+            baseDir = await baseDir.getDirectoryHandle('aba', { create: true });
+        } catch(e) {
+            baseDir = zDirHandle;
+        }
+
+        if (standardName) {
+            var activeFileHandle = await baseDir.getFileHandle(standardName, { create: true });
+            var writableActive = await activeFileHandle.createWritable();
+            await writableActive.write(file);
+            await writableActive.close();
+        }
+
+        var uploadsDirHandle = await baseDir.getDirectoryHandle('uploads', { create: true });
+        var timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        var cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var backupName = timeStr + '_' + fileType + '_' + cleanName;
+        var backupFileHandle = await uploadsDirHandle.getFileHandle(backupName, { create: true });
+        var writableBackup = await backupFileHandle.createWritable();
+        await writableBackup.write(file);
+        await writableBackup.close();
+
+        showToast('💾 បានរក្សាទុកមួយច្បាប់ក្នុង Z:\\ (' + (standardName || file.name) + ') រួចរាល់!');
+        console.log('✓ Successfully wrote to Z: drive handle:', standardName, backupName);
+    } catch(err) {
+        console.warn('Could not write to Z drive handle:', err);
+    }
+}
+
+async function mirrorExportToZDrive(fileName, wb) {
+    if (!zDirHandle) return;
+    try {
+        var baseDir = zDirHandle;
+        try {
+            baseDir = await zDirHandle.getDirectoryHandle('InvoiceAI', { create: true });
+            baseDir = await baseDir.getDirectoryHandle('data', { create: true });
+            baseDir = await baseDir.getDirectoryHandle('aba', { create: true });
+        } catch(e) {
+            baseDir = zDirHandle;
+        }
+
+        var ameDirHandle = await baseDir.getDirectoryHandle('ame_exports', { create: true });
+        var safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var exportFileHandle = await ameDirHandle.getFileHandle(safeName, { create: true });
+        var u8 = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        var writable = await exportFileHandle.createWritable();
+        await writable.write(u8);
+        await writable.close();
+
+        showToast('💾 បានរក្សាទុកហ្វាល់ AME ទៅកាន់ Z:\\ (' + safeName + ')!');
+        console.log('✓ Successfully saved AME export to Z: drive:', safeName);
+    } catch (err) {
+        console.warn('Could not write export to Z drive handle:', err);
+    }
+}
+
+if ($('btnConnectZDrive')) $('btnConnectZDrive').onclick = () => connectZDrive();
+if ($('btnBrowseZDrive')) $('btnBrowseZDrive').onclick = () => connectZDrive();
+
+// ============================================================================
 // 6. EXPORTS & ARCHIVES (AME Software & Drive Storage)
 // ============================================================================
 
@@ -4525,6 +4705,9 @@ function saveWB(wb, fn) {
     } catch(e) {
         alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || ''));
     }
+    // Also save directly into Z:\ drive if connected
+    if(typeof mirrorExportToZDrive === 'function') mirrorExportToZDrive(fn, wb);
+
     // Also save copy to server / drive in data/aba/ame_exports/
     try {
         var b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
@@ -5023,12 +5206,14 @@ function restoreSavedData() {
             }
             restoreFromLocalIndexedDB();
             updateAmeBadge();
+            initZDrive();
         })
         .catch(err => {
             hideServerLoading();
             console.warn('Server state fetch failed, falling back to local DB:', err);
             restoreFromLocalIndexedDB();
             updateAmeBadge();
+            initZDrive();
         });
 }
 

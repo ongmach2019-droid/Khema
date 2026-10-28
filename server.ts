@@ -155,6 +155,20 @@ app.post('/api/aba/save-export', (req, res) => {
     if (history.length > 100) history = history.slice(0, 100);
     fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
+    // Mirror to Z: drive if available
+    try {
+      if (fs.existsSync('Z:\\')) {
+        const zAmeDir = path.join('Z:\\', 'InvoiceAI', 'data', 'aba', 'ame_exports');
+        if (!fs.existsSync(zAmeDir)) fs.mkdirSync(zAmeDir, { recursive: true });
+        fs.writeFileSync(path.join(zAmeDir, safeName), buffer);
+        const zHist = path.join('Z:\\', 'InvoiceAI', 'data', 'aba', 'exports_history.json');
+        fs.writeFileSync(zHist, JSON.stringify(history, null, 2), 'utf-8');
+        console.log(`✓ Synchronized AME export file to Z: drive (${safeName})`);
+      }
+    } catch (zErr) {
+      console.warn('Could not mirror export to Z: drive:', zErr);
+    }
+
     res.json({ success: true, fileName: safeName, totalExports: history.length });
   } catch (err: any) {
     console.error('Error in /api/aba/save-export:', err);

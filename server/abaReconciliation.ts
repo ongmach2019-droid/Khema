@@ -120,6 +120,13 @@ function writeJsonFile(filename: string, data: any) {
   ensureDataDir();
   const filePath = path.join(dataDir, filename);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    if (fs.existsSync('Z:\\')) {
+      const zDir = path.join('Z:\\', 'InvoiceAI', 'data', 'aba');
+      if (!fs.existsSync(zDir)) fs.mkdirSync(zDir, { recursive: true });
+      fs.writeFileSync(path.join(zDir, filename), JSON.stringify(data, null, 2), 'utf-8');
+    }
+  } catch {}
 }
 
 // Extract parenthesized ABA account number like (000 428 736)
@@ -673,6 +680,21 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (history.length > 100) history = history.slice(0, 100);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
+  // 4. Also mirror directly to Z:\ drive if available (e.g. \\192.168.1.7\Public\InvoiceAI)
+  try {
+    if (fs.existsSync('Z:\\')) {
+      const zBase = path.join('Z:\\', 'InvoiceAI', 'data', 'aba');
+      const zUploads = path.join(zBase, 'uploads');
+      if (!fs.existsSync(zUploads)) fs.mkdirSync(zUploads, { recursive: true });
+      fs.writeFileSync(path.join(zBase, targetName), buffer);
+      fs.writeFileSync(path.join(zUploads, backupFileName), buffer);
+      fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
+      console.log(`✓ Synchronized upload file to Z: drive (${targetName}, ${backupFileName})`);
+    }
+  } catch (zErr) {
+    console.warn('Could not mirror file to Z: drive:', zErr);
+  }
+
   // Recompute and return state
   return computeAbaReconciliation();
 }
@@ -700,6 +722,12 @@ export function resetAbaState(): AbaState {
     if (fs.existsSync(p)) {
       try { fs.unlinkSync(p); } catch {}
     }
+    try {
+      if (fs.existsSync('Z:\\')) {
+        const zp = path.join('Z:\\', 'InvoiceAI', 'data', 'aba', f);
+        if (fs.existsSync(zp)) { try { fs.unlinkSync(zp); } catch {} }
+      }
+    } catch {}
   });
   return computeAbaReconciliation();
 }
