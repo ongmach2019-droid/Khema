@@ -819,19 +819,25 @@ var num = v => { if(v==null || v==='') return 0; var n = parseFloat(String(v).re
 var fmt = n => n.toLocaleString('en-US', {maximumFractionDigits:2});
 
 var pd = v => {
-
-    if(v instanceof Date) return isNaN(v) ? null : v;
-
+    if(v instanceof Date) return isNaN(v.getTime()) ? null : v;
     if(v == null || v === '') return null;
-
-    if(typeof v === 'number' && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4);
-
-    var s = String(v).trim(), m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
-
-    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
-
-    var d = new Date(s); return isNaN(d) ? null : d;
-
+    if(typeof v === 'number' && v > 20000 && v < 80000) {
+        return new Date(Math.round((v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4);
+    }
+    var s = String(v).trim();
+    // YYYY-MM-DD or YYYY/MM/DD
+    var mYmd = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
+    if(mYmd) return new Date(+mYmd[1], +mYmd[2]-1, +mYmd[3]);
+    // DD-MM-YYYY or DD/MM/YYYY
+    var mDmy = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
+    if(mDmy) return new Date(+mDmy[3], +mDmy[2]-1, +mDmy[1]);
+    // DD-MMM-YYYY (e.g. 09-Sep-2026)
+    var mMon = s.match(/^(\d{1,2})[\s\-]([A-Za-z]{3})[\s\-](\d{4})/);
+    if(mMon) {
+        var mi = MON.findIndex(m => m.toLowerCase() === mMon[2].toLowerCase());
+        if(mi > -1) return new Date(+mMon[3], mi, +mMon[1]);
+    }
+    var d = new Date(s); return isNaN(d.getTime()) ? null : d;
 };
 
 var iso = d => d ? d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') : '';
@@ -2317,6 +2323,15 @@ function applyServerState(state) {
     state.doctors.forEach(d => {
         d.inv = d.invoices || d.inv || [];
         d.pay = d.payments || d.pay || [];
+        var maxPayDate = null;
+        d.pay.forEach(p => {
+            var dt = p.date instanceof Date ? p.date : pd(p.date);
+            if(dt && !isNaN(dt.getTime()) && dt.getFullYear() >= 2020 && dt.getFullYear() <= 2035) {
+                if(!maxPayDate || dt > maxPayDate) maxPayDate = dt;
+            }
+        });
+        d.lastD = maxPayDate;
+        d.lastPaymentDate = maxPayDate;
         d.before = 0;
         d.per = d.pay.reduce((s, p) => s + (p.amt || 0), 0);
         d.paidBeforeTotal = d.paidBeforeTotal || 0;
@@ -3195,11 +3210,15 @@ function run() {
 
         var before = 0, per = 0, lastD = null;
         D.pay.forEach(t => {
-            if(from && t.date < from) before += t.amt;
-            else { per += t.amt; if(!lastD || t.date > lastD) lastD = t.date; }
+            var dt = t.date instanceof Date ? t.date : pd(t.date);
+            if(dt && !isNaN(dt.getTime()) && dt.getFullYear() >= 2020 && dt.getFullYear() <= 2035) {
+                if(!lastD || dt > lastD) lastD = dt;
+            }
+            if(from && dt && dt < from) before += t.amt;
+            else per += (t.amt || 0);
         });
 
-        D.before = before; D.per = per; D.lastD = lastD || to; D.owed = 0;
+        D.before = before; D.per = per; D.lastD = lastD; D.lastPaymentDate = lastD; D.owed = 0;
 
         D.inv.forEach(v => {
             var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
@@ -4930,6 +4949,118 @@ function formatOrSeq(parsed, offset) {
     return parsed.prefix + String(n).padStart(parsed.padLen, '0');
 }
 
+function resolvePaymentInfo(x) {
+    var D = (x && x.D) || (res && res.docs && res.docs[x.n]) || {};
+    var v = (x && x.v) || {};
+    var docName = String((x && x.n) || v.party || '').split(',')[0].trim();
+
+    // 1. Gather all payments from D.pay and D.payments
+    var pays = [];
+    if(Array.isArray(D.pay) && D.pay.length) pays = pays.concat(D.pay);
+    if(Array.isArray(D.payments) && D.payments.length) pays = pays.concat(D.payments);
+
+    // 2. Also check if any transaction in global `aba` was assigned to this customer
+    if(typeof aba !== 'undefined' && Array.isArray(aba) && typeof assign !== 'undefined') {
+        aba.forEach(t => {
+            if(t && assign[t.id] && (assign[t.id] === D.name || assign[t.id] === docName || assign[t.id] === x.n)) {
+                pays.push(t);
+            }
+        });
+    }
+
+    var validPays = [];
+    pays.forEach(p => {
+        if(!p) return;
+        var d = p.date instanceof Date ? p.date : pd(p.date);
+        if(d && !isNaN(d.getTime()) && d.getFullYear() >= 2020 && d.getFullYear() <= 2035) {
+            validPays.push({
+                date: d,
+                ref: String(p.ref || '').trim(),
+                text: String(p.text || '').trim(),
+                amt: p.amt || 0
+            });
+        }
+    });
+
+    // If payments found in ABA, sort descending by date (take the latest payment date)
+    if(validPays.length > 0) {
+        validPays.sort((a, b) => b.date.getTime() - a.date.getTime());
+        var ref = '';
+        for(var i = 0; i < validPays.length; i++) {
+            if(validPays[i].ref) { ref = validPays[i].ref; break; }
+            var mRef = validPays[i].text.match(/\b(?:ref|tx|trn|seq|batch)[:#\s]*([a-z0-9_-]+)/i);
+            if(mRef) { ref = mRef[1]; break; }
+        }
+        return {
+            date: validPays[0].date,
+            ref: ref,
+            text: validPays[0].text || '',
+            hasPayment: true
+        };
+    }
+
+    // 3. Check D.lastPaymentDate or D.lastD if valid
+    var ldRaw = D.lastPaymentDate || D.lastD;
+    if(ldRaw) {
+        var ld = ldRaw instanceof Date ? ldRaw : pd(ldRaw);
+        if(ld && !isNaN(ld.getTime()) && ld.getFullYear() >= 2020 && ld.getFullYear() <= 2035) {
+            return {
+                date: ld,
+                ref: '',
+                text: '',
+                hasPayment: true
+            };
+        }
+    }
+
+    // 4. Check if HDR has payment date from past OR record
+    var oldEntry = String(v.entry || '').trim();
+    var h = (oldEntry && HDR[oldEntry]) || (HDR && HDR[x.entryNo]) || {};
+    var hDateRaw = h['Date (dd-MMM-YYYY)'] || h['Payment Date'] || h['Date'] || h['date'];
+    if(hDateRaw) {
+        var hd = hDateRaw instanceof Date ? hDateRaw : pd(hDateRaw);
+        if(hd && !isNaN(hd.getTime()) && hd.getFullYear() >= 2020 && hd.getFullYear() <= 2035) {
+            var hRem = h['Remark'] || '';
+            var mRefH = (h['Reference'] || h['Payment Reference'] || hRem).match(/ABA\s*(\d+)/i);
+            return {
+                date: hd,
+                ref: mRefH ? mRefH[1] : (h['Reference'] || ''),
+                text: hRem,
+                hasPayment: true
+            };
+        }
+    }
+
+    // 5. Check if ABA statement has any valid transaction date overall
+    if(typeof aba !== 'undefined' && Array.isArray(aba) && aba.length > 0) {
+        var statementDates = [];
+        aba.forEach(t => {
+            var d = t.date instanceof Date ? t.date : pd(t.date);
+            if(d && !isNaN(d.getTime()) && d.getFullYear() >= 2020 && d.getFullYear() <= 2035) {
+                statementDates.push(d);
+            }
+        });
+        if(statementDates.length > 0) {
+            statementDates.sort((a, b) => b.getTime() - a.getTime());
+            return {
+                date: statementDates[0],
+                ref: '',
+                text: '',
+                hasPayment: true
+            };
+        }
+    }
+
+    // 6. If no payment record found at all, use today's date (receipt creation date)
+    // NEVER use invoice date v.date!
+    return {
+        date: new Date(),
+        ref: '',
+        text: '',
+        hasPayment: false
+    };
+}
+
 function buildOR(items) {
 
     var cur = ($('cur') && $('cur').value) || 'USD', rate = +($('rate') && $('rate').value) || 1;
@@ -5004,8 +5135,16 @@ function buildOR(items) {
         var oldEntry = String(v.entry || '').trim();
         var h = (oldEntry && HDR[oldEntry]) || HDR[e] || {};
 
-        var hDate = (x.D && x.D.lastD) || v.date || h['Date (dd-MMM-YYYY)'] || h['Date'] || h['date'] || new Date();
-        var entryDateStr = dmy(hDate);
+        // Resolve actual PAYMENT DATE from ABA (never invoice issue date)
+        var payInfo = resolvePaymentInfo(x);
+        var pDate = payInfo.date;
+        var entryDateStr = dmy(pDate); // e.g. "09-Sep-2026"
+
+        // Format short date for Remark: DD/MM/YY (e.g. "09/09/26") matching AME convention
+        var pDay = String(pDate.getDate()).padStart(2, '0');
+        var pMon = String(pDate.getMonth() + 1).padStart(2, '0');
+        var pYear2 = String(pDate.getFullYear()).slice(-2);
+        var shortDateStr = pDay + '/' + pMon + '/' + pYear2;
 
         var type = h['Type'] || h['type'] || 'Apply to Sale Invoice';
         var prefix = h['Prefix'] || h['prefix'] || 'DEFAULT';
@@ -5023,10 +5162,18 @@ function buildOR(items) {
         var bankAcc = bankInput || h['Cash/Bank Account ID'] || (acc && acc.bankAcc) || '110140';
         var recBy = h['Received By'] || '';
         var classId = classInput || h['Class ID'] || (acc && acc.classId) || 'KHEMA88888';
-        var ref = h['Reference'] || '';
-        var remark = h['Remark'] || ('ABA: ' + entryDateStr);
+        var ref = h['Reference'] || payInfo.ref || '';
+
+        // Remark: contains payment date (e.g. "ABA33: 09/09/26" or "ABA: 09/09/26")
+        var remark = '';
+        if(payInfo.ref) {
+            remark = 'ABA' + payInfo.ref + ': ' + shortDateStr;
+        } else {
+            remark = 'ABA: ' + shortDateStr;
+        }
+
         var payMethod = h['Payment Method'] || '';
-        var payRef = h['Payment Reference'] || '';
+        var payRef = h['Payment Reference'] || payInfo.ref || '';
         var curId = h['Currency ID'] || cur;
         var exRate = h['Exchange Rate'] || rate;
 

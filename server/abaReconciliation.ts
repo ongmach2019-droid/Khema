@@ -559,6 +559,12 @@ export function computeAbaReconciliation(): AbaState {
     D.pay = D.payments;
     (D as any).before = 0;
     (D as any).per = D.payments.reduce((s, p) => s + p.amt, 0);
+    let maxServerPayDate: string | null = null;
+    D.payments.forEach(p => {
+      if (p.date && (!maxServerPayDate || p.date > maxServerPayDate)) maxServerPayDate = p.date;
+    });
+    (D as any).lastD = maxServerPayDate;
+    (D as any).lastPaymentDate = maxServerPayDate;
 
     const fullDoc = D.rem <= 0.005 && D.paidTotal > 0;
     D.status = fullDoc ? 'Fully Paid' : (D.paidTotal > 0 ? 'Partially Paid' : 'Unpaid');
