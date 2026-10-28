@@ -129,14 +129,97 @@ function writeJsonFile(filename: string, data: any) {
   } catch {}
 }
 
-// Extract parenthesized ABA account number like (000 428 736)
+// Extract parenthesized ABA / bank account number like (000 428 736) or contiguous digits
 export function extractAbaAccount(text: string): string {
   if (!text) return '';
-  const m = text.match(/\(\s*(\d{3}[\s\-_]?\d{3}[\s\-_]?\d{3})\s*\)/);
-  if (m) return m[1].replace(/\D/g, '');
-  const m2 = text.match(/\b(\d{3}[\s\-_]\d{3}[\s\-_]\d{3})\b/);
+  const str = String(text);
+  const m = str.match(/\(\s*([0-9\s\-_]{6,20})\s*\)/);
+  if (m) {
+    const digits = m[1].replace(/\D/g, '');
+    if (digits.length >= 6) return digits;
+  }
+  const m2 = str.match(/\b(\d{3}[\s\-_]\d{3}[\s\-_]\d{3,4})\b/);
   if (m2) return m2[1].replace(/\D/g, '');
+  const m3 = str.match(/(?:ACC|ACCT|ACCOUNT|A\/C)?\s*:?\s*(\d{6,18})\b/i);
+  if (m3) return m3[1];
   return '';
+}
+
+// Robust date parsing for Excel serial numbers and multiple date string patterns
+export function parseDateRobust(val: any): { dateObj: Date | null; dateStr: string; dmyStr: string; shortStr: string } {
+  if (!val) return { dateObj: null, dateStr: '', dmyStr: '', shortStr: '' };
+  let d: Date | null = null;
+  if (val instanceof Date) {
+    d = val;
+  } else if (typeof val === 'number') {
+    if (val > 25000 && val < 60000) {
+      // Excel serial date
+      const ms = Math.round((val - 25569) * 86400 * 1000);
+      d = new Date(ms);
+      const offset = d.getTimezoneOffset() * 60000;
+      d = new Date(d.getTime() + offset);
+    }
+  } else {
+    const s = String(val).trim();
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // YYYY-MM-DD or YYYY/MM/DD
+    const mYmd = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
+    if (mYmd) d = new Date(+mYmd[1], +mYmd[2] - 1, +mYmd[3]);
+
+    // DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY
+    if (!d) {
+      const mDmy = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+      if (mDmy) {
+        let yr = +mDmy[3];
+        if (yr < 100) yr += (yr > 50 ? 1900 : 2000);
+        d = new Date(yr, +mDmy[2] - 1, +mDmy[1]);
+      }
+    }
+
+    // DD-MMM-YY or DD-MMM-YYYY (e.g. 26-Oct-26, 26-Oct-2026, 09-Sep-2026)
+    if (!d) {
+      const mMon = s.match(/^(\d{1,2})[\s\-\/]([A-Za-z]{3,9})[\s\-\/](\d{2,4})/);
+      if (mMon) {
+        const mi = MON.findIndex(m => m.toLowerCase() === mMon[2].slice(0, 3).toLowerCase());
+        let yr = +mMon[3];
+        if (yr < 100) yr += (yr > 50 ? 1900 : 2000);
+        if (mi > -1) d = new Date(yr, mi, +mMon[1]);
+      }
+    }
+
+    // MMM DD, YYYY (e.g. Oct 26, 2026, Oct 04, 2026)
+    if (!d) {
+      const mMon2 = s.match(/^([A-Za-z]{3,9})[\s\-\/](\d{1,2})(?:st|nd|rd|th)?,?[\s\-\/]+(\d{2,4})/);
+      if (mMon2) {
+        const mi2 = MON.findIndex(m => m.toLowerCase() === mMon2[1].slice(0, 3).toLowerCase());
+        let yr2 = +mMon2[3];
+        if (yr2 < 100) yr2 += (yr2 > 50 ? 1900 : 2000);
+        if (mi2 > -1) d = new Date(yr2, mi2, +mMon2[2]);
+      }
+    }
+
+    if (!d) {
+      const trial = new Date(s);
+      if (!isNaN(trial.getTime()) && trial.getFullYear() >= 2000 && trial.getFullYear() <= 2040) {
+        d = trial;
+      }
+    }
+  }
+
+  if (!d || isNaN(d.getTime())) return { dateObj: null, dateStr: '', dmyStr: '', shortStr: '' };
+
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const monStr = MON[d.getMonth()];
+  const yrFull = d.getFullYear();
+  const monNum = String(d.getMonth() + 1).padStart(2, '0');
+  const yrShort = String(yrFull).slice(-2);
+
+  const dmyStr = `${day}-${monStr}-${yrFull}`;
+  const shortStr = `${day}/${monNum}/${yrShort}`;
+  const dateStr = `${yrFull}-${monNum}-${day}`;
+
+  return { dateObj: d, dateStr, dmyStr, shortStr };
 }
 
 // Parse customer profiles from customers.xls or customers.xlsx
@@ -368,14 +451,19 @@ export function computeAbaReconciliation(): AbaState {
       let dateCol = -1;
       let textCol = -1;
       let crCol = -1;
+      let balCol = -1;
+      let refCol = -1;
 
-      for (let i = 0; i < Math.min(25, aoa.length); i++) {
+      for (let i = 0; i < Math.min(100, aoa.length); i++) {
         const row = aoa[i] || [];
         for (let c = 0; c < row.length; c++) {
-          const val = String(row[c] || '').toLowerCase();
-          if (val.includes('date') || val.includes('កាលបរិច្ឆេទ')) dateCol = c;
-          if (val.includes('description') || val.includes('narrative') || val.includes('remark') || val.includes('detail')) textCol = c;
-          if (val.includes('credit') || val.includes('money in') || val.includes('amount') || val.includes('cr')) crCol = c;
+          const val = String(row[c] || '').trim().toLowerCase();
+          if (!val) continue;
+          if (/(txn\s*date|value\s*date|post\s*date|date|កាលបរិច្ឆេទ)/i.test(val) && dateCol === -1) dateCol = c;
+          if (/(particular|description|narrative|remark|detail|memo|បរិយាយ|ពិពណ៌នា)/i.test(val) && textCol === -1) textCol = c;
+          if (/(deposit|credit|money\s*in|cash\s*in|\bcr\b|amount\s*in|ចូល)/i.test(val) && crCol === -1) crCol = c;
+          if (/(balance|running\s*bal|សមតុល្យ)/i.test(val) && balCol === -1) balCol = c;
+          if (/(ref|reference|trx\s*id|transaction\s*id|ft\s*ref|លេខយោង)/i.test(val) && refCol === -1) refCol = c;
         }
         if (dateCol !== -1 && (crCol !== -1 || textCol !== -1)) {
           hdrIdx = i;
@@ -383,35 +471,92 @@ export function computeAbaReconciliation(): AbaState {
         }
       }
 
-      const startRow = hdrIdx !== -1 ? hdrIdx + 1 : 1;
+      const startRow = hdrIdx !== -1 ? hdrIdx + 1 : 0;
       for (let i = startRow; i < aoa.length; i++) {
         const r = aoa[i] || [];
-        const text = r.map(x => String(x || '')).join(' ');
-        const crVal = parseFloat(String(crCol !== -1 ? r[crCol] : r[3] || '').replace(/[^0-9.\-]/g, '')) || 0;
-        const dateVal = String(dateCol !== -1 ? r[dateCol] : r[0] || '').trim();
 
-        if (crVal <= 0 || !text.trim()) continue;
+        // 1. Resolve date
+        let dateRes = dateCol !== -1 ? parseDateRobust(r[dateCol]) : { dateObj: null, dateStr: '', dmyStr: '', shortStr: '' };
+        if (!dateRes.dateObj) {
+          // Check first 5 cells for shifted column (e.g. row 60 shifted to col 1)
+          for (let c = 0; c < Math.min(r.length, 5); c++) {
+            const trial = parseDateRobust(r[c]);
+            if (trial.dateObj) { dateRes = trial; break; }
+          }
+        }
+        if (!dateRes.dateObj) continue;
 
-        // Match ABA transaction
+        // 2. Resolve description
+        let text = textCol !== -1 ? String(r[textCol] || '').trim() : '';
+        if (!text || text.length < 3 || parseDateRobust(text).dateObj) {
+          let longest = '';
+          for (let c = 0; c < r.length; c++) {
+            const s = String(r[c] || '').trim();
+            if (s && !parseDateRobust(s).dateObj && isNaN(parseFloat(s)) && !/^(usd|khr)$/i.test(s) && s.length > longest.length) {
+              longest = s;
+            }
+          }
+          if (longest) text = longest;
+        }
+
+        // 3. Resolve credit / payment amount
+        let crVal = crCol !== -1 ? parseFloat(String(r[crCol] || '').replace(/[^0-9.\-]/g, '')) || 0 : 0;
+        if (crVal <= 0) {
+          for (let c = 0; c < r.length; c++) {
+            if (c === dateCol || c === balCol) continue;
+            const n = parseFloat(String(r[c] || '').replace(/[^0-9.\-]/g, ''));
+            if (n > 0 && !parseDateRobust(r[c]).dateObj) {
+              crVal = n;
+              break;
+            }
+          }
+        }
+        if (crVal <= 0 && !text) continue;
+
+        // 4. Resolve reference
+        let refVal = refCol !== -1 ? String(r[refCol] || '').trim() : '';
+        if (!refVal) {
+          const mTrx = text.match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
+          if (mTrx) refVal = mTrx[1];
+        }
+
+        // 5. Match customer from accMap or existing doctors
         const txAcc = extractAbaAccount(text);
+        const cleanTextDigits = text.replace(/\D/g, '');
         let hitDoc: DoctorStatement | null = null;
 
-        if (txAcc) {
-          const matchedAcc = accMap.find(a => {
-            const cleanA = String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '');
-            return cleanA && cleanA === txAcc;
-          });
-          if (matchedAcc) {
-            const targetId = (matchedAcc.customerId || matchedAcc.entry || '').toUpperCase();
-            const targetName = (matchedAcc.name || '').trim();
+        // Match by account number in accMap
+        for (const a of accMap) {
+          const cleanA = String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '');
+          if (cleanA && cleanA.length >= 5 && (cleanTextDigits.includes(cleanA) || (txAcc && txAcc === cleanA))) {
+            const targetId = (a.customerId || a.entry || '').toUpperCase();
+            const targetName = (a.name || '').trim();
             if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
             if (!hitDoc && targetName && doctorsMap[targetName]) hitDoc = doctorsMap[targetName];
             if (!hitDoc && targetId && targetName && doctorsMap[`${targetId} - ${targetName}`]) {
               hitDoc = doctorsMap[`${targetId} - ${targetName}`];
             }
+            if (hitDoc) break;
           }
         }
 
+        // Match by customer name in accMap
+        if (!hitDoc) {
+          for (const a of accMap) {
+            const aName = (a.name || '').trim();
+            if (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) {
+              const targetId = (a.customerId || a.entry || '').toUpperCase();
+              if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
+              if (!hitDoc && doctorsMap[aName]) hitDoc = doctorsMap[aName];
+              if (!hitDoc && targetId && doctorsMap[`${targetId} - ${aName}`]) {
+                hitDoc = doctorsMap[`${targetId} - ${aName}`];
+              }
+              if (hitDoc) break;
+            }
+          }
+        }
+
+        // Match by doctor order list
         if (!hitDoc) {
           for (const dName of doctorOrder) {
             const D = doctorsMap[dName];
@@ -426,16 +571,64 @@ export function computeAbaReconciliation(): AbaState {
           }
         }
 
+        // Auto-create customer entry if accMap has record but doctor had no debt row
+        if (!hitDoc) {
+          for (const a of accMap) {
+            const cleanA = String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '');
+            const aName = (a.name || '').trim();
+            const aId = (a.customerId || a.entry || '').toUpperCase();
+            const hasMatch = (cleanA && cleanA.length >= 5 && cleanTextDigits.includes(cleanA)) ||
+                             (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) ||
+                             (aId && aId.length >= 4 && text.toUpperCase().includes(aId));
+            if (hasMatch) {
+              const newKey = aId && aName ? `${aId} - ${aName}` : (aName || aId);
+              if (!doctorsMap[newKey]) {
+                const newDoc: DoctorStatement = {
+                  id: newKey,
+                  name: newKey,
+                  customerId: aId,
+                  entry: aId,
+                  meta: {
+                    custNo: aId,
+                    custKh: aName,
+                    custEn: aName,
+                    phone: '',
+                    address: '',
+                    currency: 'USD'
+                  },
+                  owed: 0,
+                  paidTotal: 0,
+                  paidBeforeTotal: 0,
+                  paidCurrent: 0,
+                  rem: 0,
+                  extra: 0,
+                  status: 'Fully Paid',
+                  statusKh: 'សងគ្រប់',
+                  invoices: [],
+                  inv: [],
+                  payments: [],
+                  pay: []
+                };
+                doctorsMap[newKey] = newDoc;
+                doctorOrder.push(newKey);
+              }
+              hitDoc = doctorsMap[newKey];
+              break;
+            }
+          }
+        }
+
         if (hitDoc) {
           hitDoc.payments.push({
-            date: dateVal,
+            date: dateRes.dmyStr,
             amt: crVal,
-            text
+            text,
+            ref: refVal
           });
         } else {
           unmatched.push({
             id: i,
-            date: dateVal,
+            date: dateRes.dmyStr,
             amt: crVal,
             text,
             acc: txAcc
@@ -560,8 +753,13 @@ export function computeAbaReconciliation(): AbaState {
     (D as any).before = 0;
     (D as any).per = D.payments.reduce((s, p) => s + p.amt, 0);
     let maxServerPayDate: string | null = null;
+    let maxDateMs = 0;
     D.payments.forEach(p => {
-      if (p.date && (!maxServerPayDate || p.date > maxServerPayDate)) maxServerPayDate = p.date;
+      const pD = parseDateRobust(p.date).dateObj;
+      if (pD && pD.getTime() > maxDateMs) {
+        maxDateMs = pD.getTime();
+        maxServerPayDate = parseDateRobust(p.date).dmyStr;
+      }
     });
     (D as any).lastD = maxServerPayDate;
     (D as any).lastPaymentDate = maxServerPayDate;

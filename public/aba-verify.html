@@ -177,10 +177,19 @@ summary:hover{background:var(--bg)}
 
 <div class="up" style="position:relative">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-    <b>១. តារាង ABA</b>
+    <b id="lblBox1Title">១. តារាងធនាគារ (ABA / ACLEDA)</b>
     <button type="button" id="delAba" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
   </div>
-  <span class="mu">Credit, ពិពណ៌នា</span>
+  <div style="margin:4px 0 6px 0">
+    <label style="font-size:0.75rem;font-weight:700;color:#0369a1;display:block;margin-bottom:2px">🏦 ប្រភពគណនីធនាគារ (ជ្រើសរើស ១ ក្នុងចំណោម ៤)៖</label>
+    <select id="selBankSource" style="width:100%;font-size:0.78rem;padding:5px 6px;border:1.5px solid #0284c7;border-radius:6px;background:#f0f9ff;font-weight:700;color:#0369a1;cursor:pointer" title="ជ្រើសរើសគណនីធនាគារដើម្បីកំណត់ Account ID និង Class ID សម្រាប់ AME">
+      <option value="khema_aba">1. Khema (ABA Bank 000 193 633) ➔ ID: 110140 | Class: KHEMA88888</option>
+      <option value="khema_acleda">2. Khema (Acleda Bank 220001747582-31) ➔ ID: 110110 | Class: KHEMA88888</option>
+      <option value="rms_aba">3. RMS (ABA Bank 088 928 555) ➔ ID: 110168 | Class: RMS05022015</option>
+      <option value="rms_acleda">4. RMS (Acleda Bank 220001747582-20) ➔ ID: 110130 | Class: RMS05022015</option>
+    </select>
+  </div>
+  <span class="mu">Credit, ពិពណ៌នា (ABA ឬ ACLEDA)</span>
   <input type="file" id="fAba" accept=".xlsx,.xls,.csv">
   <div class="mu" id="sAba" style="margin-top:4px"></div>
 </div>
@@ -603,6 +612,43 @@ summary:hover{background:var(--bg)}
 
 var $ = id => document.getElementById(id);
 
+var BANK_PROFILES = {
+    'khema_aba': {
+        name: 'Khema (ABA Bank 000 193 633)',
+        bankAcc: '110140',
+        classId: 'KHEMA88888',
+        prefix: 'ABA'
+    },
+    'khema_acleda': {
+        name: 'Khema (Acleda Bank 220001747582-31)',
+        bankAcc: '110110',
+        classId: 'KHEMA88888',
+        prefix: 'ACLEDA'
+    },
+    'rms_aba': {
+        name: 'RMS (ABA Bank 088 928 555)',
+        bankAcc: '110168',
+        classId: 'RMS05022015',
+        prefix: 'ABA'
+    },
+    'rms_acleda': {
+        name: 'RMS (Acleda Bank 220001747582-20)',
+        bankAcc: '110130',
+        classId: 'RMS05022015',
+        prefix: 'ACLEDA'
+    }
+};
+
+function applyBankProfile(key) {
+    var p = BANK_PROFILES[key] || BANK_PROFILES['khema_aba'];
+    if($('bank')) $('bank').value = p.bankAcc;
+    if($('classId')) $('classId').value = p.classId;
+    if($('selBankSource')) $('selBankSource').value = key;
+    localStorage.setItem('aba_bank_source_key', key);
+    localStorage.setItem(ST_KEYS.bank, p.bankAcc);
+    localStorage.setItem(ST_KEYS.classId, p.classId);
+}
+
 var ST_KEYS = {
     bank: 'aba_bank',
     cur: 'aba_cur',
@@ -614,9 +660,13 @@ var ST_KEYS = {
 };
 
 function loadSettings() {
+    var savedProfileKey = localStorage.getItem('aba_bank_source_key') || 'khema_aba';
+    if($('selBankSource')) $('selBankSource').value = savedProfileKey;
+    var profile = BANK_PROFILES[savedProfileKey] || BANK_PROFILES['khema_aba'];
+
     var savedBank = localStorage.getItem(ST_KEYS.bank);
     if(savedBank && savedBank !== 'ONG MACH ABA USD') $('bank').value = savedBank;
-    else $('bank').value = '110140';
+    else $('bank').value = profile.bankAcc;
 
     if(localStorage.getItem(ST_KEYS.cur)) $('cur').value = localStorage.getItem(ST_KEYS.cur);
     if(localStorage.getItem(ST_KEYS.rate)) $('rate').value = localStorage.getItem(ST_KEYS.rate);
@@ -627,7 +677,7 @@ function loadSettings() {
     if($('startOrNo')) $('startOrNo').value = savedStartOr;
     if($('quickStartOrNo')) $('quickStartOrNo').value = savedStartOr;
 
-    var savedClassId = localStorage.getItem(ST_KEYS.classId) || 'KHEMA88888';
+    var savedClassId = localStorage.getItem(ST_KEYS.classId) || profile.classId;
     if($('classId')) $('classId').value = savedClassId;
 }
 
@@ -658,6 +708,12 @@ function syncOrInputs(val) {
         el.addEventListener('change', saveSettings);
     }
 });
+
+if($('selBankSource')) {
+    $('selBankSource').addEventListener('change', function() {
+        applyBankProfile(this.value);
+    });
+}
 
 if($('startOrNo')) {
     $('startOrNo').addEventListener('input', () => syncOrInputs($('startOrNo').value.trim()));
@@ -828,14 +884,28 @@ var pd = v => {
     // YYYY-MM-DD or YYYY/MM/DD
     var mYmd = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
     if(mYmd) return new Date(+mYmd[1], +mYmd[2]-1, +mYmd[3]);
-    // DD-MM-YYYY or DD/MM/YYYY
-    var mDmy = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
-    if(mDmy) return new Date(+mDmy[3], +mDmy[2]-1, +mDmy[1]);
-    // DD-MMM-YYYY (e.g. 09-Sep-2026)
-    var mMon = s.match(/^(\d{1,2})[\s\-]([A-Za-z]{3})[\s\-](\d{4})/);
+    // DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY (e.g. 26-10-26)
+    var mDmy = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+    if(mDmy) {
+        var yr = +mDmy[3];
+        if(yr < 100) yr += (yr > 50 ? 1900 : 2000);
+        return new Date(yr, +mDmy[2]-1, +mDmy[1]);
+    }
+    // DD-MMM-YY or DD-MMM-YYYY (e.g. 26-Oct-26, 26-Oct-2026, 09-Sep-2026)
+    var mMon = s.match(/^(\d{1,2})[\s\-\/]([A-Za-z]{3,9})[\s\-\/](\d{2,4})/);
     if(mMon) {
-        var mi = MON.findIndex(m => m.toLowerCase() === mMon[2].toLowerCase());
-        if(mi > -1) return new Date(+mMon[3], mi, +mMon[1]);
+        var mi = MON.findIndex(m => m.toLowerCase() === mMon[2].slice(0,3).toLowerCase());
+        var yr = +mMon[3];
+        if(yr < 100) yr += (yr > 50 ? 1900 : 2000);
+        if(mi > -1) return new Date(yr, mi, +mMon[1]);
+    }
+    // MMM DD, YYYY or MMM DD YYYY (e.g. Oct 03, 2026, Oct 04, 2026)
+    var mMon2 = s.match(/^([A-Za-z]{3,9})[\s\-\/](\d{1,2})(?:st|nd|rd|th)?,?[\s\-\/]+(\d{2,4})/);
+    if(mMon2) {
+        var mi2 = MON.findIndex(m => m.toLowerCase() === mMon2[1].slice(0,3).toLowerCase());
+        var yr2 = +mMon2[3];
+        if(yr2 < 100) yr2 += (yr2 > 50 ? 1900 : 2000);
+        if(mi2 > -1) return new Date(yr2, mi2, +mMon2[2]);
     }
     var d = new Date(s); return isNaN(d.getTime()) ? null : d;
 };
@@ -2075,8 +2145,8 @@ function extractAbaAccount(text) {
     if(m2) {
         return m2[1].replace(/\D/g, '');
     }
-    // 3. Contiguous digits of bank account (8-12 digits)
-    var m3 = str.match(/(?:ACC|ACCT|ACCOUNT|A\/C)?\s*:?\s*(\d{8,12})\b/i);
+    // 3. Contiguous digits of bank account (6-18 digits)
+    var m3 = str.match(/(?:ACC|ACCT|ACCOUNT|A\/C)?\s*:?\s*(\d{6,18})\b/i);
     if(m3) {
         return m3[1];
     }
@@ -2108,7 +2178,7 @@ function isAbaStatementAOA(aoa) {
     if(!aoa || !aoa.length) return false;
     for(var i = 0; i < Math.min(aoa.length, 120); i++) {
         var str = (aoa[i] || []).join(' ');
-        if(/ACCOUNT ACTIVITY|FUNDS RECEIVED FROM|REF#\s*100FT|FUNDS TRANSFER/i.test(str)) return true;
+        if(/ACCOUNT ACTIVITY|FUNDS RECEIVED|FUNDS TRANSFER|REF#|ACLEDA|KHQR|TRX\s*ID|TRANSACTION\s*DETAILS|TRANSACTION\s*DATE/i.test(str)) return true;
     }
     return false;
 }
@@ -2124,12 +2194,12 @@ function parseAbaStatement(aoa) {
         for(var j = 0; j < row.length; j++) {
             var val = String(row[j]||'').trim().toLowerCase();
             if(!val) continue;
-            if(/^(date|កាលបរិច្ឆេទ)$/i.test(val) && colDate === -1) colDate = j;
-            if(/^(description|remark|particular|details|បរិយាយ|ពិពណ៌នា)$/i.test(val) && colDesc === -1) colDesc = j;
-            if(/^(credit|money in|cash in|deposit|ចូល)$/i.test(val) && colCredit === -1) colCredit = j;
-            if(/^(debit|money out|cash out|withdrawal|ចេញ)$/i.test(val) && colDebit === -1) colDebit = j;
-            if(/^(balance|សមតុល្យ)$/i.test(val) && colBal === -1) colBal = j;
-            if(/^(ref|reference|លេខយោង)$/i.test(val) && colRef === -1) colRef = j;
+            if(/(date|txn\s*date|value\s*date|post\s*date|កាលបរិច្ឆេទ)/i.test(val) && colDate === -1) colDate = j;
+            if(/(description|particular|details|narrative|remark|memo|បរិយាយ|ពិពណ៌នា)/i.test(val) && colDesc === -1) colDesc = j;
+            if(/(credit|deposit|money\s*in|cash\s*in|cr\b|amount\s*in|ចូល)/i.test(val) && colCredit === -1) colCredit = j;
+            if(/(debit|withdrawal|money\s*out|cash\s*out|dr\b|amount\s*out|ចេញ)/i.test(val) && colDebit === -1) colDebit = j;
+            if(/(balance|running\s*bal|សមតុល្យ)/i.test(val) && colBal === -1) colBal = j;
+            if(/(ref|reference|trx\s*id|transaction\s*id|ft\s*ref|លេខយោង)/i.test(val) && colRef === -1) colRef = j;
         }
         if(colDate >= 0 && (colDesc >= 0 || colCredit >= 0)) {
             headerIdx = i;
@@ -2144,7 +2214,7 @@ function parseAbaStatement(aoa) {
             for(var c = 0; c < row.length; c++) {
                 var cell = row[c];
                 if(pd(cell) && colDate === -1) colDate = c;
-                if(typeof cell === 'string' && /FUNDS RECEIVED|TRANSFER FROM/i.test(cell) && colDesc === -1) colDesc = c;
+                if(typeof cell === 'string' && /FUNDS RECEIVED|TRANSFER FROM|PAID BY|PAYMENT/i.test(cell) && colDesc === -1) colDesc = c;
                 if(typeof cell === 'number' && cell > 0 && colCredit === -1 && c !== colDate) colCredit = c;
             }
             if(colDate >= 0 && colDesc >= 0 && colCredit >= 0) break;
@@ -2159,13 +2229,40 @@ function parseAbaStatement(aoa) {
     for(var i = startRow; i < aoa.length; i++) {
         var r = aoa[i] || [];
         var dVal = pd(r[colDate]);
+        if(!dVal) {
+            // Check first 5 cells if date column was shifted (e.g. row 60 shifted to col 1)
+            for(var c = 0; c < Math.min(r.length, 5); c++) {
+                var trial = pd(r[c]);
+                if(trial) { dVal = trial; break; }
+            }
+        }
         if(!dVal) continue;
 
         var descVal = colDesc >= 0 ? String(r[colDesc]||'').trim() : '';
+        if(!descVal || descVal.length < 3 || pd(descVal)) {
+            var longest = '';
+            for(var c = 0; c < r.length; c++) {
+                var s = String(r[c]||'').trim();
+                if(s && !pd(s) && isNaN(num(s)) && !/^(usd|khr)$/i.test(s) && s.length > longest.length) longest = s;
+            }
+            if(longest) descVal = longest;
+        }
+
         var crVal = colCredit >= 0 ? num(r[colCredit]) : 0;
+        if(!(crVal > 0)) {
+            for(var c = 0; c < r.length; c++) {
+                var n = num(r[c]);
+                if(n > 0 && c !== colDate && c !== colBal) { crVal = n; break; }
+            }
+        }
+
         var drVal = colDebit >= 0 ? num(r[colDebit]) : 0;
         var balVal = colBal >= 0 ? num(r[colBal]) : 0;
         var refVal = colRef >= 0 ? String(r[colRef]||'').trim() : '';
+        if(!refVal) {
+            var mTrx = descVal.match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
+            if(mTrx) refVal = mTrx[1];
+        }
 
         if(crVal > 0 || descVal) {
             rows.push({
@@ -2914,9 +3011,32 @@ function build() {
 
     if(a) {
 
-        m = M.aba;
+        m = M.aba || {};
 
-        aba = a.rows.map((x, i) => { return { id: i, date: pd(x[m.date]), text: Object.keys(x).map(k => typeof x[k] === 'string' ? x[k] : '').join(' '), cells: Object.keys(x).map(k => x[k] instanceof Date ? '' : String(x[k])), ref: String(x[m.ref]||''), amt: num(x[m.cr]) || num(x[m.am]) }; }).filter(t => t.amt > 0 && t.date);
+        aba = a.rows.map((x, i) => {
+            var d = pd(x[m.date] || x['Date']);
+            if(!d && Array.isArray(x['Raw'])) {
+                for(var c=0; c<Math.min(x['Raw'].length, 5); c++) {
+                    var td = pd(x['Raw'][c]);
+                    if(td) { d = td; break; }
+                }
+            }
+            var text = Object.keys(x).map(k => typeof x[k] === 'string' ? x[k] : '').join(' ');
+            var ref = String(x[m.ref] || x['Reference'] || '').trim();
+            if(!ref) {
+                var mTrx = text.match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
+                if(mTrx) ref = mTrx[1];
+            }
+            var amt = num(x[m.cr]) || num(x[m.am]) || num(x['Credit']) || 0;
+            return {
+                id: i,
+                date: d,
+                text: text,
+                cells: Object.keys(x).map(k => x[k] instanceof Date ? '' : String(x[k])),
+                ref: ref,
+                amt: amt
+            };
+        }).filter(t => t.amt > 0 && t.date);
 
     }
 
@@ -3121,6 +3241,22 @@ function run() {
                             matchedAcc = A;
                             break;
                         }
+                    }
+                }
+            }
+
+            if(!matchedAcc) {
+                for(var j = 0; j < ACC.length; j++) {
+                    var A = ACC[j];
+                    var aName = String(A.name || '').trim();
+                    var aId = String(A.customerId || A.entry || '').trim();
+                    if(aName && aName.length >= 4 && t.text.toLowerCase().indexOf(aName.toLowerCase()) > -1) {
+                        matchedAcc = A;
+                        break;
+                    }
+                    if(aId && aId.length >= 4 && t.text.toUpperCase().indexOf(aId.toUpperCase()) > -1) {
+                        matchedAcc = A;
+                        break;
                     }
                 }
             }
@@ -5064,8 +5200,12 @@ function resolvePaymentInfo(x) {
 function buildOR(items) {
 
     var cur = ($('cur') && $('cur').value) || 'USD', rate = +($('rate') && $('rate').value) || 1;
-    var bankInput = ($('bank') && $('bank').value) || '110140';
-    var classInput = ($('classId') && $('classId').value) || 'KHEMA88888';
+    var pProfileKey = ($('selBankSource') && $('selBankSource').value) || localStorage.getItem('aba_bank_source_key') || 'khema_aba';
+    var pProfile = BANK_PROFILES[pProfileKey] || BANK_PROFILES['khema_aba'];
+
+    var bankInput = ($('bank') && $('bank').value) || pProfile.bankAcc || '110140';
+    var classInput = ($('classId') && $('classId').value) || pProfile.classId || 'KHEMA88888';
+    var remarkPrefix = (pProfile && pProfile.prefix) || 'ABA';
 
     // Parse starting Entry No from UI or localStorage (defaults to OR13344)
     var rawStartOr = ($('quickStartOrNo') && $('quickStartOrNo').value.trim()) || ($('startOrNo') && $('startOrNo').value.trim()) || localStorage.getItem('aba_start_or_no') || 'OR13344';
@@ -5159,17 +5299,22 @@ function buildOR(items) {
         }
         if(custId && custId.includes(',')) custId = custId.split(',')[0].trim();
 
-        var bankAcc = bankInput || h['Cash/Bank Account ID'] || (acc && acc.bankAcc) || '110140';
+        var bankAcc = bankInput || pProfile.bankAcc || '110140';
         var recBy = h['Received By'] || '';
-        var classId = classInput || h['Class ID'] || (acc && acc.classId) || 'KHEMA88888';
+        var classId = classInput || pProfile.classId || 'KHEMA88888';
         var ref = h['Reference'] || payInfo.ref || '';
 
-        // Remark: contains payment date (e.g. "ABA33: 09/09/26" or "ABA: 09/09/26")
+        // Remark: contains bank prefix (ABA or ACLEDA) and payment date (e.g. "ABA: 26/10/26" or "ACLEDA: 26/10/26")
         var remark = '';
         if(payInfo.ref) {
-            remark = 'ABA' + payInfo.ref + ': ' + shortDateStr;
+            var refClean = payInfo.ref.trim();
+            if(refClean.toUpperCase().startsWith(remarkPrefix.toUpperCase())) {
+                remark = refClean + ': ' + shortDateStr;
+            } else {
+                remark = remarkPrefix + ' ' + refClean + ': ' + shortDateStr;
+            }
         } else {
-            remark = 'ABA: ' + shortDateStr;
+            remark = remarkPrefix + ': ' + shortDateStr;
         }
 
         var payMethod = h['Payment Method'] || '';
