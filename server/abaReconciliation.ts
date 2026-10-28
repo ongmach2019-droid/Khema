@@ -121,10 +121,13 @@ function writeJsonFile(filename: string, data: any) {
   const filePath = path.join(dataDir, filename);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   try {
-    if (fs.existsSync('Z:\\')) {
-      const zDir = path.join('Z:\\', 'InvoiceAI', 'data', 'aba');
-      if (!fs.existsSync(zDir)) fs.mkdirSync(zDir, { recursive: true });
-      fs.writeFileSync(path.join(zDir, filename), JSON.stringify(data, null, 2), 'utf-8');
+    const candidateDrives = ['H:\\', 'Z:\\'];
+    for (const d of candidateDrives) {
+      if (fs.existsSync(d)) {
+        const zDir = path.join(d, 'InvoiceAI', 'data', 'aba');
+        if (!fs.existsSync(zDir)) fs.mkdirSync(zDir, { recursive: true });
+        fs.writeFileSync(path.join(zDir, filename), JSON.stringify(data, null, 2), 'utf-8');
+      }
     }
   } catch {}
 }
@@ -273,10 +276,13 @@ export function parseAccountsMap(): any[] {
   ]);
 
   const accCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'Account id aba.xlsx'),
     path.join(dataDir, 'Account id aba.xlsx'),
     path.join(process.cwd(), 'Account id aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'accounts.xlsx'),
     path.join(dataDir, 'accounts.xlsx'),
-    path.join(dataDir, 'accounts.xls')
+    path.join(dataDir, 'accounts.xls'),
+    path.join('Z:\\', 'InvoiceAI', 'data', 'aba', 'Account id aba.xlsx')
   ];
   for (const c of accCandidates) {
     if (fs.existsSync(c)) {
@@ -330,11 +336,17 @@ export function computeAbaReconciliation(): AbaState {
   const tgSent = parseTgSent();
 
   // 1. Read debts
-  const debtCandidates = ['debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx'];
+  const debtCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'debts.xls'),
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'debts.xlsx'),
+    path.join(dataDir, 'debts.xls'),
+    path.join(dataDir, 'debts.xlsx'),
+    path.join(dataDir, 'Aged_Receivable.xls'),
+    path.join(dataDir, 'Aged_Receivable.xlsx')
+  ];
   let debtFile = '';
   for (const c of debtCandidates) {
-    const p = path.join(dataDir, c);
-    if (fs.existsSync(p)) { debtFile = p; break; }
+    if (fs.existsSync(c)) { debtFile = c; break; }
   }
 
   const doctorsMap: Record<string, DoctorStatement> = {};
@@ -435,11 +447,18 @@ export function computeAbaReconciliation(): AbaState {
   }
 
   // 2. Read ABA statements
-  const abaCandidates = ['aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv'];
+  const abaCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'aba_statement.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'aba_statement.xls'),
+    path.join(dataDir, 'aba_statement.xlsx'),
+    path.join(dataDir, 'aba_statement.xls'),
+    path.join(dataDir, 'aba.xlsx'),
+    path.join(dataDir, 'aba.xls'),
+    path.join(dataDir, 'aba.csv')
+  ];
   let abaFile = '';
   for (const c of abaCandidates) {
-    const p = path.join(dataDir, c);
-    if (fs.existsSync(p)) { abaFile = p; break; }
+    if (fs.existsSync(c)) { abaFile = c; break; }
   }
 
   const unmatched: any[] = [];
@@ -884,19 +903,22 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (history.length > 100) history = history.slice(0, 100);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-  // 4. Also mirror directly to Z:\ drive if available (e.g. \\192.168.1.7\Public\InvoiceAI)
+  // 4. Also mirror directly to H:\ or Z:\ drive if available (e.g. H:\InvoiceAI\data\aba)
   try {
-    if (fs.existsSync('Z:\\')) {
-      const zBase = path.join('Z:\\', 'InvoiceAI', 'data', 'aba');
-      const zUploads = path.join(zBase, 'uploads');
-      if (!fs.existsSync(zUploads)) fs.mkdirSync(zUploads, { recursive: true });
-      fs.writeFileSync(path.join(zBase, targetName), buffer);
-      fs.writeFileSync(path.join(zUploads, backupFileName), buffer);
-      fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
-      console.log(`✓ Synchronized upload file to Z: drive (${targetName}, ${backupFileName})`);
+    const candidateDrives = ['H:\\', 'Z:\\'];
+    for (const d of candidateDrives) {
+      if (fs.existsSync(d)) {
+        const zBase = path.join(d, 'InvoiceAI', 'data', 'aba');
+        const zUploads = path.join(zBase, 'uploads');
+        if (!fs.existsSync(zUploads)) fs.mkdirSync(zUploads, { recursive: true });
+        fs.writeFileSync(path.join(zBase, targetName), buffer);
+        fs.writeFileSync(path.join(zUploads, backupFileName), buffer);
+        fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
+        console.log(`✓ Synchronized upload file to ${d} drive (${targetName}, ${backupFileName})`);
+      }
     }
   } catch (zErr) {
-    console.warn('Could not mirror file to Z: drive:', zErr);
+    console.warn('Could not mirror file to network drive:', zErr);
   }
 
   // Recompute and return state
@@ -927,9 +949,12 @@ export function resetAbaState(): AbaState {
       try { fs.unlinkSync(p); } catch {}
     }
     try {
-      if (fs.existsSync('Z:\\')) {
-        const zp = path.join('Z:\\', 'InvoiceAI', 'data', 'aba', f);
-        if (fs.existsSync(zp)) { try { fs.unlinkSync(zp); } catch {} }
+      const candidateDrives = ['H:\\', 'Z:\\'];
+      for (const d of candidateDrives) {
+        if (fs.existsSync(d)) {
+          const zp = path.join(d, 'InvoiceAI', 'data', 'aba', f);
+          if (fs.existsSync(zp)) { try { fs.unlinkSync(zp); } catch {} }
+        }
       }
     } catch {}
   });

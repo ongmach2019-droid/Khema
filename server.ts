@@ -155,18 +155,21 @@ app.post('/api/aba/save-export', (req, res) => {
     if (history.length > 100) history = history.slice(0, 100);
     fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-    // Mirror to Z: drive if available
+    // Mirror to H: and Z: drive if available (H: takes top priority)
     try {
-      if (fs.existsSync('Z:\\')) {
-        const zAmeDir = path.join('Z:\\', 'InvoiceAI', 'data', 'aba', 'ame_exports');
-        if (!fs.existsSync(zAmeDir)) fs.mkdirSync(zAmeDir, { recursive: true });
-        fs.writeFileSync(path.join(zAmeDir, safeName), buffer);
-        const zHist = path.join('Z:\\', 'InvoiceAI', 'data', 'aba', 'exports_history.json');
-        fs.writeFileSync(zHist, JSON.stringify(history, null, 2), 'utf-8');
-        console.log(`✓ Synchronized AME export file to Z: drive (${safeName})`);
+      const candidateDrives = ['H:\\', 'Z:\\'];
+      for (const d of candidateDrives) {
+        if (fs.existsSync(d)) {
+          const zAmeDir = path.join(d, 'InvoiceAI', 'data', 'aba', 'ame_exports');
+          if (!fs.existsSync(zAmeDir)) fs.mkdirSync(zAmeDir, { recursive: true });
+          fs.writeFileSync(path.join(zAmeDir, safeName), buffer);
+          const zHist = path.join(d, 'InvoiceAI', 'data', 'aba', 'exports_history.json');
+          fs.writeFileSync(zHist, JSON.stringify(history, null, 2), 'utf-8');
+          console.log(`✓ Synchronized AME export file to ${d} drive (${safeName})`);
+        }
       }
     } catch (zErr) {
-      console.warn('Could not mirror export to Z: drive:', zErr);
+      console.warn('Could not mirror export to network drive:', zErr);
     }
 
     res.json({ success: true, fileName: safeName, totalExports: history.length });
@@ -230,6 +233,29 @@ app.get('/api/aba/download-upload/:fileName', (req, res) => {
   } catch (err: any) {
     res.status(500).send(err.message);
   }
+});
+
+// Check network drive connection status (H:\ or Z:\)
+app.get('/api/aba/drive-status', (_req, res) => {
+  const candidateDrives = ['H:\\', 'Z:\\'];
+  const available: Array<{ drive: string; path: string }> = [];
+  for (const d of candidateDrives) {
+    try {
+      if (fs.existsSync(d)) {
+        const p = path.join(d, 'InvoiceAI', 'data', 'aba');
+        if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+        available.push({ drive: d, path: p });
+      }
+    } catch {}
+  }
+  const primary = available.find(x => x.drive === 'H:\\') || available[0] || null;
+  res.json({
+    success: true,
+    connected: !!primary,
+    primaryDrive: primary ? primary.drive : null,
+    primaryPath: primary ? primary.path : null,
+    availableDrives: available
+  });
 });
 
 // Telegram Send Endpoint

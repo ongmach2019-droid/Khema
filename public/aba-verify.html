@@ -10,7 +10,7 @@
 
 <title>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Moul&family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -18,6 +18,12 @@
 <style>
 
 :root{--bg:#f0f2f5;--card:#fff;--tx:#1b2430;--mu:#5f6b7a;--bd:#cfd6de;--pr:#0b6bcb;--ok:#14803c;--wa:#b26a00;--er:#c62828;box-sizing:border-box}
+
+.khmer-moul {
+  font-family: 'Khmer OS Muol Light', 'Khmer OS Muol', 'Khmer OS Moul', 'Moul', serif, sans-serif !important;
+  font-weight: normal;
+  letter-spacing: 0.5px;
+}
 
 /* Print Modal Styles */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:none;align-items:center;justify-content:center;padding:15px;backdrop-filter:blur(2px)}
@@ -141,8 +147,8 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <button type="button" id="btnConnectZDrive" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="ភ្ជាប់ជាមួយ Drive Z:\ ឬ Network Folder ដើម្បីរក្សាទុកឯកសារដោយស្វ័យប្រវត្តិ">
-      <span id="zDriveIcon">⚪</span> <span id="zDriveText">ភ្ជាប់ Z:\ (Network Drive)</span>
+    <button type="button" id="btnConnectZDrive" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="ភ្ជាប់ជាមួយ Drive H:\ ឬ Network Folder ដើម្បីរក្សាទុកឯកសារដោយស្វ័យប្រវត្តិ">
+      <span id="zDriveIcon">⚪</span> <span id="zDriveText">ភ្ជាប់ H:\ (Network Drive)</span>
     </button>
     <button type="button" id="btnOpenAmeExports" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="មើល និងទាញយកហ្វាល់ Excel សម្រាប់ AME ដែលបានរក្សាទុក">
       📂 ហ្វាល់ AME (<span id="btnAmeCount">0</span>)
@@ -166,10 +172,10 @@ summary:hover{background:var(--bg)}
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:6px">
   <div style="font-size:0.82rem" id="zDriveStatusText">
-    <span style="color:#64748b">💾 រក្សាទុកក្នុង Drive Z:\ ៖</span> <b style="color:#0284c7">Z:\InvoiceAI\data\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ Z:\" ដើម្បីបើក Auto-save ចូល Z: ផ្ទាល់)</span>
+    <span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\ ៖</span> <b style="color:#0284c7">H:\InvoiceAI\data\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ H:\" ដើម្បីបើក Auto-save ចូល H: ផ្ទាល់)</span>
   </div>
   <button type="button" id="btnBrowseZDrive" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:3px 10px;font-size:0.75rem;cursor:pointer;color:#334155;font-weight:600">
-    📂 ជ្រើសរើស Folder Z:\
+    📂 ជ្រើសរើស Folder H:\
   </button>
 </div>
 
@@ -3701,7 +3707,7 @@ function openPrintModal(custName) {
                     '<img src="' + (KHEMA_LOGO_URL || '/khema-logo.jpg') + '" alt="Khema Logo" style="max-height:75px;max-width:160px;object-fit:contain;display:block">' +
                 '</div>' +
                 '<div style="flex:1;text-align:center">' +
-                    '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;line-height:1.3">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
+                    '<div class="khmer-moul" style="font-family:\'Khmer OS Muol Light\',\'Khmer OS Muol\',\'Khmer OS Moul\',\'Moul\',serif;font-size:1.18rem;color:#0f172a;line-height:1.4;margin-bottom:2px">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
                     '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:3px">Khema Digital Dental Solution</div>' +
                     '<div style="font-size:0.8rem;color:#475569;line-height:1.4">អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ</div>' +
                     '<div style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
@@ -3714,7 +3720,7 @@ function openPrintModal(custName) {
 
             '<!-- 2. STATEMENT TITLE (ចំណងជើងរបាយការណ៍) -->' +
             '<div style="text-align:center;margin-bottom:14px">' +
-                '<div style="font-size:1.1rem;font-weight:700;color:#0f172a">របាយការណ៍អតិថិជន</div>' +
+                '<div class="khmer-moul" style="font-family:\'Khmer OS Muol Light\',\'Khmer OS Muol\',\'Khmer OS Moul\',\'Moul\',serif;font-size:1.15rem;color:#0f172a;margin-bottom:2px">របាយការណ៍អតិថិជន</div>' +
                 '<div style="font-size:1.1rem;font-weight:700;letter-spacing:1px;color:#0f172a">CUSTOMER STATEMENT</div>' +
             '</div>' +
 
@@ -4713,54 +4719,72 @@ $('go').onclick = () => run();
 // ============================================================================
 
 var zDirHandle = null;
+var currentDriveLetter = 'H:';
 
 async function initZDrive() {
+    // 1. First check if server is already connected to H:\ or Z:\ directly
     try {
-        var savedHandle = await dbGet('z_drive_handle');
-        var savedName = (await dbGet('z_drive_name')) || 'Z:';
+        var resp = await fetch('/api/aba/drive-status');
+        var data = await resp.json();
+        if (data && data.success && data.connected && data.primaryDrive) {
+            currentDriveLetter = data.primaryDrive.replace(/\\$/, '');
+            updateZDriveUI(true, currentDriveLetter, true);
+            return;
+        }
+    } catch(e) {
+        console.warn('Check drive-status API warning:', e);
+    }
+
+    // 2. Fallback to browser File System Access API handle from IndexedDB
+    try {
+        var savedHandle = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
+        var savedName = (await dbGet('h_drive_name')) || (await dbGet('z_drive_name')) || 'H:';
         if (savedHandle) {
             var permission = await savedHandle.queryPermission({ mode: 'readwrite' });
             if (permission === 'granted') {
                 zDirHandle = savedHandle;
-                updateZDriveUI(true, savedName);
+                currentDriveLetter = savedName;
+                updateZDriveUI(true, savedName, false);
                 return;
             }
         }
     } catch (e) {
-        console.warn('Init Z drive handle warning:', e);
+        console.warn('Init drive handle warning:', e);
     }
     updateZDriveUI(false);
 }
 
-function updateZDriveUI(connected, dirName) {
+function updateZDriveUI(connected, dirName, isServerDirect) {
     var icon = $('zDriveIcon');
     var text = $('zDriveText');
     var btn = $('btnConnectZDrive');
     var statusText = $('zDriveStatusText');
+    var dLetter = dirName || currentDriveLetter || 'H:';
+    if(dLetter.length === 1) dLetter += ':';
 
     if (connected) {
         if (icon) icon.textContent = '🟢';
-        if (text) text.textContent = 'Z:\\ បានភ្ជាប់ (' + (dirName || 'Z:') + ')';
+        if (text) text.textContent = dLetter + '\\ បានភ្ជាប់ជាប់ជានិច្ច';
         if (btn) {
             btn.style.background = '#f0fdf4';
             btn.style.borderColor = '#86efac';
             btn.style.color = '#15803d';
-            btn.title = 'បានភ្ជាប់ជាមួយ Folder ' + (dirName || 'Z:') + ' (ចុចដើម្បីប្ដូរ Folder)';
+            btn.title = 'បានភ្ជាប់ជាមួយ ' + dLetter + '\\ (រាល់ឯកសារត្រូវរក្សាទុកក្នុងនេះទាំងអស់)';
         }
         if (statusText) {
-            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive Z:\\ (' + (dirName || 'Z:') + ') — រាល់ការ Upload ឯកសារទាំង៣ និង Export AME នឹងរក្សាទុកក្នុង Z:\\ ដោយស្វ័យប្រវត្តិ</b>';
+            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ ជាប់ជានិច្ច (' + esc(dLetter) + '\\InvoiceAI\\data\\aba) — រាល់ការ Upload ឯកសារទាំង៣ និង Export AME ត្រូវរក្សាទុកក្នុង ' + esc(dLetter) + '\\ ដោយស្វ័យប្រវត្តិ</b>';
         }
     } else {
         if (icon) icon.textContent = '⚪';
-        if (text) text.textContent = 'ភ្ជាប់ Z:\\ (Network Drive)';
+        if (text) text.textContent = 'ភ្ជាប់ H:\\ (Network Drive)';
         if (btn) {
             btn.style.background = '#eff6ff';
             btn.style.borderColor = '#bfdbfe';
             btn.style.color = '#1d4ed8';
-            btn.title = 'ចុចដើម្បីជ្រើសរើស Folder Z:\\ ឬ Network Drive';
+            btn.title = 'ចុចដើម្បីជ្រើសរើស Folder H:\\ ឬ Network Drive';
         }
         if (statusText) {
-            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive Z:\\ ៖</span> <b style="color:#0284c7">Z:\\InvoiceAI\\data\\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ Z:\\" ដើម្បីបើក Auto-save ចូល Z: ផ្ទាល់)</span>';
+            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\\ ៖</span> <b style="color:#0284c7">H:\\InvoiceAI\\data\\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ H:\\" ដើម្បីបើក Auto-save ចូល H: ផ្ទាល់)</span>';
         }
     }
 }
@@ -4772,7 +4796,7 @@ async function connectZDrive() {
     }
     try {
         var handle = await window.showDirectoryPicker({
-            id: 'z_drive_storage',
+            id: 'h_drive_storage',
             mode: 'readwrite',
             startIn: 'desktop'
         });
@@ -4780,15 +4804,16 @@ async function connectZDrive() {
             var permission = await handle.requestPermission({ mode: 'readwrite' });
             if (permission === 'granted') {
                 zDirHandle = handle;
-                await dbSet('z_drive_handle', handle);
-                await dbSet('z_drive_name', handle.name);
-                updateZDriveUI(true, handle.name);
-                showToast('✅ បានភ្ជាប់ទៅកាន់ Folder <b>' + esc(handle.name) + '</b> ដោយជោគជ័យ!<br><small>រាល់ពេល Upload ឯកសារទាំង ៣ ឬ Export AME នឹងចម្លងរក្សាទុកក្នុង Z:\\ ដោយស្វ័យប្រវត្តិ</small>');
+                await dbSet('h_drive_handle', handle);
+                await dbSet('h_drive_name', handle.name);
+                currentDriveLetter = handle.name;
+                updateZDriveUI(true, handle.name, false);
+                showToast('✅ បានភ្ជាប់ទៅកាន់ Folder <b>' + esc(handle.name) + '</b> ដោយជោគជ័យ!<br><small>រាល់ពេល Upload ឯកសារទាំង ៣ ឬ Export AME នឹងចម្លងរក្សាទុកក្នុង ' + esc(handle.name) + ' ដោយស្វ័យប្រវត្តិ</small>');
             }
         }
     } catch (e) {
         if (e.name !== 'AbortError') {
-            console.error('Error connecting to Z drive:', e);
+            console.error('Error connecting to drive:', e);
             alert('មិនអាចភ្ជាប់ Folder បានទេ៖ ' + (e.message || ''));
         }
     }
@@ -4797,7 +4822,7 @@ async function connectZDrive() {
 async function mirrorFileToZDrive(fileType, file) {
     if (!zDirHandle) {
         try {
-            var saved = await dbGet('z_drive_handle');
+            var saved = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
             if (saved) {
                 var p = await saved.queryPermission({ mode: 'readwrite' });
                 if (p === 'granted') zDirHandle = saved;
@@ -4838,10 +4863,10 @@ async function mirrorFileToZDrive(fileType, file) {
         await writableBackup.write(file);
         await writableBackup.close();
 
-        showToast('💾 បានរក្សាទុកមួយច្បាប់ក្នុង Z:\\ (' + (standardName || file.name) + ') រួចរាល់!');
-        console.log('✓ Successfully wrote to Z: drive handle:', standardName, backupName);
+        showToast('💾 បានរក្សាទុកមួយច្បាប់ក្នុង H:\\ (' + (standardName || file.name) + ') រួចរាល់!');
+        console.log('✓ Successfully wrote to drive handle:', standardName, backupName);
     } catch(err) {
-        console.warn('Could not write to Z drive handle:', err);
+        console.warn('Could not write to drive handle:', err);
     }
 }
 
@@ -4865,10 +4890,10 @@ async function mirrorExportToZDrive(fileName, wb) {
         await writable.write(u8);
         await writable.close();
 
-        showToast('💾 បានរក្សាទុកហ្វាល់ AME ទៅកាន់ Z:\\ (' + safeName + ')!');
-        console.log('✓ Successfully saved AME export to Z: drive:', safeName);
+        showToast('💾 បានរក្សាទុកហ្វាល់ AME ទៅកាន់ H:\\ (' + safeName + ')!');
+        console.log('✓ Successfully saved AME export to drive:', safeName);
     } catch (err) {
-        console.warn('Could not write export to Z drive handle:', err);
+        console.warn('Could not write export to drive handle:', err);
     }
 }
 
