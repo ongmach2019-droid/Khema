@@ -2446,17 +2446,22 @@ function applyServerState(state) {
         d.lastPaymentDate = maxPayDate;
         d.before = 0;
         d.per = d.pay.reduce((s, p) => s + (p.amt || 0), 0);
+        d.totalAbaPay = Math.round(d.per * 100) / 100;
         d.paidBeforeTotal = d.paidBeforeTotal || 0;
         d.inv.forEach(v => {
             v.pp = v.paidNow != null ? v.paidNow : (v.pp != null ? v.pp : 0);
             v.pb = v.paidBefore != null ? v.paidBefore : (v.pb != null ? v.pb : 0);
             v.rem = v.remaining != null ? v.remaining : (v.rem != null ? v.rem : 0);
             v.amt = v.amt != null ? v.amt : (v.bal != null ? v.bal : 0);
+            if(v.pp > 0) sel[v.id] = true;
         });
+        d.paidTotal = d.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
+        d.remToAlloc = Math.max(0, Math.round((d.totalAbaPay - d.paidTotal) * 100) / 100);
+        d.extra = d.remToAlloc;
         // Sort invoices inside doctor: paid invoices first
         d.inv.sort((a, b) => {
-            var pa = ((a.pp || 0) > 0 || a.rem <= 0.005) ? 0 : 1;
-            var pb = ((b.pp || 0) > 0 || b.rem <= 0.005) ? 0 : 1;
+            var pa = ((a.pp || 0) > 0 || a.rem <= 0.005 || sel[a.id]) ? 0 : 1;
+            var pb = ((b.pp || 0) > 0 || b.rem <= 0.005 || sel[b.id]) ? 0 : 1;
             if(pa !== pb) return pa - pb;
             return (a.no || 0) - (b.no || 0);
         });
@@ -3377,57 +3382,123 @@ function run() {
 
     var tot = {owed: 0, paid: 0, rem: 0};
 
-    names.forEach(n => {
-        var D = docs[n];
-        D.inv.sort((a, b) => (a.no || 0) - (b.no || 0));
+function allocateDoctorPayments(D, forceAuto) {
+    if(!D || !D.inv) return;
 
-        var before = 0, per = 0, lastD = null;
-        D.pay.forEach(t => {
-            var dt = t.date instanceof Date ? t.date : pd(t.date);
-            if(dt && !isNaN(dt.getTime()) && dt.getFullYear() >= 2020 && dt.getFullYear() <= 2035) {
-                if(!lastD || dt > lastD) lastD = dt;
-            }
-            if(from && dt && dt < from) before += t.amt;
-            else per += (t.amt || 0);
-        });
+    var before = 0, per = 0, lastD = null;
+    (D.pay || []).forEach(t => {
+        var dt = t.date instanceof Date ? t.date : pd(t.date);
+        if(dt && !isNaN(dt.getTime()) && dt.getFullYear() >= 2020 && dt.getFullYear() <= 2035) {
+            if(!lastD || dt > lastD) lastD = dt;
+        }
+        per += (t.amt || 0);
+    });
 
-        D.before = before; D.per = per; D.lastD = lastD; D.lastPaymentDate = lastD; D.owed = 0;
+    D.before = before;
+    D.per = per;
+    D.lastD = lastD;
+    D.lastPaymentDate = lastD;
+    var totalAbaPay = Math.round(per * 100) / 100;
+    D.totalAbaPay = totalAbaPay;
 
+    // Total debt owed
+    D.owed = D.inv.reduce((s, v) => s + ((v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0)), 0);
+
+    // If forceAuto is true or no manual adjustments have been made for this doctor yet:
+    if(forceAuto || !D.hasManualAlloc) {
+        // Reset all invoices for auto matching
         D.inv.forEach(v => {
             var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
             var initPaid = (v.paidBefore != null && !isNaN(v.paidBefore)) ? v.paidBefore : 0;
-
-            if(v.paidInOR != null && v.paidInOR > 0 && per === 0 && before === 0) {
-                v.pb = initPaid;
-                v.pp = v.paidInOR;
-                v.rem = Math.max(0, Math.round((bAmt - v.pp) * 100) / 100);
-            } else {
-                var a = Math.min(bAmt, before);
-                v.pb = Math.round((initPaid + a) * 100) / 100;
-                before -= a;
-                var b = Math.min(bAmt - a, per);
-                v.pp = Math.round(b * 100) / 100;
-                per -= b;
-                v.rem = Math.max(0, Math.round((bAmt - a - b) * 100) / 100);
-            }
-            D.owed += bAmt;
+            v.pb = initPaid;
+            v.pp = 0;
+            v.rem = bAmt;
+            v.status = 'Unpaid';
+            v.statusKh = 'មិនទាន់សង';
+            sel[v.id] = false;
         });
 
-        D.extra = before + per;
-        D.paidCurrent = D.inv.reduce((s, v) => s + (v.pp||0), 0);
-        D.paidBeforeTotal = D.inv.reduce((s, v) => s + (v.pb||0), 0);
-        D.origTotal = D.inv.reduce((s, v) => s + (v.origAmt || v.amt || 0), 0);
-        D.paidTotal = D.paidCurrent;
-        D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+        var availablePay = totalAbaPay;
 
-        // Sort invoices inside doctor: paid invoices first
+        if(availablePay > 0.005) {
+            // Sort newest invoices first: date desc, then invoice number desc
+            var sortedInvsDesc = D.inv.slice().sort((a, b) => {
+                var da = a.date instanceof Date ? a.date.getTime() : (a.date ? (pd(a.date) ? pd(a.date).getTime() : 0) : 0);
+                var db = b.date instanceof Date ? b.date.getTime() : (b.date ? (pd(b.date) ? pd(b.date).getTime() : 0) : 0);
+                if(!isNaN(da) && !isNaN(db) && db !== da) return db - da;
+                return (b.no || 0) - (a.no || 0);
+            });
+
+            // Step 1: Exact amount matching against newest invoices first (វិក័យបត្រថ្មីៗ)
+            var payList = (D.pay || []).map(p => p.amt).filter(a => a > 0);
+            payList.forEach(pAmt => {
+                if(pAmt <= 0 || availablePay <= 0.005) return;
+                var match = sortedInvsDesc.find(v => v.pp === 0 && Math.abs(v.rem - pAmt) < 0.005);
+                if(match && availablePay >= pAmt) {
+                    match.pp = pAmt;
+                    match.rem = 0;
+                    match.status = 'Fully Paid';
+                    match.statusKh = 'សងគ្រប់';
+                    sel[match.id] = true;
+                    availablePay = Math.max(0, Math.round((availablePay - pAmt) * 100) / 100);
+                }
+            });
+
+            // Step 2: Allocate remaining available payment to newest unpaid invoices first
+            if(availablePay > 0.005) {
+                sortedInvsDesc.forEach(v => {
+                    if(availablePay <= 0.005) return;
+                    if(v.rem > 0.005) {
+                        var alloc = Math.min(v.rem, availablePay);
+                        v.pp = Math.round((v.pp + alloc) * 100) / 100;
+                        var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+                        v.rem = Math.max(0, Math.round((bAmt - v.pp) * 100) / 100);
+                        var isFull = v.rem <= 0.005;
+                        v.status = isFull ? 'Fully Paid' : 'Partially Paid';
+                        v.statusKh = isFull ? 'សងគ្រប់' : 'សងមួយផ្នែក';
+                        sel[v.id] = true;
+                        availablePay = Math.max(0, Math.round((availablePay - alloc) * 100) / 100);
+                    }
+                });
+            }
+        }
+    }
+
+    // Recalculate totals
+    D.paidCurrent = D.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
+    D.paidBeforeTotal = D.inv.reduce((s, v) => s + (v.pb || 0), 0);
+    D.origTotal = D.inv.reduce((s, v) => s + (v.origAmt || v.amt || 0), 0);
+    D.paidTotal = Math.round(D.paidCurrent * 100) / 100;
+    D.extra = Math.max(0, Math.round((totalAbaPay - D.paidTotal) * 100) / 100);
+    D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+    D.remToAlloc = D.extra;
+
+    // Doctor status
+    if(D.rem <= 0.005 && D.owed > 0) {
+        D.status = 'Fully Paid';
+        D.statusKh = 'សងគ្រប់';
+    } else if(D.paidTotal > 0) {
+        D.status = 'Partially Paid';
+        D.statusKh = 'សងមួយផ្នែក';
+    } else {
+        D.status = 'Unpaid';
+        D.statusKh = 'មិនទាន់សង';
+    }
+
+    // Sort invoices inside doctor: paid/selected invoices first, then by invoice number
+    if(!D.hasManualAlloc) {
         D.inv.sort((a, b) => {
-            var pa = ((a.pp || 0) > 0 || a.rem <= 0.005) ? 0 : 1;
-            var pb = ((b.pp || 0) > 0 || b.rem <= 0.005) ? 0 : 1;
+            var pa = ((a.pp || 0) > 0 || a.rem <= 0.005 || sel[a.id]) ? 0 : 1;
+            var pb = ((b.pp || 0) > 0 || b.rem <= 0.005 || sel[b.id]) ? 0 : 1;
             if(pa !== pb) return pa - pb;
             return (a.no || 0) - (b.no || 0);
         });
+    }
+}
 
+    names.forEach(n => {
+        var D = docs[n];
+        allocateDoctorPayments(D, false);
         tot.owed += D.owed; tot.paid += D.paidTotal; tot.rem += D.rem;
     });
 
@@ -3474,6 +3545,12 @@ function render() {
 
     var R = res;
     if(!R) return;
+
+    var openDocs = new Set();
+    document.querySelectorAll('details[data-doc]').forEach(el => {
+        if(el.open && el.dataset.doc) openDocs.add(el.dataset.doc);
+    });
+    var savedScroll = typeof window !== 'undefined' ? window.scrollY : 0;
 
     var filterTxt = ($('custSearch') ? $('custSearch').value : '').trim().toLowerCase();
 
@@ -3553,7 +3630,7 @@ function render() {
             }
         }
 
-        h += '<details' + (filterTxt ? ' open' : '') + '><summary>' +
+        h += '<details data-doc="' + esc(n) + '"' + ((openDocs.has(n) || filterTxt) ? ' open' : '') + '><summary>' +
              '<div><b>' + esc(n) + '</b></div>' +
              '<div class="row" style="gap:8px;align-items:center">' +
              '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + (D.paidBeforeTotal > 0.005 ? ' (សងមុន ' + fmt(D.paidBeforeTotal) + ')' : '') + ' · នៅសល់ ' + remHtml + '</span> ' +
@@ -3586,13 +3663,38 @@ function render() {
                   '</div></div>';
 
             h += tgBanner;
+
+            var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (D.pay || []).reduce((s, p) => s + (p.amt || 0), 0);
+            totalAbaPay = Math.round(totalAbaPay * 100) / 100;
+            var totalAllocated = D.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
+            totalAllocated = Math.round(totalAllocated * 100) / 100;
+            var remToAlloc = Math.max(0, Math.round((totalAbaPay - totalAllocated) * 100) / 100);
+
+            var allocBanner = 
+                '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">' +
+                    '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:14px;font-size:0.84rem">' +
+                        '<span>💰 <b>ប្រាក់ ABA សរុប៖</b> <b style="color:#0284c7">$' + fmt(totalAbaPay) + '</b></span>' +
+                        '<span>✓ <b>បានកាត់កង៖</b> <b style="color:#16a34a">$' + fmt(totalAllocated) + '</b></span>' +
+                        '<span>⏳ <b>នៅសល់អាចកាត់កង៖</b> <b style="color:' + (remToAlloc > 0.005 ? '#d97706' : '#64748b') + '">$' + fmt(remToAlloc) + '</b></span>' +
+                        (remToAlloc <= 0.005 && totalAbaPay > 0
+                            ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-weight:600;font-size:0.78rem">🔒 កាត់កងគ្រប់ចំនួនលុយហើយ (មិនអាចធិកលើសលុយ)</span>'
+                            : (totalAbaPay > 0
+                                ? '<span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:4px;font-weight:600;font-size:0.78rem">👉 នៅសល់ $' + fmt(remToAlloc) + ' អាចធិកកាត់កងបន្ថែម</span>'
+                                : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:600;font-size:0.78rem">គ្មានប្រាក់ទូទាត់ ABA</span>')) +
+                    '</div>' +
+                    '<div style="display:flex;gap:6px">' +
+                        '<button type="button" data-auto-alloc="' + esc(n) + '" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:4px 10px;border-radius:5px;font-weight:600;font-size:0.78rem;cursor:pointer" title="កាត់កងទៅលើវិក័យបត្រថ្មីៗឡើងវិញដោយស្វ័យប្រវត្តិ">🔄 កាត់កងវិក័យបត្រថ្មីៗអូតូ</button>' +
+                    '</div>' +
+                '</div>';
+
+            h += allocBanner;
             h += '<p class="mu" style="margin-top:0">' +
                  (D.paidBeforeTotal > 0.005 ? '<span style="color:#b45309;font-weight:600">សងមុនសរុប៖ ' + fmt(D.paidBeforeTotal) + '</span> · ' : '') +
-                 'ប្រាក់ចូលសរុប៖ ' + fmt(D.paidTotal + D.extra) + ' · ប្រាក់សងវិក័យបត្រពេលនេះ៖ ' + fmt(D.paidTotal) + (D.extra > 0.005 ? ' · ប្រាក់លើស ' + fmt(D.extra) : '') +
+                 'ប្រាក់ចូលសរុប៖ ' + fmt(totalAbaPay) + ' · ប្រាក់សងវិក័យបត្រពេលនេះ៖ ' + fmt(D.paidTotal) + (remToAlloc > 0.005 ? ' · ប្រាក់លើស ' + fmt(remToAlloc) : '') +
                  ' · <b style="color:var(--tx)">បំណុលនៅសល់ជាក់ស្ដែង៖ ' + fmt(D.rem) + '</b></p>' +
                  '<div class="row" style="margin-bottom:8px">' +
-                 '<button data-sa="' + esc(n) + '">✓ ជ្រើសរើស</button>' +
-                 '<button data-cl="' + esc(n) + '">✗ សម្អាត</button>' +
+                 '<button data-sa="' + esc(n) + '" title="ជ្រើសរើសវិក័យបត្រដែលបានសងទាំងអស់">✓ ជ្រើសរើស</button>' +
+                 '<button data-cl="' + esc(n) + '" title="ដោះការជ្រើសរើសទាំងអស់ដើម្បីធិកកាត់កងដោយខ្លួនឯង">✗ សម្អាត (ដោះធិកទាំងអស់)</button>' +
                  '<button class="p" data-print="' + esc(n) + '" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print)</button>' +
                  (sentInfo
                     ? '<button class="p" data-tg="' + esc(n) + '" style="background:#059669;border-color:#059669;color:#fff;font-weight:600">✓ ផ្ញើ Telegram ម្ដងទៀត</button>'
@@ -3626,10 +3728,27 @@ function render() {
                 } else {
                     s = '<span class="er">មិនទាន់</span>';
                 }
-                var hasPaid = (v.pp > 0) || (v.pb > 0) || (v.paidInOR != null && v.paidInOR > 0);
-                h += '<tr>' +
-                     '<td><input type="checkbox" data-id="' + v.id + '"' + (sel[v.id] ? ' checked' : '') + (hasPaid ? '' : ' disabled') + '></td>' +
-                     '<td style="text-align:center">' + (idx + 1) + '</td>' +
+
+                var isChecked = !!sel[v.id];
+                var isDis = false;
+                var chkTitle = '';
+
+                if(isChecked) {
+                    chkTitle = 'ចុចដើម្បីដោះការកាត់កងវិក័យបត្រនេះវិញ (នឹងសល់ប្រាក់ $' + fmt(v.pp || v.amt) + ')';
+                } else {
+                    if(remToAlloc <= 0.005) {
+                        isDis = true;
+                        chkTitle = 'បានកាត់កងគ្រប់ចំនួនលុយ ABA ($' + fmt(totalAbaPay) + ') ហើយ — មិនអាចធិកលើសលុយបានទេ';
+                    } else {
+                        chkTitle = 'ចុចដើម្បីកាត់កងវិក័យបត្រនេះ (នៅសល់ប្រាក់ $' + fmt(remToAlloc) + ')';
+                    }
+                }
+
+                var rowStyle = isChecked ? 'background:#f0fdf4;' : '';
+
+                h += '<tr style="' + rowStyle + '">' +
+                     '<td><input type="checkbox" class="chk-inv" data-id="' + v.id + '" data-doc="' + esc(n) + '"' + (isChecked ? ' checked' : '') + (isDis ? ' disabled' : '') + ' title="' + esc(chkTitle) + '"></td>' +
+                     '<td style="text-align:center"><b>' + (v.no != null ? v.no : (idx + 1)) + '</b></td>' +
                      '<td>' + esc(v.module || 'AR-IN') + '</td>' +
                      '<td><b>' + esc(v.inv) + '</b></td>' +
                      '<td>' + esc(v.ref || '') + '</td>' +
@@ -3665,6 +3784,9 @@ function render() {
     }
 
     $('out').innerHTML = h;
+    if(savedScroll != null && savedScroll > 0) {
+        window.scrollTo(0, savedScroll);
+    }
 
     updateSelBtn();
 
@@ -4196,6 +4318,78 @@ function exportCustomerStatementCSV(custName) {
     link.click();
 }
 
+function handleInvoiceCheckboxToggle(chk) {
+    var invId = chk.dataset.id;
+    var docName = chk.dataset.doc;
+    if(!res || !res.docs || !res.docs[docName]) return;
+    var D = res.docs[docName];
+    var inv = (D.inv || []).find(v => String(v.id) === String(invId));
+    if(!inv) return;
+
+    var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (D.pay || []).reduce((s, p) => s + (p.amt || 0), 0);
+    totalAbaPay = Math.round(totalAbaPay * 100) / 100;
+    D.totalAbaPay = totalAbaPay;
+    D.hasManualAlloc = true;
+
+    var invBal = (inv.bal != null && !isNaN(inv.bal)) ? inv.bal : (inv.amt || 0);
+
+    if(!chk.checked) {
+        // UNCHECKING: free up payment
+        sel[inv.id] = false;
+        inv.pp = 0;
+        inv.rem = invBal;
+        inv.status = 'Unpaid';
+        inv.statusKh = 'មិនទាន់សង';
+    } else {
+        // CHECKING: verify available payment money
+        var otherAllocated = D.inv.reduce((sum, v) => {
+            if(String(v.id) === String(invId)) return sum;
+            return sum + (sel[v.id] ? (v.pp || 0) : 0);
+        }, 0);
+        var available = Math.max(0, Math.round((totalAbaPay - otherAllocated) * 100) / 100);
+
+        if(available <= 0.005) {
+            chk.checked = false;
+            sel[inv.id] = false;
+            alert('⚠️ មិនអាចធិកបានទេ ព្រោះបានកាត់កងគ្រប់ចំនួនលុយ ABA ($' + fmt(totalAbaPay) + ') ហើយ!\n\nដើម្បីសងលើវិក័យបត្រនេះ សូមដោះធិក (Uncheck) វិក័យបត្រផ្សេងសិន។');
+            return;
+        }
+
+        var alloc = Math.min(invBal, available);
+        inv.pp = Math.round(alloc * 100) / 100;
+        inv.rem = Math.max(0, Math.round((invBal - inv.pp) * 100) / 100);
+        inv.status = inv.rem <= 0.005 ? 'Fully Paid' : 'Partially Paid';
+        inv.statusKh = inv.rem <= 0.005 ? 'សងគ្រប់' : 'សងមួយផ្នែក';
+        sel[inv.id] = true;
+    }
+
+    // Recalculate doctor totals
+    var currentPaid = D.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
+    D.paidTotal = Math.round(currentPaid * 100) / 100;
+    D.extra = Math.max(0, Math.round((totalAbaPay - D.paidTotal) * 100) / 100);
+    D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+    D.remToAlloc = D.extra;
+
+    if(D.rem <= 0.005 && D.owed > 0) {
+        D.status = 'Fully Paid';
+        D.statusKh = 'សងគ្រប់';
+    } else if(D.paidTotal > 0) {
+        D.status = 'Partially Paid';
+        D.statusKh = 'សងមួយផ្នែក';
+    } else {
+        D.status = 'Unpaid';
+        D.statusKh = 'មិនទាន់សង';
+    }
+
+    if(res && res.tot && res.names) {
+        res.tot.owed = res.names.reduce((s, n) => s + (res.docs[n] ? res.docs[n].owed : 0), 0);
+        res.tot.paid = res.names.reduce((s, n) => s + (res.docs[n] ? res.docs[n].paidTotal : 0), 0);
+        res.tot.rem = res.names.reduce((s, n) => s + (res.docs[n] ? res.docs[n].rem : 0), 0);
+    }
+
+    render();
+}
+
 document.addEventListener('change', e => {
 
     var t = e.target;
@@ -4216,7 +4410,14 @@ document.addEventListener('change', e => {
         return;
     }
 
-    if(t.dataset.id != null) { sel[t.dataset.id] = t.checked; updateSelBtn(); }
+    if(t.dataset.id != null) {
+        if(t.classList && t.classList.contains('chk-inv')) {
+            handleInvoiceCheckboxToggle(t);
+            return;
+        }
+        sel[t.dataset.id] = t.checked;
+        updateSelBtn();
+    }
 
     if(t.dataset.as != null && t.value) { assign[t.dataset.as] = t.value; run(); }
 
@@ -4376,9 +4577,61 @@ document.addEventListener('click', e => {
         return;
     }
 
-    if(n = t.dataset.sa) { res.docs[n].inv.forEach(v => { if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) sel[v.id] = true; }); render(); }
+    if(n = t.dataset.autoAlloc) {
+        var D = res && res.docs && res.docs[n];
+        if(D) {
+            D.hasManualAlloc = false;
+            allocateDoctorPayments(D, true);
+            if(res && res.tot && res.names) {
+                res.tot.owed = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].owed : 0), 0);
+                res.tot.paid = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].paidTotal : 0), 0);
+                res.tot.rem = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].rem : 0), 0);
+            }
+            render();
+        }
+        return;
+    }
 
-    if(n = t.dataset.cl) { res.docs[n].inv.forEach(v => { sel[v.id] = false; }); render(); }
+    if(n = t.dataset.sa) {
+        var D = res && res.docs && res.docs[n];
+        if(D) {
+            D.inv.forEach(v => {
+                if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) {
+                    sel[v.id] = true;
+                }
+            });
+            render();
+        }
+        return;
+    }
+
+    if(n = t.dataset.cl) {
+        var D = res && res.docs && res.docs[n];
+        if(D) {
+            D.hasManualAlloc = true;
+            D.inv.forEach(v => {
+                sel[v.id] = false;
+                v.pp = 0;
+                v.rem = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+                v.status = 'Unpaid';
+                v.statusKh = 'មិនទាន់សង';
+            });
+            var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (D.pay || []).reduce((s, p) => s + (p.amt || 0), 0);
+            D.paidTotal = 0;
+            D.extra = totalAbaPay;
+            D.rem = D.owed;
+            D.remToAlloc = totalAbaPay;
+            D.status = 'Unpaid';
+            D.statusKh = 'មិនទាន់សង';
+            if(res && res.tot && res.names) {
+                res.tot.owed = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].owed : 0), 0);
+                res.tot.paid = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].paidTotal : 0), 0);
+                res.tot.rem = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].rem : 0), 0);
+            }
+            render();
+        }
+        return;
+    }
 
     if(n = t.dataset.ex) exportX(n);
 

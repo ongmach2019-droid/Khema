@@ -778,25 +778,69 @@ export function computeAbaReconciliation(): AbaState {
       v.runBal = Math.round(running * 100) / 100;
     });
 
-    // Allocate payment
+    // Allocate payment: smart matching against newest invoices first (វិក័យបត្រថ្មីៗ)
     let availablePay = D.payments.reduce((s, p) => s + p.amt, 0);
     D.owed = D.invoices.reduce((s, v) => s + v.amt, 0);
 
+    // Initialize all invoices as unpaid
     D.invoices.forEach(v => {
       v.paidBefore = 0;
-      const alloc = Math.min(v.amt, availablePay);
-      v.paidNow = Math.round(alloc * 100) / 100;
-      availablePay -= alloc;
-      v.remaining = Math.max(0, Math.round((v.amt - v.paidNow) * 100) / 100);
+      v.paidNow = 0;
+      v.remaining = v.amt;
+      v.pp = 0;
+      v.pb = 0;
+      v.rem = v.amt;
+      v.status = 'Unpaid';
+      v.statusKh = 'មិនទាន់សង';
+    });
 
-      const isFull = v.remaining <= 0.005;
-      const isPart = v.paidNow > 0 || v.status === 'Partially Paid';
-      v.status = isFull ? 'Fully Paid' : (isPart ? 'Partially Paid' : 'Unpaid');
-      v.statusKh = isFull ? 'សងគ្រប់' : (isPart ? 'សងមួយផ្នែក' : 'មិនទាន់សង');
+    // Step 1: Exact amount matching against newest invoices first
+    const sortedInvsDesc = D.invoices.slice().sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      if (!isNaN(da) && !isNaN(db) && db !== da) return db - da;
+      return (b.no || 0) - (a.no || 0);
+    });
+    const payList = D.payments.map(p => p.amt).filter(a => a > 0);
 
-      v.pp = v.paidNow;
-      v.pb = v.paidBefore;
-      v.rem = v.remaining;
+    payList.forEach(pAmt => {
+      if (pAmt <= 0) return;
+      const match = sortedInvsDesc.find(v => v.paidNow === 0 && Math.abs(v.remaining - pAmt) < 0.005);
+      if (match && availablePay >= pAmt) {
+        match.paidNow = pAmt;
+        match.pp = pAmt;
+        match.remaining = 0;
+        match.rem = 0;
+        match.status = 'Fully Paid';
+        match.statusKh = 'សងគ្រប់';
+        availablePay = Math.max(0, Math.round((availablePay - pAmt) * 100) / 100);
+      }
+    });
+
+    // Step 2: Allocate remaining available payment to newest unpaid invoices
+    if (availablePay > 0.005) {
+      sortedInvsDesc.forEach(v => {
+        if (availablePay <= 0.005) return;
+        if (v.remaining > 0.005) {
+          const alloc = Math.min(v.remaining, availablePay);
+          v.paidNow = Math.round((v.paidNow + alloc) * 100) / 100;
+          v.pp = v.paidNow;
+          v.remaining = Math.max(0, Math.round((v.amt - v.paidNow) * 100) / 100);
+          v.rem = v.remaining;
+          const isFull = v.remaining <= 0.005;
+          v.status = isFull ? 'Fully Paid' : 'Partially Paid';
+          v.statusKh = isFull ? 'សងគ្រប់' : 'សងមួយផ្នែក';
+          availablePay = Math.max(0, Math.round((availablePay - alloc) * 100) / 100);
+        }
+      });
+    }
+
+    // Sort invoices inside doctor: paid invoices first
+    D.invoices.sort((a, b) => {
+      const pa = (a.paidNow > 0 || a.remaining <= 0.005) ? 0 : 1;
+      const pb = (b.paidNow > 0 || b.remaining <= 0.005) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (a.no || 0) - (b.no || 0);
     });
 
     D.paidCurrent = D.invoices.reduce((s, v) => s + v.paidNow, 0);
