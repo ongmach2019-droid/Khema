@@ -244,45 +244,33 @@ summary:hover{background:var(--bg)}
 
 
 <details class="card" style="margin-bottom:10px; border:1px dashed var(--bd);">
-
-  <summary style="font-weight:600; color:var(--mu)">⚙️ ការកំណត់ទម្រង់ Export (ចុចទីនេះដើម្បីកែប្រែ)</summary>
-
-  <div class="row pad" style="padding-top:8px">
-
-    <label class="mu">គណនីធនាគារ <input type="text" id="bank" value="ONG MACH ABA USD" style="width:160px"></label>
-
-    <label class="mu">រូបិយប័ណ្ណ <input type="text" id="cur" value="USD" style="width:60px"></label>
-
-    <label class="mu">អត្រា <input type="text" id="rate" value="1" style="width:60px"></label>
-
-    <label class="mu">ទម្រង់ 
-
-      <select id="fmt">
-
-        <option value="or">AME Receipt (OR)</option>
-
-        <option value="jv">Journal Voucher (JV)</option>
-
-      </select>
-
+  <summary style="font-weight:600; color:var(--mu)">⚙️ ការកំណត់ទម្រង់ Export AME (ចុចទីនេះដើម្បីកែប្រែ)</summary>
+  <div class="row pad" style="padding-top:8px; gap:10px; flex-wrap:wrap">
+    <label class="mu" style="font-weight:700; color:#0284c7">លេខ Entry No (OR) ចាប់ផ្ដើម 
+      <input type="text" id="startOrNo" value="OR13344" style="width:115px;font-weight:700;color:#0284c7;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:4px;padding:3px 6px" title="លេខ OR នឹងកើនឡើង (+1) អូតូម៉ាទិកសម្រាប់គ្រូពេទ្យ/អតិថិជនបន្ទាប់">
     </label>
-
+    <label class="mu">គណនីធនាគារ (Cash/Bank) <input type="text" id="bank" value="110140" style="width:100px"></label>
+    <label class="mu">Class ID <input type="text" id="classId" value="KHEMA88888" style="width:120px"></label>
+    <label class="mu">រូបិយប័ណ្ណ <input type="text" id="cur" value="USD" style="width:60px"></label>
+    <label class="mu">អត្រា <input type="text" id="rate" value="1" style="width:50px"></label>
+    <label class="mu">ទម្រង់ 
+      <select id="fmt">
+        <option value="or">AME Receipt (OR)</option>
+        <option value="jv">Journal Voucher (JV)</option>
+      </select>
+    </label>
     <label class="mu">Telegram Bot Token <input type="text" id="cfgTgBotToken" placeholder="Bot Token (ជម្រើស)" style="width:160px"></label>
-
   </div>
-
 </details>
 
-
-
-<div class="row" style="margin-bottom:10px">
-
+<div class="row" style="margin-bottom:10px; align-items:center; gap:8px; flex-wrap:wrap">
   <button class="p" id="exAll">⬇ Export ទាំងអស់ដែលបានសង</button>
-
   <button id="exSel" style="display:none;background:#e8f0fe;border-color:var(--pr);color:var(--pr);font-weight:600">⬇ Export តាមការធិច (<span id="selNum">0</span>)</button>
-
   <button id="exUn">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
-
+  <div style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;padding:4px 10px;border-radius:6px">
+    <span style="font-size:0.8rem;color:#0369a1;font-weight:700">Entry No (OR):</span>
+    <input type="text" id="quickStartOrNo" value="OR13344" style="width:95px;font-weight:700;color:#0284c7;background:#fff;border:1px solid #7dd3fc;border-radius:4px;padding:3px 6px;text-align:center" title="លេខ Entry No បន្ទាប់ (កើន +1 អូតូម៉ាទិកពេល Export)">
+  </div>
 </div>
 
 
@@ -615,31 +603,70 @@ summary:hover{background:var(--bg)}
 
 var $ = id => document.getElementById(id);
 
-var ST_KEYS = { bank: 'aba_bank', cur: 'aba_cur', rate: 'aba_rate', fmt: 'aba_fmt', tg_token: 'aba_tg_bot_token' };
+var ST_KEYS = {
+    bank: 'aba_bank',
+    cur: 'aba_cur',
+    rate: 'aba_rate',
+    fmt: 'aba_fmt',
+    tg_token: 'aba_tg_bot_token',
+    startOrNo: 'aba_start_or_no',
+    classId: 'aba_class_id'
+};
 
 function loadSettings() {
-    if(localStorage.getItem(ST_KEYS.bank)) $('bank').value = localStorage.getItem(ST_KEYS.bank);
+    var savedBank = localStorage.getItem(ST_KEYS.bank);
+    if(savedBank && savedBank !== 'ONG MACH ABA USD') $('bank').value = savedBank;
+    else $('bank').value = '110140';
+
     if(localStorage.getItem(ST_KEYS.cur)) $('cur').value = localStorage.getItem(ST_KEYS.cur);
     if(localStorage.getItem(ST_KEYS.rate)) $('rate').value = localStorage.getItem(ST_KEYS.rate);
     if(localStorage.getItem(ST_KEYS.fmt)) $('fmt').value = localStorage.getItem(ST_KEYS.fmt);
     if(localStorage.getItem(ST_KEYS.tg_token) && $('cfgTgBotToken')) $('cfgTgBotToken').value = localStorage.getItem(ST_KEYS.tg_token);
+
+    var savedStartOr = localStorage.getItem(ST_KEYS.startOrNo) || 'OR13344';
+    if($('startOrNo')) $('startOrNo').value = savedStartOr;
+    if($('quickStartOrNo')) $('quickStartOrNo').value = savedStartOr;
+
+    var savedClassId = localStorage.getItem(ST_KEYS.classId) || 'KHEMA88888';
+    if($('classId')) $('classId').value = savedClassId;
 }
 
 function saveSettings() {
-    localStorage.setItem(ST_KEYS.bank, $('bank').value);
-    localStorage.setItem(ST_KEYS.cur, $('cur').value);
-    localStorage.setItem(ST_KEYS.rate, $('rate').value);
-    localStorage.setItem(ST_KEYS.fmt, $('fmt').value);
+    if($('bank')) localStorage.setItem(ST_KEYS.bank, $('bank').value);
+    if($('cur')) localStorage.setItem(ST_KEYS.cur, $('cur').value);
+    if($('rate')) localStorage.setItem(ST_KEYS.rate, $('rate').value);
+    if($('fmt')) localStorage.setItem(ST_KEYS.fmt, $('fmt').value);
     if($('cfgTgBotToken')) localStorage.setItem(ST_KEYS.tg_token, $('cfgTgBotToken').value.trim());
+
+    var curStartOr = ($('startOrNo') && $('startOrNo').value.trim()) || ($('quickStartOrNo') && $('quickStartOrNo').value.trim()) || 'OR13344';
+    localStorage.setItem(ST_KEYS.startOrNo, curStartOr);
+
+    if($('classId')) localStorage.setItem(ST_KEYS.classId, $('classId').value.trim());
 }
 
-['bank', 'cur', 'rate', 'fmt', 'cfgTgBotToken'].forEach(id => {
+function syncOrInputs(val) {
+    if(!val) return;
+    if($('startOrNo') && $('startOrNo').value !== val) $('startOrNo').value = val;
+    if($('quickStartOrNo') && $('quickStartOrNo').value !== val) $('quickStartOrNo').value = val;
+    localStorage.setItem(ST_KEYS.startOrNo, val);
+}
+
+['bank', 'cur', 'rate', 'fmt', 'cfgTgBotToken', 'classId'].forEach(id => {
     var el = $(id);
     if(el) {
         el.addEventListener('input', saveSettings);
         el.addEventListener('change', saveSettings);
     }
 });
+
+if($('startOrNo')) {
+    $('startOrNo').addEventListener('input', () => syncOrInputs($('startOrNo').value.trim()));
+    $('startOrNo').addEventListener('change', () => syncOrInputs($('startOrNo').value.trim()));
+}
+if($('quickStartOrNo')) {
+    $('quickStartOrNo').addEventListener('input', () => syncOrInputs($('quickStartOrNo').value.trim()));
+    $('quickStartOrNo').addEventListener('change', () => syncOrInputs($('quickStartOrNo').value.trim()));
+}
 
 
 
@@ -4880,9 +4907,39 @@ function parseTx(s) {
 
 function mkWB(s1, s2) { var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s1), 'SHEET1'); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2), 'SHEET2'); return wb; }
 
+function parseOrSeq(raw) {
+    var s = String(raw || '').trim();
+    if(!s) s = 'OR13344';
+    var m = s.match(/^([A-Za-z_-]*)(\d+)$/);
+    if(m) {
+        return {
+            prefix: (m[1] || 'OR').toUpperCase(),
+            num: parseInt(m[2], 10),
+            padLen: m[2].length
+        };
+    }
+    return {
+        prefix: 'OR',
+        num: 13344,
+        padLen: 5
+    };
+}
+
+function formatOrSeq(parsed, offset) {
+    var n = parsed.num + offset;
+    return parsed.prefix + String(n).padStart(parsed.padLen, '0');
+}
+
 function buildOR(items) {
 
-    var cur = $('cur').value || 'USD', rate = +$('rate').value || 1;
+    var cur = ($('cur') && $('cur').value) || 'USD', rate = +($('rate') && $('rate').value) || 1;
+    var bankInput = ($('bank') && $('bank').value) || '110140';
+    var classInput = ($('classId') && $('classId').value) || 'KHEMA88888';
+
+    // Parse starting Entry No from UI or localStorage (defaults to OR13344)
+    var rawStartOr = ($('quickStartOrNo') && $('quickStartOrNo').value.trim()) || ($('startOrNo') && $('startOrNo').value.trim()) || localStorage.getItem('aba_start_or_no') || 'OR13344';
+    var parsedSeq = parseOrSeq(rawStartOr);
+
     var s1 = [[
         'Entry No',
         'Type',
@@ -4907,74 +4964,96 @@ function buildOR(items) {
         'Discount',
         'Receive to Cash Acc./Amount'
     ]];
-    var seen = {};
+
+    // 1. Group items by distinct customer / doctor to assign sequential Entry No per customer
+    var custOrder = [];
+    var custMap = {}; // custKey -> assignedEntryNo
+    var curSeqOffset = 0;
 
     items.forEach(x => {
+        var v = x.v || {};
+        var docName = String(x.n || v.party || '').split(',')[0].trim();
+        var custKey = (x.D && x.D.name) || x.n || docName || (v.custId) || 'CUSTOMER';
 
-        var v = x.v;
-        var e = String(v.entry || '').trim();
-
-        // Ensure Entry No is always a clean OR code (never merged names)
-        if(!e || !/^OR\d+/i.test(e)) {
-            var docName = String(x.n || v.party || '').split(',')[0].trim();
-            var acc = ACC.find(a => (a.name && (a.name === docName || docName.toLowerCase().indexOf(a.name.toLowerCase()) > -1 || a.name.toLowerCase().indexOf(docName.toLowerCase()) > -1)) || (a.customerId && (a.customerId === docName || a.customerId === v.party)) || (a.entry && a.entry === docName));
-            if(acc && acc.entry) e = acc.entry;
-
-            if(!e || !/^OR\d+/i.test(e)) {
-                for(var k in HDR) {
-                    var rCust = HDR[k]['Customer ID'] || HDR[k]['Customer Name'] || HDR[k]['Customer'] || '';
-                    if(rCust === docName || (acc && rCust === acc.customerId)) { e = k; break; }
-                }
-            }
-            if(!e || !/^OR\d+/i.test(e)) {
-                var mOr = docName.match(/OR\d+/i) || (String(v.inv||'')).match(/OR\d+/i);
-                if(mOr) e = mOr[0];
-            }
-            if(!e) {
-                e = docName;
-            }
+        if(!custMap[custKey]) {
+            var assignedEntryNo = formatOrSeq(parsedSeq, curSeqOffset);
+            curSeqOffset++;
+            custMap[custKey] = assignedEntryNo;
+            custOrder.push({
+                key: custKey,
+                entryNo: assignedEntryNo,
+                docName: docName,
+                firstItem: x
+            });
         }
+    });
 
-        var h = HDR[e] || {};
+    // 2. Populate SHEET1: exactly 1 row per unique customer / Entry No
+    custOrder.forEach(co => {
+        var x = co.firstItem;
+        var v = x.v || {};
+        var e = co.entryNo;
+        var docName = co.docName;
 
-        if(!seen[e]) {
-            seen[e] = 1;
+        var acc = ACC.find(a => 
+            (a.name && (a.name.toLowerCase() === docName.toLowerCase() || docName.toLowerCase().indexOf(a.name.toLowerCase()) > -1 || a.name.toLowerCase().indexOf(docName.toLowerCase()) > -1)) ||
+            (a.customerId && (a.customerId.toLowerCase() === docName.toLowerCase() || a.customerId.toLowerCase() === (v.party||'').toLowerCase())) ||
+            (a.entry && a.entry.toLowerCase() === docName.toLowerCase())
+        );
 
-            var acc = ACC.find(a => (a.entry && a.entry === e) || (a.customerId && a.customerId === e) || (a.name && (a.name === x.n || x.n.toLowerCase().indexOf(a.name.toLowerCase()) > -1)));
+        var oldEntry = String(v.entry || '').trim();
+        var h = (oldEntry && HDR[oldEntry]) || HDR[e] || {};
 
-            var hDate = h['Date (dd-MMM-YYYY)'] || h['Date'] || h['date'] || v.date || (x.D && x.D.lastD) || new Date();
-            var entryDateStr = dmy(hDate);
+        var hDate = (x.D && x.D.lastD) || v.date || h['Date (dd-MMM-YYYY)'] || h['Date'] || h['date'] || new Date();
+        var entryDateStr = dmy(hDate);
 
-            var type = h['Type'] || h['type'] || 'Apply to Sale Invoice';
-            var prefix = h['Prefix'] || h['prefix'] || 'DEFAULT';
-            var custId = h['Customer ID'] || h['Customer'] || h['customer id'] || (acc && (acc.customerId || acc.entry)) || (x.n && !x.n.includes(',') ? x.n : '') || e;
-            var bankAcc = h['Cash/Bank Account ID'] || h['Cash/Bank Account'] || h['Bank Account ID'] || (acc && acc.bankAcc) || $('bank').value || '';
-            var recBy = h['Received By'] || '';
-            var classId = h['Class ID'] || h['Class'] || (acc && acc.classId) || 'KHEMA88888';
-            var ref = h['Reference'] || '';
-            var remark = h['Remark'] || ('ABA: ' + entryDateStr);
-            var payMethod = h['Payment Method'] || '';
-            var payRef = h['Payment Reference'] || '';
-            var curId = h['Currency ID'] || cur;
-            var exRate = h['Exchange Rate'] || rate;
+        var type = h['Type'] || h['type'] || 'Apply to Sale Invoice';
+        var prefix = h['Prefix'] || h['prefix'] || 'DEFAULT';
 
-            s1.push([
-                e,
-                type,
-                entryDateStr,
-                prefix,
-                custId,
-                bankAcc,
-                recBy,
-                classId,
-                ref,
-                remark,
-                payMethod,
-                payRef,
-                curId,
-                exRate
-            ]);
+        // Resolve Customer ID (e.g. C00168)
+        var custId = (acc && acc.customerId) || (x.D && x.D.customerId) || v.custId || h['Customer ID'] || h['Customer'] || '';
+        if(!custId) {
+            var mCode = docName.match(/^([A-Za-z]\d{3,})/i) || (v.party && String(v.party).match(/^([A-Za-z]\d{3,})/i));
+            if(mCode) custId = mCode[1];
+            else if(acc && acc.entry && /^[A-Za-z]\d+/i.test(acc.entry)) custId = acc.entry;
+            else custId = (acc && acc.name) || docName || e;
         }
+        if(custId && custId.includes(',')) custId = custId.split(',')[0].trim();
+
+        var bankAcc = bankInput || h['Cash/Bank Account ID'] || (acc && acc.bankAcc) || '110140';
+        var recBy = h['Received By'] || '';
+        var classId = classInput || h['Class ID'] || (acc && acc.classId) || 'KHEMA88888';
+        var ref = h['Reference'] || '';
+        var remark = h['Remark'] || ('ABA: ' + entryDateStr);
+        var payMethod = h['Payment Method'] || '';
+        var payRef = h['Payment Reference'] || '';
+        var curId = h['Currency ID'] || cur;
+        var exRate = h['Exchange Rate'] || rate;
+
+        s1.push([
+            e,
+            type,
+            entryDateStr,
+            prefix,
+            custId,
+            bankAcc,
+            recBy,
+            classId,
+            ref,
+            remark,
+            payMethod,
+            payRef,
+            curId,
+            exRate
+        ]);
+    });
+
+    // 3. Populate SHEET2: 1 row per invoice belonging to that customer
+    items.forEach(x => {
+        var v = x.v || {};
+        var docName = String(x.n || v.party || '').split(',')[0].trim();
+        var custKey = (x.D && x.D.name) || x.n || docName || (v.custId) || 'CUSTOMER';
+        var e = custMap[custKey] || parsedSeq.prefix + parsedSeq.num;
 
         var invNo = v.inv;
         var paid = (v.pp != null && v.pp > 0) ? v.pp : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : ((v.pb != null && v.pb > 0) ? v.pb : 0));
@@ -4988,8 +5067,13 @@ function buildOR(items) {
             0,
             amt
         ]);
-
     });
+
+    // 4. Auto-increment starting Entry No for next export session (+1 from the last assigned OR)
+    if(curSeqOffset > 0) {
+        var nextOrNo = formatOrSeq(parsedSeq, curSeqOffset);
+        syncOrInputs(nextOrNo);
+    }
 
     return mkWB(s1, s2);
 
