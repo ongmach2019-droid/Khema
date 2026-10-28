@@ -10,7 +10,9 @@
 
 <title>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Moul&family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts/khmer-fonts.css">
+<link rel="stylesheet" href="/fonts/khmer-fonts.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&family=Kantumruy+Pro:wght@600;700&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -20,9 +22,14 @@
 :root{--bg:#f0f2f5;--card:#fff;--tx:#1b2430;--mu:#5f6b7a;--bd:#cfd6de;--pr:#0b6bcb;--ok:#14803c;--wa:#b26a00;--er:#c62828;box-sizing:border-box}
 
 .khmer-moul {
-  font-family: 'Khmer OS Muol Light', 'Khmer OS Muol', 'Khmer OS Moul', 'Moul', serif, sans-serif !important;
-  font-weight: normal;
-  letter-spacing: 0.5px;
+  font-family: 'Khmer OS Muol Light', 'Khmer OS Moul', 'Khmer OS Muol', 'Kantumruy Pro', serif !important;
+  font-weight: normal !important;
+  letter-spacing: 0.4px;
+  line-height: 1.55;
+  display: inline-block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Print Modal Styles */
@@ -3707,7 +3714,7 @@ function openPrintModal(custName) {
                     '<img src="' + (KHEMA_LOGO_URL || '/khema-logo.jpg') + '" alt="Khema Logo" style="max-height:75px;max-width:160px;object-fit:contain;display:block">' +
                 '</div>' +
                 '<div style="flex:1;text-align:center">' +
-                    '<div class="khmer-moul" style="font-family:\'Khmer OS Muol Light\',\'Khmer OS Muol\',\'Khmer OS Moul\',\'Moul\',serif;font-size:1.18rem;color:#0f172a;line-height:1.4;margin-bottom:2px">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
+                    '<div class="khmer-moul" style="font-family:\'Khmer OS Muol Light\',\'Khmer OS Moul\',\'Khmer OS Muol\',serif;font-size:1.3rem;color:#0f172a;line-height:1.5;margin-bottom:3px">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
                     '<div style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:3px">Khema Digital Dental Solution</div>' +
                     '<div style="font-size:0.8rem;color:#475569;line-height:1.4">អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ</div>' +
                     '<div style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
@@ -3720,7 +3727,7 @@ function openPrintModal(custName) {
 
             '<!-- 2. STATEMENT TITLE (ចំណងជើងរបាយការណ៍) -->' +
             '<div style="text-align:center;margin-bottom:14px">' +
-                '<div class="khmer-moul" style="font-family:\'Khmer OS Muol Light\',\'Khmer OS Muol\',\'Khmer OS Moul\',\'Moul\',serif;font-size:1.15rem;color:#0f172a;margin-bottom:2px">របាយការណ៍អតិថិជន</div>' +
+                '<div class="khmer-moul" style="font-family:\'Khmer OS Muol Light\',\'Khmer OS Moul\',\'Khmer OS Muol\',serif;font-size:1.24rem;color:#0f172a;line-height:1.5;margin-bottom:3px">របាយការណ៍អតិថិជន</div>' +
                 '<div style="font-size:1.1rem;font-weight:700;letter-spacing:1px;color:#0f172a">CUSTOMER STATEMENT</div>' +
             '</div>' +
 
