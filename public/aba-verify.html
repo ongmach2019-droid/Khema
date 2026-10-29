@@ -3126,6 +3126,9 @@ function findDoc(A, docs, names) {
     var n = (A.name||'').toLowerCase().replace(/\s+/g,''), i, D;
     if(n.length >= 3) for(i=0; i<names.length; i++) { D = docs[names[i]]; if(D.al && D.al.some(a => a.indexOf(n) > -1 || n.indexOf(a) > -1)) return D; }
     if(A.entry) for(i=0; i<names.length; i++) { D = docs[names[i]]; if((D.entry && D.entry === A.entry) || (D.customerId && D.customerId === A.entry) || (D.inv && D.inv.some(v => v.entry === A.entry || v.inv === A.entry))) return D; }
+    var tm = names.filter(p => tok(p, A.name) || tok(A.name, p)); return tm.length === 1 ? docs[tm[0]] : null;
+}
+
 function allocateDoctorPayments(D, forceAuto) {
     if(!D || !D.inv) return;
 
