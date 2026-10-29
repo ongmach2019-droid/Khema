@@ -885,6 +885,8 @@ var num = v => { if(v==null || v==='') return 0; var n = parseFloat(String(v).re
 
 var fmt = n => n.toLocaleString('en-US', {maximumFractionDigits:2});
 
+var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 var pd = v => {
     if(v instanceof Date) return isNaN(v.getTime()) ? null : v;
     if(v == null || v === '') return null;
@@ -922,8 +924,6 @@ var pd = v => {
 };
 
 var iso = d => d ? d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') : '';
-
-var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 var dmy = d => {
     if(!d) return '';
@@ -3463,10 +3463,12 @@ function allocateDoctorPayments(D, forceAuto) {
             var payList = (D.pay || []).map(p => p.amt).filter(a => a > 0);
             payList.forEach(pAmt => {
                 if(pAmt <= 0 || availablePay <= 0.005) return;
-                var match = sortedInvsDesc.find(v => v.pp === 0 && Math.abs(v.rem - pAmt) < 0.005);
+                var match = sortedInvsDesc.find(v => (v.pp === 0 || !v.pp) && Math.abs(v.rem - pAmt) < 0.005);
                 if(match && availablePay >= pAmt) {
                     match.pp = pAmt;
+                    match.paidNow = pAmt;
                     match.rem = 0;
+                    match.remaining = 0;
                     match.status = 'Fully Paid';
                     match.statusKh = 'សងគ្រប់';
                     sel[match.id] = true;
@@ -3481,8 +3483,10 @@ function allocateDoctorPayments(D, forceAuto) {
                     if(v.rem > 0.005) {
                         var alloc = Math.min(v.rem, availablePay);
                         v.pp = Math.round((v.pp + alloc) * 100) / 100;
+                        v.paidNow = v.pp;
                         var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
                         v.rem = Math.max(0, Math.round((bAmt - v.pp) * 100) / 100);
+                        v.remaining = v.rem;
                         var isFull = v.rem <= 0.005;
                         v.status = isFull ? 'Fully Paid' : 'Partially Paid';
                         v.statusKh = isFull ? 'សងគ្រប់' : 'សងមួយផ្នែក';
@@ -3516,7 +3520,7 @@ function allocateDoctorPayments(D, forceAuto) {
     }
 
     // Sort invoices inside doctor: paid/selected invoices first, then by invoice number
-    if(!D.hasManualAlloc) {
+    if(forceAuto || !D.hasManualAlloc) {
         D.inv.sort((a, b) => {
             var pa = ((a.pp || 0) > 0 || a.rem <= 0.005 || sel[a.id]) ? 0 : 1;
             var pb = ((b.pp || 0) > 0 || b.rem <= 0.005 || sel[b.id]) ? 0 : 1;
@@ -3713,7 +3717,7 @@ function render() {
                                 : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:600;font-size:0.78rem">គ្មានប្រាក់ទូទាត់ ABA</span>')) +
                     '</div>' +
                     '<div style="display:flex;gap:6px">' +
-                        '<button type="button" data-auto-alloc="' + esc(n) + '" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:4px 10px;border-radius:5px;font-weight:600;font-size:0.78rem;cursor:pointer" title="កាត់កងទៅលើវិក័យបត្រថ្មីៗឡើងវិញដោយស្វ័យប្រវត្តិ">🔄 កាត់កងវិក័យបត្រថ្មីៗអូតូ</button>' +
+                        '<button type="button" class="btn-auto-alloc" data-auto-alloc="' + esc(n) + '" onclick="triggerAutoAlloc(this, event)" style="background:#eff6ff;border:1px solid #3b82f6;color:#1d4ed8;padding:5px 14px;border-radius:6px;font-weight:700;font-size:0.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:all 0.15s" title="ចុចដើម្បីកាត់កងប្រាក់ ABA ទៅលើវិក័យបត្រថ្មីៗឡើងវិញដោយស្វ័យប្រវត្តិ">🪄 កាត់កងវិក័យបត្រថ្មីៗមុន</button>' +
                     '</div>' +
                 '</div>';
 
@@ -4455,6 +4459,54 @@ document.addEventListener('change', e => {
 
 });
 
+function triggerAutoAlloc(btn, ev) {
+    if(ev) {
+        if(ev.stopPropagation) ev.stopPropagation();
+        if(ev.preventDefault) ev.preventDefault();
+    }
+    var doctorName = '';
+    if(typeof btn === 'string') {
+        doctorName = btn;
+    } else if(btn) {
+        doctorName = (btn.getAttribute ? (btn.getAttribute('data-auto-alloc') || (btn.dataset && btn.dataset.autoAlloc)) : '') || '';
+    }
+    if(!doctorName && btn && btn.dataset) doctorName = btn.dataset.autoAlloc;
+
+    if(!doctorName || !res || !res.docs) {
+        console.warn('triggerAutoAlloc: doctorName or res.docs missing', doctorName, res);
+        return;
+    }
+
+    var D = res.docs[doctorName] || Object.values(res.docs).find(d => d && (d.name === doctorName || d.id === doctorName || d.customerId === doctorName));
+    if(!D) {
+        var cleanN = doctorName.toLowerCase().trim();
+        D = Object.values(res.docs).find(d => d && d.name && d.name.toLowerCase().trim() === cleanN);
+    }
+
+    if(!D || !D.inv || !D.inv.length) {
+        alert('មិនមានវិក័យបត្រសម្រាប់កាត់កងទេ');
+        return;
+    }
+
+    // Force automatic allocation against newest invoices
+    D.hasManualAlloc = false;
+    allocateDoctorPayments(D, true);
+
+    // Recalculate totals
+    if(res.tot && res.names) {
+        res.tot.owed = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].owed : 0), 0);
+        res.tot.paid = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].paidTotal : 0), 0);
+        res.tot.rem = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].rem : 0), 0);
+    }
+
+    render();
+
+    if(typeof showToast === 'function') {
+        showToast('🪄 បានកាត់កងទៅលើវិក័យបត្រថ្មីៗស្វ័យប្រវត្តិចំនួន <b>$' + fmt(D.paidTotal) + '</b> រួចរាល់!');
+    }
+}
+window.triggerAutoAlloc = triggerAutoAlloc;
+
 document.addEventListener('click', e => {
 
     var t = e.target, n;
@@ -4607,23 +4659,15 @@ document.addEventListener('click', e => {
         return;
     }
 
-    if(n = t.dataset.autoAlloc) {
-        var D = res && res.docs && res.docs[n];
-        if(D) {
-            D.hasManualAlloc = false;
-            allocateDoctorPayments(D, true);
-            if(res && res.tot && res.names) {
-                res.tot.owed = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].owed : 0), 0);
-                res.tot.paid = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].paidTotal : 0), 0);
-                res.tot.rem = res.names.reduce((s, name) => s + (res.docs[name] ? res.docs[name].rem : 0), 0);
-            }
-            render();
-        }
+    var autoBtn = (t && t.dataset && t.dataset.autoAlloc) ? t : (t && t.closest ? t.closest('[data-auto-alloc]') : null);
+    if(autoBtn) {
+        triggerAutoAlloc(autoBtn, e);
         return;
     }
 
-    if(n = t.dataset.sa) {
-        var D = res && res.docs && res.docs[n];
+    var saBtn = (t && t.dataset && t.dataset.sa) ? t : (t && t.closest ? t.closest('[data-sa]') : null);
+    if(saBtn && (n = saBtn.dataset.sa)) {
+        var D = res && res.docs && (res.docs[n] || Object.values(res.docs).find(d => d && (d.name === n || d.id === n || d.customerId === n)));
         if(D) {
             D.inv.forEach(v => {
                 if(v.pp > 0 || v.pb > 0 || (v.paidInOR != null && v.paidInOR > 0)) {
@@ -4635,19 +4679,23 @@ document.addEventListener('click', e => {
         return;
     }
 
-    if(n = t.dataset.cl) {
-        var D = res && res.docs && res.docs[n];
+    var clBtn = (t && t.dataset && t.dataset.cl) ? t : (t && t.closest ? t.closest('[data-cl]') : null);
+    if(clBtn && (n = clBtn.dataset.cl)) {
+        var D = res && res.docs && (res.docs[n] || Object.values(res.docs).find(d => d && (d.name === n || d.id === n || d.customerId === n)));
         if(D) {
             D.hasManualAlloc = true;
             D.inv.forEach(v => {
                 sel[v.id] = false;
                 v.pp = 0;
+                v.paidNow = 0;
                 v.rem = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+                v.remaining = v.rem;
                 v.status = 'Unpaid';
                 v.statusKh = 'មិនទាន់សង';
             });
             var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (D.pay || []).reduce((s, p) => s + (p.amt || 0), 0);
             D.paidTotal = 0;
+            D.paidCurrent = 0;
             D.extra = totalAbaPay;
             D.rem = D.owed;
             D.remToAlloc = totalAbaPay;
