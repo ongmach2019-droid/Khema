@@ -173,22 +173,23 @@ app.post('/api/aba/save-export', (req, res) => {
     if (history.length > 100) history = history.slice(0, 100);
     fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-    // Mirror directly to H: and Z: drive in single folder (H:\InvoiceAI)
+    // Mirror to H: and Z: drive in clean subfolder (H:\InvoiceAI\ame_exports)
     const savedLocations: string[] = [path.join(ameDir, safeName)];
     try {
       const candidateDrives = ['H:\\', 'Z:\\'];
       for (const d of candidateDrives) {
         if (fs.existsSync(d)) {
-          // Save directly in single folder: H:\InvoiceAI\${safeName}
-          const pDirect = path.join(d, 'InvoiceAI', safeName);
-          const pDir = path.dirname(pDirect);
-          if (!fs.existsSync(pDir)) fs.mkdirSync(pDir, { recursive: true });
+          // Save in H:\InvoiceAI\ame_exports\${safeName}
+          const ameSubDir = path.join(d, 'InvoiceAI', 'ame_exports');
+          if (!fs.existsSync(ameSubDir)) fs.mkdirSync(ameSubDir, { recursive: true });
+          const pDirect = path.join(ameSubDir, safeName);
           fs.writeFileSync(pDirect, buffer);
           savedLocations.push(pDirect);
 
+          // Record history in H:\InvoiceAI\exports_history.json
           const zHist = path.join(d, 'InvoiceAI', 'exports_history.json');
           fs.writeFileSync(zHist, JSON.stringify(history, null, 2), 'utf-8');
-          console.log(`✓ Synchronized AME export file to ${d} drive directly in:`, pDirect);
+          console.log(`✓ Synchronized AME export file to ${d} drive in ame_exports (${safeName}) at:`, pDirect);
         }
       }
     } catch (zErr) {
@@ -198,6 +199,7 @@ app.post('/api/aba/save-export', (req, res) => {
     res.json({
       success: true,
       fileName: safeName,
+      folderPath: 'H:\\InvoiceAI\\ame_exports',
       savedLocations,
       primaryDrive: fs.existsSync('H:\\') ? 'H:\\' : (fs.existsSync('Z:\\') ? 'Z:\\' : ''),
       totalExports: history.length
@@ -230,10 +232,10 @@ app.get('/api/aba/download-export/:fileName', (req, res) => {
     if (!fs.existsSync(filePath)) {
       const candidateDrives = ['H:\\', 'Z:\\'];
       for (const d of candidateDrives) {
+        const pAme = path.join(d, 'InvoiceAI', 'ame_exports', safeName);
+        if (fs.existsSync(pAme)) { filePath = pAme; break; }
         const pDirect = path.join(d, 'InvoiceAI', safeName);
         if (fs.existsSync(pDirect)) { filePath = pDirect; break; }
-        const p1 = path.join(d, 'InvoiceAI', 'data', 'aba', 'ame_exports', safeName);
-        if (fs.existsSync(p1)) { filePath = p1; break; }
       }
     }
     if (!fs.existsSync(filePath)) {
@@ -242,6 +244,29 @@ app.get('/api/aba/download-export/:fileName', (req, res) => {
     res.download(filePath, safeName);
   } catch (err: any) {
     res.status(500).send(err.message);
+  }
+});
+
+// Open folder or highlight file directly in Windows File Explorer
+app.post('/api/aba/open-folder', (req, res) => {
+  try {
+    const { folderPath, fileName } = req.body;
+    let target = folderPath || 'H:\\InvoiceAI\\ame_exports';
+    if (fileName && folderPath) {
+      const full = path.join(folderPath, fileName);
+      if (fs.existsSync(full)) {
+        try { execSync(`explorer.exe /select,"${full}"`); } catch {}
+        return res.json({ success: true, opened: full });
+      }
+    }
+    if (fs.existsSync(target)) {
+      try { execSync(`explorer.exe "${target}"`); } catch {}
+      return res.json({ success: true, opened: target });
+    }
+    res.json({ success: false, error: 'Folder or file not found', attempted: target });
+  } catch (err: any) {
+    console.error('Error in /api/aba/open-folder:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -263,7 +288,16 @@ app.get('/api/aba/uploads-history', (_req, res) => {
 app.get('/api/aba/download-upload/:fileName', (req, res) => {
   try {
     const safeName = path.basename(req.params.fileName);
-    const filePath = path.join(process.cwd(), 'data', 'aba', 'uploads', safeName);
+    let filePath = path.join(process.cwd(), 'data', 'aba', 'uploads', safeName);
+    if (!fs.existsSync(filePath)) {
+      const candidateDrives = ['H:\\', 'Z:\\'];
+      for (const d of candidateDrives) {
+        const pUp = path.join(d, 'InvoiceAI', 'uploads', safeName);
+        if (fs.existsSync(pUp)) { filePath = pUp; break; }
+        const pDirect = path.join(d, 'InvoiceAI', safeName);
+        if (fs.existsSync(pDirect)) { filePath = pDirect; break; }
+      }
+    }
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
     }
@@ -276,13 +310,17 @@ app.get('/api/aba/download-upload/:fileName', (req, res) => {
 // Check network drive connection status (H:\ or Z:\)
 app.get('/api/aba/drive-status', (_req, res) => {
   const candidateDrives = ['H:\\', 'Z:\\'];
-  const available: Array<{ drive: string; path: string }> = [];
+  const available: Array<{ drive: string; path: string; amePath: string; uploadsPath: string }> = [];
   for (const d of candidateDrives) {
     try {
       if (fs.existsSync(d)) {
         const p = path.join(d, 'InvoiceAI');
+        const pAme = path.join(p, 'ame_exports');
+        const pUp = path.join(p, 'uploads');
         if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
-        available.push({ drive: d, path: p });
+        if (!fs.existsSync(pAme)) fs.mkdirSync(pAme, { recursive: true });
+        if (!fs.existsSync(pUp)) fs.mkdirSync(pUp, { recursive: true });
+        available.push({ drive: d, path: p, amePath: pAme, uploadsPath: pUp });
       }
     } catch {}
   }
@@ -293,6 +331,8 @@ app.get('/api/aba/drive-status', (_req, res) => {
     autoConnected: true,
     primaryDrive: primary ? primary.drive : 'H:\\',
     primaryPath: primary ? primary.path : 'H:\\InvoiceAI',
+    amePath: primary ? primary.amePath : 'H:\\InvoiceAI\\ame_exports',
+    uploadsPath: primary ? primary.uploadsPath : 'H:\\InvoiceAI\\uploads',
     availableDrives: available
   });
 });

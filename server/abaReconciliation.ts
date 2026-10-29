@@ -257,6 +257,8 @@ export function parseCustomerProfiles(): Record<string, any> {
   const candidates = ['customers.xls', 'customers.xlsx', 'Customer_List.xls', 'Customer_List.xlsx'];
   let foundFile = '';
   for (const c of candidates) {
+    const upH = path.join('H:\\', 'InvoiceAI', 'uploads', c);
+    if (fs.existsSync(upH)) { foundFile = upH; break; }
     const directH = path.join('H:\\', 'InvoiceAI', c);
     if (fs.existsSync(directH)) { foundFile = directH; break; }
     const p = path.join(dataDir, c);
@@ -304,11 +306,14 @@ export function parseAccountsMap(): any[] {
   ]);
 
   const accCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'accounts.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'accounts.xls'),
     path.join('H:\\', 'InvoiceAI', 'Account id aba.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'accounts.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'accounts.xls'),
-    path.join('Z:\\', 'InvoiceAI', 'Account id aba.xlsx'),
-    path.join('Z:\\', 'InvoiceAI', 'accounts.xlsx'),
+    path.join('Z:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
+    path.join('Z:\\', 'InvoiceAI', 'uploads', 'accounts.xlsx'),
     path.join(dataDir, 'Account id aba.xlsx'),
     path.join(dataDir, 'accounts.xlsx'),
     path.join(dataDir, 'accounts.xls'),
@@ -391,10 +396,12 @@ export function computeAbaReconciliation(): AbaState {
 
   // 1. Read debts
   const debtCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xls'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'debts.xls'),
     path.join('H:\\', 'InvoiceAI', 'debts.xlsx'),
+    path.join('Z:\\', 'InvoiceAI', 'uploads', 'debts.xls'),
     path.join('Z:\\', 'InvoiceAI', 'debts.xls'),
-    path.join('Z:\\', 'InvoiceAI', 'debts.xlsx'),
     path.join(dataDir, 'debts.xls'),
     path.join(dataDir, 'debts.xlsx'),
     path.join(dataDir, 'Aged_Receivable.xls'),
@@ -504,10 +511,12 @@ export function computeAbaReconciliation(): AbaState {
 
   // 2. Read ABA statements
   const abaCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'aba_statement.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'aba_statement.xls'),
     path.join('H:\\', 'InvoiceAI', 'aba_statement.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'aba_statement.xls'),
+    path.join('Z:\\', 'InvoiceAI', 'uploads', 'aba_statement.xlsx'),
     path.join('Z:\\', 'InvoiceAI', 'aba_statement.xlsx'),
-    path.join('Z:\\', 'InvoiceAI', 'aba_statement.xls'),
     path.join(dataDir, 'aba_statement.xlsx'),
     path.join(dataDir, 'aba_statement.xls'),
     path.join(dataDir, 'aba.xlsx'),
@@ -1079,13 +1088,16 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (history.length > 100) history = history.slice(0, 100);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-  // 4. Also mirror directly to network drive (single primary folder: H:\InvoiceAI)
+  // 4. Also mirror directly to network drive (clean subfolder: H:\InvoiceAI\uploads)
   try {
     const netDirs = getNetworkDriveAbaDirs();
     for (const zBase of netDirs) {
+      const upDir = path.join(zBase, 'uploads');
+      if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true });
+      fs.writeFileSync(path.join(upDir, targetName), buffer);
       fs.writeFileSync(path.join(zBase, targetName), buffer);
       fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
-      console.log(`✓ Synchronized upload file to network drive directly (${zBase}/${targetName})`);
+      console.log(`✓ Synchronized upload file to network drive in uploads (${upDir}/${targetName})`);
     }
   } catch (zErr) {
     console.warn('Could not mirror file to network drive:', zErr);
@@ -1116,10 +1128,9 @@ export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc'): AbaState {
     netDirs.forEach(dir => {
       try {
         const zp = path.join(dir, f);
-        if (fs.existsSync(zp)) {
-          fs.unlinkSync(zp);
-          console.log(`✓ Deleted network drive file ${zp}`);
-        }
+        if (fs.existsSync(zp)) { fs.unlinkSync(zp); console.log(`✓ Deleted network drive file ${zp}`); }
+        const zpUp = path.join(dir, 'uploads', f);
+        if (fs.existsSync(zpUp)) { fs.unlinkSync(zpUp); console.log(`✓ Deleted network drive file ${zpUp}`); }
       } catch {}
     });
   });
