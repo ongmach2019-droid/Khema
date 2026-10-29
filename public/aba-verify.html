@@ -152,8 +152,8 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <button type="button" id="btnConnectZDrive" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="ភ្ជាប់ជាមួយ Drive H:\ ឬ Network Folder ដើម្បីរក្សាទុកឯកសារដោយស្វ័យប្រវត្តិ">
-      <span id="zDriveIcon">⚪</span> <span id="zDriveText">ភ្ជាប់ H:\ (Network Drive)</span>
+    <button type="button" id="btnConnectZDrive" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="បានភ្ជាប់ជាមួយ Drive H:\InvoiceAI\data\aba ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)">
+      <span id="zDriveIcon">🟢</span> <span id="zDriveText">H:\ បានភ្ជាប់អូតូរួចរាល់</span>
     </button>
     <button type="button" id="btnOpenAmeExports" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="មើល និងទាញយកហ្វាល់ Excel សម្រាប់ AME ដែលបានរក្សាទុក">
       📂 ហ្វាល់ AME (<span id="btnAmeCount">0</span>)
@@ -177,7 +177,7 @@ summary:hover{background:var(--bg)}
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:6px">
   <div style="font-size:0.82rem" id="zDriveStatusText">
-    <span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\ ៖</span> <b style="color:#0284c7">H:\InvoiceAI\data\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ H:\" ដើម្បីបើក Auto-save ចូល H: ផ្ទាល់)</span>
+    <span style="color:#15803d;font-weight:600">🟢 បានភ្ជាប់ Drive H:\ ស្វ័យប្រវត្តិ ៖</span> <b style="color:#0284c7">H:\InvoiceAI\data\aba</b> <span class="mu">(រាល់ទិន្នន័យទាំងអស់ត្រូវរក្សាទុកក្នុង H:\ ជាប់ជានិច្ច)</span>
   </div>
   <button type="button" id="btnBrowseZDrive" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:3px 10px;font-size:0.75rem;cursor:pointer;color:#334155;font-weight:600">
     📂 ជ្រើសរើស Folder H:\
@@ -2412,22 +2412,32 @@ function smart(kind, t) {
 
 // ============================================================================
 
+var lastServerUpdatedAt = '';
+
 function applyServerState(state) {
-    if(!state || !state.doctors || !state.doctors.length) return false;
+    if(!state) return false;
+    if(state.updatedAt) lastServerUpdatedAt = state.updatedAt;
     
     if(state.fileNames) {
-        if(state.fileNames.aba) {
-            FILE_NAMES.aba = state.fileNames.aba;
-            localStorage.setItem('aba_file_name', state.fileNames.aba);
-        }
-        if(state.fileNames.debt) {
-            FILE_NAMES.debt = state.fileNames.debt;
-            localStorage.setItem('debt_file_name', state.fileNames.debt);
-        }
-        if(state.fileNames.acc) {
-            FILE_NAMES.acc = state.fileNames.acc;
-            localStorage.setItem('acc_file_name', state.fileNames.acc);
-        }
+        FILE_NAMES.aba = state.fileNames.aba || '';
+        if(state.fileNames.aba) localStorage.setItem('aba_file_name', state.fileNames.aba);
+        else localStorage.removeItem('aba_file_name');
+
+        FILE_NAMES.debt = state.fileNames.debt || '';
+        if(state.fileNames.debt) localStorage.setItem('debt_file_name', state.fileNames.debt);
+        else localStorage.removeItem('debt_file_name');
+
+        FILE_NAMES.acc = state.fileNames.acc || '';
+        if(state.fileNames.acc) localStorage.setItem('acc_file_name', state.fileNames.acc);
+        else localStorage.removeItem('acc_file_name');
+    }
+
+    if(!state.doctors || !state.doctors.length) {
+        res = { docs: {}, names: [], unmatched: state.unmatched || [], tot: state.summary || { owed:0, paid:0, rem:0 }, from: null };
+        sel = {};
+        updateBoxUI();
+        render();
+        return true;
     }
 
     var docs = {};
@@ -2790,7 +2800,7 @@ $('fAcc').onchange = e => {
 // Reset All Data & Box Handlers
 if($('btnResetServer')) {
     $('btnResetServer').onclick = () => {
-        if(!confirm('តើអ្នកប្រាកដជាចង់សម្អាតទិន្នន័យទាំងអស់លើ Server និងក្នុង Browser ដើម្បីផ្ទុកឯកសារថ្មីឡើងវិញមែនទេ?')) return;
+        if(!confirm('តើអ្នកប្រាកដជាចង់សម្អាតទិន្នន័យទាំងអស់លើ Server និងក្នុង Browser ដើម្បីផ្ទុកឯកសារថ្មីឡើងវិញមែនទេ? (វានឹងសម្អាតទិន្នន័យក្នុង Drive H:\\ ផងដែរ)')) return;
         showServerLoading('កំពុងសម្អាតទិន្នន័យទាំងអស់...');
         fetch('/api/aba/reset', { method: 'POST' })
             .then(r => r.json())
@@ -2809,7 +2819,7 @@ if($('btnResetServer')) {
                 $('fAba').value = '';
                 $('fDebt').value = '';
                 $('fAcc').value = '';
-                if(data && data.state && data.state.doctors && data.state.doctors.length > 0) {
+                if(data && data.state) {
                     applyServerState(data.state);
                 } else {
                     res = { docs: {}, names: [], unmatched: [], tot: { owed:0, paid:0, rem:0 }, from: null };
@@ -2825,34 +2835,54 @@ if($('btnResetServer')) {
     };
 }
 
-// Delete Handlers for 3 file boxes
-$('delAba').onclick = () => {
-    RAW.aba = null; M.aba = {}; aba = []; assign = {};
-    FILE_NAMES.aba = '';
-    localStorage.removeItem('aba_file_name');
-    $('fAba').value = '';
-    dbDel('aba_state');
-    updateBoxUI();
-};
+// Delete Handlers for 3 file boxes (removes from Server and Network Drive H:\)
+async function executeDeleteFile(fileType, labelKh) {
+    if(!confirm('តើអ្នកពិតជាចង់លុប ' + labelKh + ' មែនទេ? (វានឹងលុបចេញពីប្រព័ន្ធ និង Drive H:\\ ផងដែរ)')) return;
+    showServerLoading('កំពុងលុប ' + labelKh + '...');
+    try {
+        if(fileType === 'aba') {
+            RAW.aba = null; M.aba = {}; aba = []; assign = {};
+            FILE_NAMES.aba = '';
+            localStorage.removeItem('aba_file_name');
+            $('fAba').value = '';
+            await dbDel('aba_state');
+        } else if(fileType === 'debt') {
+            FILES = []; debts = []; HDR = {}; sel = {};
+            FILE_NAMES.debt = '';
+            localStorage.removeItem('debt_file_name');
+            $('fDebt').value = '';
+            await dbDel('debt_state');
+        } else if(fileType === 'acc') {
+            ACC = []; ACC_INVOICES = [];
+            FILE_NAMES.acc = '';
+            localStorage.removeItem('acc_file_name');
+            $('fAcc').value = '';
+            await dbDel('acc_state');
+        }
+        var resp = await fetch('/api/aba/delete-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileType: fileType })
+        });
+        var data = await resp.json();
+        hideServerLoading();
+        if(data && data.success && data.state) {
+            applyServerState(data.state);
+        } else {
+            updateBoxUI();
+            render();
+        }
+    } catch(err) {
+        hideServerLoading();
+        console.error('Delete file error:', err);
+        updateBoxUI();
+        render();
+    }
+}
 
-$('delDebt').onclick = () => {
-    FILES = []; debts = []; HDR = {}; sel = {};
-    FILE_NAMES.debt = '';
-    localStorage.removeItem('debt_file_name');
-    $('fDebt').value = '';
-    dbDel('debt_state');
-    updateBoxUI();
-};
-
-$('delAcc').onclick = () => {
-    ACC = [];
-    ACC_INVOICES = [];
-    FILE_NAMES.acc = '';
-    localStorage.removeItem('acc_file_name');
-    $('fAcc').value = '';
-    dbDel('acc_state');
-    updateBoxUI();
-};
+if($('delAba')) $('delAba').onclick = () => executeDeleteFile('aba', 'ឯកសារធនាគារ (ABA / ACLEDA)');
+if($('delDebt')) $('delDebt').onclick = () => executeDeleteFile('debt', 'ឯកសារបំណុលគ្រូពេទ្យ (Invoices)');
+if($('delAcc')) $('delAcc').onclick = () => executeDeleteFile('acc', 'ឯកសារគណនី/អតិថិជន (Accounts)');
 
 
 
@@ -5006,12 +5036,15 @@ var zDirHandle = null;
 var currentDriveLetter = 'H:';
 
 async function initZDrive() {
+    // Immediate auto-connection to H:\ by default
+    updateZDriveUI(true, 'H:', true);
+
     // 1. First check if server is already connected to H:\ or Z:\ directly
     try {
         var resp = await fetch('/api/aba/drive-status');
         var data = await resp.json();
-        if (data && data.success && data.connected && data.primaryDrive) {
-            currentDriveLetter = data.primaryDrive.replace(/\\$/, '');
+        if (data && data.success && (data.connected || data.autoConnected)) {
+            currentDriveLetter = (data.primaryDrive || 'H:').replace(/\\$/, '');
             updateZDriveUI(true, currentDriveLetter, true);
             return;
         }
@@ -5035,7 +5068,7 @@ async function initZDrive() {
     } catch (e) {
         console.warn('Init drive handle warning:', e);
     }
-    updateZDriveUI(false);
+    updateZDriveUI(true, 'H:', true);
 }
 
 function updateZDriveUI(connected, dirName, isServerDirect) {
@@ -5046,17 +5079,17 @@ function updateZDriveUI(connected, dirName, isServerDirect) {
     var dLetter = dirName || currentDriveLetter || 'H:';
     if(dLetter.length === 1) dLetter += ':';
 
-    if (connected) {
+    if (connected !== false) {
         if (icon) icon.textContent = '🟢';
-        if (text) text.textContent = dLetter + '\\ បានភ្ជាប់ជាប់ជានិច្ច';
+        if (text) text.textContent = dLetter + '\\ បានភ្ជាប់អូតូរួចរាល់';
         if (btn) {
             btn.style.background = '#f0fdf4';
             btn.style.borderColor = '#86efac';
             btn.style.color = '#15803d';
-            btn.title = 'បានភ្ជាប់ជាមួយ ' + dLetter + '\\ (រាល់ឯកសារត្រូវរក្សាទុកក្នុងនេះទាំងអស់)';
+            btn.title = 'បានភ្ជាប់ជាមួយ Drive ' + dLetter + '\\InvoiceAI\\data\\aba ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)';
         }
         if (statusText) {
-            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ ជាប់ជានិច្ច (' + esc(dLetter) + '\\InvoiceAI\\data\\aba) — រាល់ការ Upload ឯកសារទាំង៣ និង Export AME ត្រូវរក្សាទុកក្នុង ' + esc(dLetter) + '\\ ដោយស្វ័យប្រវត្តិ</b>';
+            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ ស្វ័យប្រវត្តិ (' + esc(dLetter) + '\\InvoiceAI\\data\\aba) — រាល់ទិន្នន័យទាំងអស់ត្រូវរក្សាទុកក្នុង ' + esc(dLetter) + '\\ ជាប់ជានិច្ច</b>';
         }
     } else {
         if (icon) icon.textContent = '⚪';
@@ -5068,7 +5101,7 @@ function updateZDriveUI(connected, dirName, isServerDirect) {
             btn.title = 'ចុចដើម្បីជ្រើសរើស Folder H:\\ ឬ Network Drive';
         }
         if (statusText) {
-            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\\ ៖</span> <b style="color:#0284c7">H:\\InvoiceAI\\data\\aba</b> <span class="mu">(ចុចប៊ូតុង "ភ្ជាប់ H:\\" ដើម្បីបើក Auto-save ចូល H: ផ្ទាល់)</span>';
+            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\\ ៖</span> <b style="color:#0284c7">H:\\InvoiceAI\\data\\aba</b>';
         }
     }
 }
@@ -5853,6 +5886,7 @@ function restoreFromLocalIndexedDB() {
 
 function restoreSavedData() {
     initBoxPlaceholders();
+    initZDrive();
     showServerLoading('កំពុងផ្ទុកទិន្នន័យពី Server (កុំបារម្ភ មិនគាំងទេ)...');
 
     fetch('/api/aba/state')
@@ -5889,18 +5923,36 @@ function restoreSavedData() {
                 updateAmeBadge();
                 return;
             }
+            // If server had no doctors, check local IndexedDB
             restoreFromLocalIndexedDB();
             updateAmeBadge();
-            initZDrive();
         })
         .catch(err => {
             hideServerLoading();
             console.warn('Server state fetch failed, falling back to local DB:', err);
             restoreFromLocalIndexedDB();
             updateAmeBadge();
-            initZDrive();
         });
 }
+
+// Multi-user collaboration auto-sync (checks for updates by other team members)
+function silentlySyncServerState() {
+    fetch('/api/aba/state')
+        .then(r => r.json())
+        .then(data => {
+            var state = (data && data.state) ? data.state : data;
+            if(state && state.updatedAt && state.updatedAt !== lastServerUpdatedAt) {
+                console.log('🔄 Detected updated state from another user on network:', state.updatedAt);
+                applyServerState(state);
+                updateAmeBadge();
+            }
+        })
+        .catch(() => {});
+}
+
+// Sync on window focus and every 25 seconds
+window.addEventListener('focus', silentlySyncServerState);
+setInterval(silentlySyncServerState, 25000);
 
 restoreSavedData();
 

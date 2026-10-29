@@ -102,34 +102,62 @@ function ensureDataDir() {
   }
 }
 
+// Helper to get network drive directories (primary: H:\InvoiceAI\data\aba)
+export function getNetworkDriveAbaDirs(): string[] {
+  const dirs: string[] = [];
+  const candidateDrives = ['H:\\', 'Z:\\'];
+  for (const d of candidateDrives) {
+    try {
+      if (fs.existsSync(d)) {
+        const p = path.join(d, 'InvoiceAI', 'data', 'aba');
+        if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+        dirs.push(p);
+        const nested = path.join(d, 'InvoiceAI', 'InvoiceAI', 'data', 'aba');
+        if (fs.existsSync(nested)) dirs.push(nested);
+      }
+    } catch {}
+  }
+  return dirs;
+}
+
 // Read JSON helper
 function readJsonFile<T>(filename: string, defaultVal: T): T {
   ensureDataDir();
   const filePath = path.join(dataDir, filename);
-  if (!fs.existsSync(filePath)) return defaultVal;
-  try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return defaultVal;
+  if (fs.existsSync(filePath)) {
+    try {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(raw);
+    } catch {}
   }
+  // Check network drive if local is missing
+  const netDirs = getNetworkDriveAbaDirs();
+  for (const dir of netDirs) {
+    try {
+      const zp = path.join(dir, filename);
+      if (fs.existsSync(zp)) {
+        const raw = fs.readFileSync(zp, 'utf-8');
+        const parsed = JSON.parse(raw);
+        try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
+        return parsed;
+      }
+    } catch {}
+  }
+  return defaultVal;
 }
 
 // Write JSON helper
 function writeJsonFile(filename: string, data: any) {
   ensureDataDir();
   const filePath = path.join(dataDir, filename);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  try {
-    const candidateDrives = ['H:\\', 'Z:\\'];
-    for (const d of candidateDrives) {
-      if (fs.existsSync(d)) {
-        const zDir = path.join(d, 'InvoiceAI', 'data', 'aba');
-        if (!fs.existsSync(zDir)) fs.mkdirSync(zDir, { recursive: true });
-        fs.writeFileSync(path.join(zDir, filename), JSON.stringify(data, null, 2), 'utf-8');
-      }
-    }
-  } catch {}
+  const jsonStr = JSON.stringify(data, null, 2);
+  fs.writeFileSync(filePath, jsonStr, 'utf-8');
+  getNetworkDriveAbaDirs().forEach(dir => {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, filename), jsonStr, 'utf-8');
+    } catch {}
+  });
 }
 
 // Extract parenthesized ABA / bank account number like (000 428 736) or contiguous digits
@@ -698,11 +726,16 @@ export function computeAbaReconciliation(): AbaState {
   }
 
   // 2.5. Read accounts.xlsx for OR/JV payments and accounts mapping
-  const accCandidates = ['accounts.xlsx', 'accounts.xls'];
+  const accCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'accounts.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'accounts.xls'),
+    path.join(dataDir, 'accounts.xlsx'),
+    path.join(dataDir, 'accounts.xls'),
+    path.join(dataDir, 'Account id aba.xlsx')
+  ];
   let accFile = '';
   for (const c of accCandidates) {
-    const p = path.join(dataDir, c);
-    if (fs.existsSync(p)) { accFile = p; break; }
+    if (fs.existsSync(c)) { accFile = c; break; }
   }
 
   if (accFile) {
@@ -931,9 +964,64 @@ export function computeAbaReconciliation(): AbaState {
 export function getAbaState(): AbaState {
   const cached = readJsonFile<AbaState | null>('state.json', null);
   if (cached && cached.doctors && cached.doctors.length > 0) {
-    return cached;
+    const abaExists = !cached.fileNames?.aba || fs.existsSync(path.join(dataDir, cached.fileNames.aba));
+    const debtExists = !cached.fileNames?.debt || fs.existsSync(path.join(dataDir, cached.fileNames.debt));
+    if (abaExists && debtExists) {
+      return cached;
+    }
   }
   return computeAbaReconciliation();
+}
+
+// Auto-sync files between network drive (H:\InvoiceAI\data\aba) and local dataDir
+export function syncFromNetworkDriveIfNeeded(): void {
+  ensureDataDir();
+  const netDirs = getNetworkDriveAbaDirs();
+  if (!netDirs || !netDirs.length) return;
+
+  const keyFiles = [
+    'aba_statement.xlsx',
+    'aba_statement.xls',
+    'debts.xls',
+    'debts.xlsx',
+    'accounts.xlsx',
+    'accounts.xls',
+    'Account id aba.xlsx',
+    'customers.xls',
+    'customers.xlsx',
+    'state.json',
+    'tg_sent.json',
+    'tg_directory.json',
+    'uploads_history.json',
+    'exports_history.json'
+  ];
+
+  for (const netDir of netDirs) {
+    if (!fs.existsSync(netDir)) continue;
+    try {
+      for (const f of keyFiles) {
+        const netFile = path.join(netDir, f);
+        const localFile = path.join(dataDir, f);
+        if (fs.existsSync(netFile) && !fs.existsSync(localFile)) {
+          try {
+            fs.copyFileSync(netFile, localFile);
+            console.log(`✓ Synchronized ${f} from network drive (${netDir}) to local dataDir`);
+          } catch (e) {
+            console.warn(`Could not copy ${f} from network drive:`, e);
+          }
+        } else if (fs.existsSync(localFile) && !fs.existsSync(netFile)) {
+          try {
+            fs.copyFileSync(localFile, netFile);
+            console.log(`✓ Synchronized ${f} from local dataDir to network drive (${netDir})`);
+          } catch (e) {
+            console.warn(`Could not copy ${f} to network drive:`, e);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Error during syncFromNetworkDriveIfNeeded:', err);
+    }
+  }
 }
 
 // Save uploaded file and recompute (with archive backup in data/aba/uploads/)
@@ -985,25 +1073,54 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (history.length > 100) history = history.slice(0, 100);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-  // 4. Also mirror directly to H:\ or Z:\ drive if available (e.g. H:\InvoiceAI\data\aba)
+  // 4. Also mirror directly to all network drive directories (primary: H:\InvoiceAI\data\aba)
   try {
-    const candidateDrives = ['H:\\', 'Z:\\'];
-    for (const d of candidateDrives) {
-      if (fs.existsSync(d)) {
-        const zBase = path.join(d, 'InvoiceAI', 'data', 'aba');
-        const zUploads = path.join(zBase, 'uploads');
-        if (!fs.existsSync(zUploads)) fs.mkdirSync(zUploads, { recursive: true });
-        fs.writeFileSync(path.join(zBase, targetName), buffer);
-        fs.writeFileSync(path.join(zUploads, backupFileName), buffer);
-        fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
-        console.log(`✓ Synchronized upload file to ${d} drive (${targetName}, ${backupFileName})`);
-      }
+    const netDirs = getNetworkDriveAbaDirs();
+    for (const zBase of netDirs) {
+      const zUploads = path.join(zBase, 'uploads');
+      if (!fs.existsSync(zUploads)) fs.mkdirSync(zUploads, { recursive: true });
+      fs.writeFileSync(path.join(zBase, targetName), buffer);
+      fs.writeFileSync(path.join(zUploads, backupFileName), buffer);
+      fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
+      console.log(`✓ Synchronized upload file to network drive (${zBase}/${targetName})`);
     }
   } catch (zErr) {
     console.warn('Could not mirror file to network drive:', zErr);
   }
 
   // Recompute and return state
+  return computeAbaReconciliation();
+}
+
+// Delete single file (aba, debt, or acc) on server and all network drive locations
+export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc'): AbaState {
+  ensureDataDir();
+  let targetFiles: string[] = [];
+  if (fileType === 'aba') {
+    targetFiles = ['aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv'];
+  } else if (fileType === 'debt') {
+    targetFiles = ['debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx'];
+  } else if (fileType === 'acc') {
+    targetFiles = ['accounts.xlsx', 'accounts.xls', 'Account id aba.xlsx', 'customers.xls', 'customers.xlsx'];
+  }
+
+  const netDirs = getNetworkDriveAbaDirs();
+  targetFiles.forEach(f => {
+    const p = path.join(dataDir, f);
+    if (fs.existsSync(p)) {
+      try { fs.unlinkSync(p); console.log(`✓ Deleted local file ${f}`); } catch {}
+    }
+    netDirs.forEach(dir => {
+      try {
+        const zp = path.join(dir, f);
+        if (fs.existsSync(zp)) {
+          fs.unlinkSync(zp);
+          console.log(`✓ Deleted network drive file ${zp}`);
+        }
+      } catch {}
+    });
+  });
+
   return computeAbaReconciliation();
 }
 
@@ -1021,24 +1138,27 @@ export function markAbaTelegramSent(name: string, custId?: string, target?: stri
   return computeAbaReconciliation();
 }
 
-// Reset state
+// Reset state completely across local and network drives
 export function resetAbaState(): AbaState {
   ensureDataDir();
-  const files = ['aba_statement.xlsx', 'aba_statement.xls', 'debts.xls', 'debts.xlsx', 'state.json'];
+  const files = [
+    'aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv',
+    'debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx',
+    'accounts.xlsx', 'accounts.xls', 'Account id aba.xlsx', 'customers.xls', 'customers.xlsx',
+    'state.json'
+  ];
+  const netDirs = getNetworkDriveAbaDirs();
   files.forEach(f => {
     const p = path.join(dataDir, f);
     if (fs.existsSync(p)) {
       try { fs.unlinkSync(p); } catch {}
     }
-    try {
-      const candidateDrives = ['H:\\', 'Z:\\'];
-      for (const d of candidateDrives) {
-        if (fs.existsSync(d)) {
-          const zp = path.join(d, 'InvoiceAI', 'data', 'aba', f);
-          if (fs.existsSync(zp)) { try { fs.unlinkSync(zp); } catch {} }
-        }
-      }
-    } catch {}
+    netDirs.forEach(dir => {
+      try {
+        const zp = path.join(dir, f);
+        if (fs.existsSync(zp)) { fs.unlinkSync(zp); }
+      } catch {}
+    });
   });
   return computeAbaReconciliation();
 }

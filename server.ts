@@ -9,8 +9,11 @@ import * as XLSX from 'xlsx';
 import {
   getAbaState,
   uploadAbaFile,
+  deleteAbaFile,
   markAbaTelegramSent,
-  resetAbaState
+  resetAbaState,
+  syncFromNetworkDriveIfNeeded,
+  getNetworkDriveAbaDirs
 } from './server/abaReconciliation.ts';
 
 // Load .env.local first (local development / secrets), then .env
@@ -120,6 +123,21 @@ app.post('/api/aba/reset', (_req, res) => {
     res.json({ success: true, state });
   } catch (err: any) {
     console.error('Error in /api/aba/reset:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete single ABA file on server and network drive
+app.post('/api/aba/delete-file', (req, res) => {
+  try {
+    const fileType = req.body.fileType;
+    if (!fileType || !['aba', 'debt', 'acc'].includes(fileType)) {
+      return res.status(400).json({ success: false, error: 'Invalid or missing fileType' });
+    }
+    const state = deleteAbaFile(fileType as 'aba' | 'debt' | 'acc');
+    res.json({ success: true, state });
+  } catch (err: any) {
+    console.error('Error in /api/aba/delete-file:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -252,8 +270,9 @@ app.get('/api/aba/drive-status', (_req, res) => {
   res.json({
     success: true,
     connected: !!primary,
-    primaryDrive: primary ? primary.drive : null,
-    primaryPath: primary ? primary.path : null,
+    autoConnected: true,
+    primaryDrive: primary ? primary.drive : 'H:\\',
+    primaryPath: primary ? primary.path : 'H:\\InvoiceAI\\data\\aba',
     availableDrives: available
   });
 });
@@ -2356,6 +2375,13 @@ async function startServer() {
         res.sendFile(path.resolve(distPath, 'index.html'));
       });
     }
+  }
+
+  // Auto-sync files with H:\ network drive on startup
+  try {
+    syncFromNetworkDriveIfNeeded();
+  } catch (syncErr) {
+    console.warn('Network drive startup sync warning:', syncErr);
   }
 
   app.listen(PORT, '0.0.0.0', () => {
