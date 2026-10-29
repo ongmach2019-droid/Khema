@@ -102,18 +102,16 @@ function ensureDataDir() {
   }
 }
 
-// Helper to get network drive directories (primary: H:\InvoiceAI\data\aba)
+// Helper to get network drive directories (single primary folder: H:\InvoiceAI)
 export function getNetworkDriveAbaDirs(): string[] {
   const dirs: string[] = [];
   const candidateDrives = ['H:\\', 'Z:\\'];
   for (const d of candidateDrives) {
     try {
       if (fs.existsSync(d)) {
-        const p = path.join(d, 'InvoiceAI', 'data', 'aba');
+        const p = path.join(d, 'InvoiceAI');
         if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
         dirs.push(p);
-        const nested = path.join(d, 'InvoiceAI', 'InvoiceAI', 'data', 'aba');
-        if (fs.existsSync(nested)) dirs.push(nested);
       }
     } catch {}
   }
@@ -259,6 +257,8 @@ export function parseCustomerProfiles(): Record<string, any> {
   const candidates = ['customers.xls', 'customers.xlsx', 'Customer_List.xls', 'Customer_List.xlsx'];
   let foundFile = '';
   for (const c of candidates) {
+    const directH = path.join('H:\\', 'InvoiceAI', c);
+    if (fs.existsSync(directH)) { foundFile = directH; break; }
     const p = path.join(dataDir, c);
     if (fs.existsSync(p)) { foundFile = p; break; }
   }
@@ -304,13 +304,15 @@ export function parseAccountsMap(): any[] {
   ]);
 
   const accCandidates = [
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'Account id aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'Account id aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'accounts.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'accounts.xls'),
+    path.join('Z:\\', 'InvoiceAI', 'Account id aba.xlsx'),
+    path.join('Z:\\', 'InvoiceAI', 'accounts.xlsx'),
     path.join(dataDir, 'Account id aba.xlsx'),
-    path.join(process.cwd(), 'Account id aba.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'accounts.xlsx'),
     path.join(dataDir, 'accounts.xlsx'),
     path.join(dataDir, 'accounts.xls'),
-    path.join('Z:\\', 'InvoiceAI', 'data', 'aba', 'Account id aba.xlsx')
+    path.join(process.cwd(), 'Account id aba.xlsx')
   ];
   for (const c of accCandidates) {
     if (fs.existsSync(c)) {
@@ -389,8 +391,10 @@ export function computeAbaReconciliation(): AbaState {
 
   // 1. Read debts
   const debtCandidates = [
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'debts.xls'),
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'debts.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'debts.xls'),
+    path.join('H:\\', 'InvoiceAI', 'debts.xlsx'),
+    path.join('Z:\\', 'InvoiceAI', 'debts.xls'),
+    path.join('Z:\\', 'InvoiceAI', 'debts.xlsx'),
     path.join(dataDir, 'debts.xls'),
     path.join(dataDir, 'debts.xlsx'),
     path.join(dataDir, 'Aged_Receivable.xls'),
@@ -500,8 +504,10 @@ export function computeAbaReconciliation(): AbaState {
 
   // 2. Read ABA statements
   const abaCandidates = [
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'aba_statement.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'aba_statement.xls'),
+    path.join('H:\\', 'InvoiceAI', 'aba_statement.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'aba_statement.xls'),
+    path.join('Z:\\', 'InvoiceAI', 'aba_statement.xlsx'),
+    path.join('Z:\\', 'InvoiceAI', 'aba_statement.xls'),
     path.join(dataDir, 'aba_statement.xlsx'),
     path.join(dataDir, 'aba_statement.xls'),
     path.join(dataDir, 'aba.xlsx'),
@@ -1073,16 +1079,13 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (history.length > 100) history = history.slice(0, 100);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-  // 4. Also mirror directly to all network drive directories (primary: H:\InvoiceAI\data\aba)
+  // 4. Also mirror directly to network drive (single primary folder: H:\InvoiceAI)
   try {
     const netDirs = getNetworkDriveAbaDirs();
     for (const zBase of netDirs) {
-      const zUploads = path.join(zBase, 'uploads');
-      if (!fs.existsSync(zUploads)) fs.mkdirSync(zUploads, { recursive: true });
       fs.writeFileSync(path.join(zBase, targetName), buffer);
-      fs.writeFileSync(path.join(zUploads, backupFileName), buffer);
       fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
-      console.log(`✓ Synchronized upload file to network drive (${zBase}/${targetName})`);
+      console.log(`✓ Synchronized upload file to network drive directly (${zBase}/${targetName})`);
     }
   } catch (zErr) {
     console.warn('Could not mirror file to network drive:', zErr);

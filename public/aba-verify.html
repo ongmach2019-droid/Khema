@@ -152,7 +152,7 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <button type="button" id="btnConnectZDrive" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="បានភ្ជាប់ជាមួយ Drive H:\InvoiceAI\data\aba ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)">
+    <button type="button" id="btnConnectZDrive" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="បានភ្ជាប់ជាមួយ Drive H:\InvoiceAI ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)">
       <span id="zDriveIcon">🟢</span> <span id="zDriveText">H:\ បានភ្ជាប់អូតូរួចរាល់</span>
     </button>
     <button type="button" id="btnOpenAmeExports" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="មើល និងទាញយកហ្វាល់ Excel សម្រាប់ AME ដែលបានរក្សាទុក">
@@ -177,7 +177,7 @@ summary:hover{background:var(--bg)}
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:6px">
   <div style="font-size:0.82rem" id="zDriveStatusText">
-    <span style="color:#15803d;font-weight:600">🟢 បានភ្ជាប់ Drive H:\ ស្វ័យប្រវត្តិ ៖</span> <b style="color:#0284c7">H:\InvoiceAI\data\aba</b> <span class="mu">(រាល់ទិន្នន័យទាំងអស់ត្រូវរក្សាទុកក្នុង H:\ ជាប់ជានិច្ច)</span>
+    <span style="color:#15803d;font-weight:600">🟢 បានភ្ជាប់ Drive H:\ ស្វ័យប្រវត្តិ ៖</span> <b style="color:#0284c7">H:\InvoiceAI</b> <span class="mu">(រាល់ទិន្នន័យទាំងអស់រក្សាទុកក្នុង Folder នេះជាប់ជានិច្ច)</span>
   </div>
   <button type="button" id="btnBrowseZDrive" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:3px 10px;font-size:0.75rem;cursor:pointer;color:#334155;font-weight:600">
     📂 ជ្រើសរើស Folder H:\
@@ -284,9 +284,9 @@ summary:hover{background:var(--bg)}
 </details>
 
 <div class="row" style="margin-bottom:10px; align-items:center; gap:8px; flex-wrap:wrap">
-  <button class="p" id="exAll" title="រក្សាទុកហ្វាល់ AME ទាំងអស់ដោយស្វ័យប្រវត្តិក្នង H:\InvoiceAI\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export ទាំងអស់ដែលបានសង</button>
-  <button id="exSel" style="display:none;background:#e8f0fe;border-color:var(--pr);color:var(--pr);font-weight:600" title="រក្សាទុកហ្វាល់ AME តាមការធិចដោយស្វ័យប្រវត្តិក្នង H:\InvoiceAI\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export តាមការធិច (<span id="selNum">0</span>)</button>
-  <button id="exUn" title="រក្សាទុកហ្វាល់ ABA ដែលរកមិនឃើញគ្រូពេទ្យក្នុង H:\InvoiceAI\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
+  <button class="p" id="exAll" title="រក្សាទុកហ្វាល់ AME ទាំងអស់ដោយស្វ័យប្រវត្តិក្នង H:\InvoiceAI (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export ទាំងអស់ដែលបានសង</button>
+  <button id="exSel" style="display:none;background:#e8f0fe;border-color:var(--pr);color:var(--pr);font-weight:600" title="រក្សាទុកហ្វាល់ AME តាមការធិចដោយស្វ័យប្រវត្តិក្នង H:\InvoiceAI (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export តាមការធិច (<span id="selNum">0</span>)</button>
+  <button id="exUn" title="រក្សាទុកហ្វាល់ ABA ដែលរកមិនឃើញគ្រូពេទ្យក្នុង H:\InvoiceAI (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
   <div style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;padding:4px 10px;border-radius:6px">
     <span style="font-size:0.8rem;color:#0369a1;font-weight:700">Entry No (OR):</span>
     <input type="text" id="quickStartOrNo" value="OR13344" style="width:95px;font-weight:700;color:#0284c7;background:#fff;border:1px solid #7dd3fc;border-radius:4px;padding:3px 6px;text-align:center" title="លេខ Entry No បន្ទាប់ (កើន +1 អូតូម៉ាទិកពេល Export)">
@@ -577,7 +577,7 @@ summary:hover{background:var(--bg)}
 
       <!-- Info banner -->
       <div id="ameTabBanner" style="background:#f0fdf4;padding:10px 14px;border-radius:8px;border:1px solid #bbf7d0;font-size:0.82rem;color:#166534">
-        💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>H:\InvoiceAI\ame_exports\</code>) ដោយមិនទាញយកដាក់លើកុំព្យូទ័រផ្ទាល់ឡើយ។
+        💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>H:\InvoiceAI\</code>) ដោយមិនទាញយកដាក់លើកុំព្យូទ័រផ្ទាល់ឡើយ។
       </div>
 
       <!-- Table Section -->
@@ -3749,7 +3749,7 @@ function render() {
                     ? '<button class="p" data-tg="' + esc(n) + '" style="background:#059669;border-color:#059669;color:#fff;font-weight:600">✓ ផ្ញើ Telegram ម្ដងទៀត</button>'
                     : '<button class="p" data-tg="' + esc(n) + '" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>') +
                  '<button class="p" data-open-tg-manager="' + esc(custNo || n) + '" style="background:#f8fafc;border-color:#cbd5e1;color:#334155" title="កំណត់ ឬកែប្រែគណនី Telegram របស់គ្រូពេទ្យនេះ">📱 តារាង Telegram</button>' +
-                 '<button class="p" data-ex="' + esc(n) + '" title="រក្សាទុកហ្វាល់ Excel AME របស់គ្រូពេទ្យនេះក្នុង H:\\InvoiceAI\\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export Excel</button>' +
+                 '<button class="p" data-ex="' + esc(n) + '" title="រក្សាទុកហ្វាល់ Excel AME របស់គ្រូពេទ្យនេះក្នុង H:\\InvoiceAI (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export Excel</button>' +
                  '</div>' +
                  '<div class="tw"><table>' +
                  '<thead><tr>' +
@@ -5152,10 +5152,10 @@ function updateZDriveUI(connected, dirName, isServerDirect) {
             btn.style.background = '#f0fdf4';
             btn.style.borderColor = '#86efac';
             btn.style.color = '#15803d';
-            btn.title = 'បានភ្ជាប់ជាមួយ Drive ' + dLetter + '\\InvoiceAI\\data\\aba ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)';
+            btn.title = 'បានភ្ជាប់ជាមួយ Drive ' + dLetter + '\\InvoiceAI ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)';
         }
         if (statusText) {
-            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ ស្វ័យប្រវត្តិ (' + esc(dLetter) + '\\InvoiceAI\\data\\aba) — រាល់ទិន្នន័យទាំងអស់ត្រូវរក្សាទុកក្នុង ' + esc(dLetter) + '\\ ជាប់ជានិច្ច</b>';
+            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ ស្វ័យប្រវត្តិ (' + esc(dLetter) + '\\InvoiceAI) — រាល់ទិន្នន័យទាំងអស់រក្សាទុកក្នុង Folder នេះជាប់ជានិច្ច</b>';
         }
     } else {
         if (icon) icon.textContent = '⚪';
@@ -5167,7 +5167,7 @@ function updateZDriveUI(connected, dirName, isServerDirect) {
             btn.title = 'ចុចដើម្បីជ្រើសរើស Folder H:\\ ឬ Network Drive';
         }
         if (statusText) {
-            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\\ ៖</span> <b style="color:#0284c7">H:\\InvoiceAI\\data\\aba</b>';
+            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\\ ៖</span> <b style="color:#0284c7">H:\\InvoiceAI</b>';
         }
     }
 }
@@ -5221,74 +5221,42 @@ async function mirrorFileToZDrive(fileType, file) {
         else if (fileType === 'debt') standardName = 'debts' + ext;
         else if (fileType === 'acc') standardName = 'accounts' + ext;
 
-        var baseDir = zDirHandle;
-        try {
-            baseDir = await zDirHandle.getDirectoryHandle('InvoiceAI', { create: true });
-            baseDir = await baseDir.getDirectoryHandle('data', { create: true });
-            baseDir = await baseDir.getDirectoryHandle('aba', { create: true });
-        } catch(e) {
-            baseDir = zDirHandle;
-        }
-
+        // Save directly in H:\InvoiceAI (single folder!)
         if (standardName) {
-            var activeFileHandle = await baseDir.getFileHandle(standardName, { create: true });
+            var activeFileHandle = await zDirHandle.getFileHandle(standardName, { create: true });
             var writableActive = await activeFileHandle.createWritable();
             await writableActive.write(file);
             await writableActive.close();
         }
 
-        var uploadsDirHandle = await baseDir.getDirectoryHandle('uploads', { create: true });
-        var timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        var cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        var backupName = timeStr + '_' + fileType + '_' + cleanName;
-        var backupFileHandle = await uploadsDirHandle.getFileHandle(backupName, { create: true });
-        var writableBackup = await backupFileHandle.createWritable();
-        await writableBackup.write(file);
-        await writableBackup.close();
-
-        showToast('💾 បានរក្សាទុកមួយច្បាប់ក្នុង H:\\ (' + (standardName || file.name) + ') រួចរាល់!');
-        console.log('✓ Successfully wrote to drive handle:', standardName, backupName);
+        showToast('💾 បានរក្សាទុកក្នុង H:\\InvoiceAI\\ (' + (standardName || file.name) + ') រួចរាល់!');
+        console.log('✓ Successfully wrote directly to drive handle H:\\InvoiceAI:', standardName);
     } catch(err) {
         console.warn('Could not write to drive handle:', err);
     }
 }
 
 async function mirrorExportToZDrive(fileName, wb) {
+    if (!zDirHandle) {
+        try {
+            var saved = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
+            if (saved) {
+                var p = await saved.queryPermission({ mode: 'readwrite' });
+                if (p === 'granted') zDirHandle = saved;
+            }
+        } catch(e) {}
+    }
     if (!zDirHandle) return;
     try {
-        var baseDir = zDirHandle;
-        try {
-            if (zDirHandle.name !== 'InvoiceAI' && zDirHandle.name !== 'aba') {
-                baseDir = await zDirHandle.getDirectoryHandle('InvoiceAI', { create: true });
-            }
-            if (baseDir.name !== 'aba') {
-                var dataDir = await baseDir.getDirectoryHandle('data', { create: true });
-                baseDir = await dataDir.getDirectoryHandle('aba', { create: true });
-            }
-        } catch(e) {
-            baseDir = zDirHandle;
-        }
-
-        var ameDirHandle = await baseDir.getDirectoryHandle('ame_exports', { create: true });
         var safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-        var exportFileHandle = await ameDirHandle.getFileHandle(safeName, { create: true });
+        // Save directly in H:\InvoiceAI (single folder!)
+        var exportFileHandle = await zDirHandle.getFileHandle(safeName, { create: true });
         var u8 = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         var writable = await exportFileHandle.createWritable();
         await writable.write(u8);
         await writable.close();
 
-        // Also write to top-level ame_exports inside InvoiceAI if possible
-        try {
-            if (zDirHandle.name === 'InvoiceAI') {
-                var topAme = await zDirHandle.getDirectoryHandle('ame_exports', { create: true });
-                var topFile = await topAme.getFileHandle(safeName, { create: true });
-                var wTop = await topFile.createWritable();
-                await wTop.write(u8);
-                await wTop.close();
-            }
-        } catch(e2) {}
-
-        console.log('✓ Successfully saved AME export to drive handle:', safeName);
+        console.log('✓ Successfully saved AME export directly to H:\\InvoiceAI:', safeName);
     } catch (err) {
         console.warn('Could not write export to drive handle:', err);
     }
@@ -5388,7 +5356,7 @@ function switchAmeTab(tab) {
     if(tab === 'exports') {
         if(btnExp) { btnExp.classList.add('on'); btnExp.style.background = '#059669'; btnExp.style.color = '#fff'; }
         if(btnUp) { btnUp.classList.remove('on'); btnUp.style.background = '#fff'; btnUp.style.color = '#475569'; }
-        if(banner) banner.innerHTML = '💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>H:\\InvoiceAI\\ame_exports\\</code>) ដោយមិនទាញយកដាក់លើកុំព្យូទ័រផ្ទាល់ឡើយ។';
+        if(banner) banner.innerHTML = '💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>H:\\InvoiceAI\\</code>) ដោយមិនទាញយកដាក់លើកុំព្យូទ័រផ្ទាល់ឡើយ។';
         if(thColDate) thColDate.textContent = 'កាលបរិច្ឆេទរក្សាទុក';
     } else {
         if(btnUp) { btnUp.classList.add('on'); btnUp.style.background = '#059669'; btnUp.style.color = '#fff'; }

@@ -173,35 +173,22 @@ app.post('/api/aba/save-export', (req, res) => {
     if (history.length > 100) history = history.slice(0, 100);
     fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
 
-    // Mirror to H: and Z: drive if available (H: takes top priority)
+    // Mirror directly to H: and Z: drive in single folder (H:\InvoiceAI)
     const savedLocations: string[] = [path.join(ameDir, safeName)];
     try {
       const candidateDrives = ['H:\\', 'Z:\\'];
       for (const d of candidateDrives) {
         if (fs.existsSync(d)) {
-          // 1. Primary standard directory: H:\InvoiceAI\data\aba\ame_exports
-          const p1 = path.join(d, 'InvoiceAI', 'data', 'aba', 'ame_exports');
-          if (!fs.existsSync(p1)) fs.mkdirSync(p1, { recursive: true });
-          fs.writeFileSync(path.join(p1, safeName), buffer);
-          savedLocations.push(path.join(p1, safeName));
+          // Save directly in single folder: H:\InvoiceAI\${safeName}
+          const pDirect = path.join(d, 'InvoiceAI', safeName);
+          const pDir = path.dirname(pDirect);
+          if (!fs.existsSync(pDir)) fs.mkdirSync(pDir, { recursive: true });
+          fs.writeFileSync(pDirect, buffer);
+          savedLocations.push(pDirect);
 
-          // 2. Direct folder in H:\InvoiceAI\ame_exports for quick access
-          const p2 = path.join(d, 'InvoiceAI', 'ame_exports');
-          if (!fs.existsSync(p2)) fs.mkdirSync(p2, { recursive: true });
-          fs.writeFileSync(path.join(p2, safeName), buffer);
-          savedLocations.push(path.join(p2, safeName));
-
-          // 3. Nested folder if directory handle created InvoiceAI\InvoiceAI
-          const p3 = path.join(d, 'InvoiceAI', 'InvoiceAI', 'data', 'aba', 'ame_exports');
-          if (fs.existsSync(path.dirname(p3))) {
-            if (!fs.existsSync(p3)) fs.mkdirSync(p3, { recursive: true });
-            fs.writeFileSync(path.join(p3, safeName), buffer);
-            savedLocations.push(path.join(p3, safeName));
-          }
-
-          const zHist = path.join(d, 'InvoiceAI', 'data', 'aba', 'exports_history.json');
+          const zHist = path.join(d, 'InvoiceAI', 'exports_history.json');
           fs.writeFileSync(zHist, JSON.stringify(history, null, 2), 'utf-8');
-          console.log(`✓ Synchronized AME export file to ${d} drive (${safeName}) at:`, savedLocations);
+          console.log(`✓ Synchronized AME export file to ${d} drive directly in:`, pDirect);
         }
       }
     } catch (zErr) {
@@ -243,12 +230,10 @@ app.get('/api/aba/download-export/:fileName', (req, res) => {
     if (!fs.existsSync(filePath)) {
       const candidateDrives = ['H:\\', 'Z:\\'];
       for (const d of candidateDrives) {
+        const pDirect = path.join(d, 'InvoiceAI', safeName);
+        if (fs.existsSync(pDirect)) { filePath = pDirect; break; }
         const p1 = path.join(d, 'InvoiceAI', 'data', 'aba', 'ame_exports', safeName);
         if (fs.existsSync(p1)) { filePath = p1; break; }
-        const p2 = path.join(d, 'InvoiceAI', 'ame_exports', safeName);
-        if (fs.existsSync(p2)) { filePath = p2; break; }
-        const p3 = path.join(d, 'InvoiceAI', 'InvoiceAI', 'data', 'aba', 'ame_exports', safeName);
-        if (fs.existsSync(p3)) { filePath = p3; break; }
       }
     }
     if (!fs.existsSync(filePath)) {
@@ -295,7 +280,7 @@ app.get('/api/aba/drive-status', (_req, res) => {
   for (const d of candidateDrives) {
     try {
       if (fs.existsSync(d)) {
-        const p = path.join(d, 'InvoiceAI', 'data', 'aba');
+        const p = path.join(d, 'InvoiceAI');
         if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
         available.push({ drive: d, path: p });
       }
@@ -307,7 +292,7 @@ app.get('/api/aba/drive-status', (_req, res) => {
     connected: !!primary,
     autoConnected: true,
     primaryDrive: primary ? primary.drive : 'H:\\',
-    primaryPath: primary ? primary.path : 'H:\\InvoiceAI\\data\\aba',
+    primaryPath: primary ? primary.path : 'H:\\InvoiceAI',
     availableDrives: available
   });
 });
