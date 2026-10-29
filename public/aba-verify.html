@@ -284,9 +284,9 @@ summary:hover{background:var(--bg)}
 </details>
 
 <div class="row" style="margin-bottom:10px; align-items:center; gap:8px; flex-wrap:wrap">
-  <button class="p" id="exAll">⬇ Export ទាំងអស់ដែលបានសង</button>
-  <button id="exSel" style="display:none;background:#e8f0fe;border-color:var(--pr);color:var(--pr);font-weight:600">⬇ Export តាមការធិច (<span id="selNum">0</span>)</button>
-  <button id="exUn">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
+  <button class="p" id="exAll" title="រក្សាទុកហ្វាល់ AME ទាំងអស់ដោយស្វ័យប្រវត្តិក្នង H:\InvoiceAI\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export ទាំងអស់ដែលបានសង</button>
+  <button id="exSel" style="display:none;background:#e8f0fe;border-color:var(--pr);color:var(--pr);font-weight:600" title="រក្សាទុកហ្វាល់ AME តាមការធិចដោយស្វ័យប្រវត្តិក្នង H:\InvoiceAI\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export តាមការធិច (<span id="selNum">0</span>)</button>
+  <button id="exUn" title="រក្សាទុកហ្វាល់ ABA ដែលរកមិនឃើញគ្រូពេទ្យក្នុង H:\InvoiceAI\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ ទាញយក ABA ដែលរកមិនឃើញគ្រូពេទ្យ</button>
   <div style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;padding:4px 10px;border-radius:6px">
     <span style="font-size:0.8rem;color:#0369a1;font-weight:700">Entry No (OR):</span>
     <input type="text" id="quickStartOrNo" value="OR13344" style="width:95px;font-weight:700;color:#0284c7;background:#fff;border:1px solid #7dd3fc;border-radius:4px;padding:3px 6px;text-align:center" title="លេខ Entry No បន្ទាប់ (កើន +1 អូតូម៉ាទិកពេល Export)">
@@ -577,7 +577,7 @@ summary:hover{background:var(--bg)}
 
       <!-- Info banner -->
       <div id="ameTabBanner" style="background:#f0fdf4;padding:10px 14px;border-radius:8px;border:1px solid #bbf7d0;font-size:0.82rem;color:#166534">
-        💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>data/aba/ame_exports/</code>)។
+        💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>H:\InvoiceAI\ame_exports\</code>) ដោយមិនទាញយកដាក់លើកុំព្យូទ័រផ្ទាល់ឡើយ។
       </div>
 
       <!-- Table Section -->
@@ -3734,7 +3734,7 @@ function render() {
                     ? '<button class="p" data-tg="' + esc(n) + '" style="background:#059669;border-color:#059669;color:#fff;font-weight:600">✓ ផ្ញើ Telegram ម្ដងទៀត</button>'
                     : '<button class="p" data-tg="' + esc(n) + '" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>') +
                  '<button class="p" data-open-tg-manager="' + esc(custNo || n) + '" style="background:#f8fafc;border-color:#cbd5e1;color:#334155" title="កំណត់ ឬកែប្រែគណនី Telegram របស់គ្រូពេទ្យនេះ">📱 តារាង Telegram</button>' +
-                 '<button class="p" data-ex="' + esc(n) + '">⬇ Export Excel</button>' +
+                 '<button class="p" data-ex="' + esc(n) + '" title="រក្សាទុកហ្វាល់ Excel AME របស់គ្រូពេទ្យនេះក្នុង H:\\InvoiceAI\\ame_exports (មិនទាញយកលើកុំព្យូទ័រផ្ទាល់)">⬇ Export Excel</button>' +
                  '</div>' +
                  '<div class="tw"><table>' +
                  '<thead><tr>' +
@@ -4711,7 +4711,11 @@ document.addEventListener('click', e => {
         return;
     }
 
-    if(n = t.dataset.ex) exportX(n);
+    var exBtn = (t && t.dataset && t.dataset.ex) ? t : (t && t.closest ? t.closest('[data-ex]') : null);
+    if(exBtn && (n = exBtn.dataset.ex)) {
+        exportX(n);
+        return;
+    }
 
 });
 
@@ -5240,9 +5244,13 @@ async function mirrorExportToZDrive(fileName, wb) {
     try {
         var baseDir = zDirHandle;
         try {
-            baseDir = await zDirHandle.getDirectoryHandle('InvoiceAI', { create: true });
-            baseDir = await baseDir.getDirectoryHandle('data', { create: true });
-            baseDir = await baseDir.getDirectoryHandle('aba', { create: true });
+            if (zDirHandle.name !== 'InvoiceAI' && zDirHandle.name !== 'aba') {
+                baseDir = await zDirHandle.getDirectoryHandle('InvoiceAI', { create: true });
+            }
+            if (baseDir.name !== 'aba') {
+                var dataDir = await baseDir.getDirectoryHandle('data', { create: true });
+                baseDir = await dataDir.getDirectoryHandle('aba', { create: true });
+            }
         } catch(e) {
             baseDir = zDirHandle;
         }
@@ -5255,8 +5263,18 @@ async function mirrorExportToZDrive(fileName, wb) {
         await writable.write(u8);
         await writable.close();
 
-        showToast('💾 បានរក្សាទុកហ្វាល់ AME ទៅកាន់ H:\\ (' + safeName + ')!');
-        console.log('✓ Successfully saved AME export to drive:', safeName);
+        // Also write to top-level ame_exports inside InvoiceAI if possible
+        try {
+            if (zDirHandle.name === 'InvoiceAI') {
+                var topAme = await zDirHandle.getDirectoryHandle('ame_exports', { create: true });
+                var topFile = await topAme.getFileHandle(safeName, { create: true });
+                var wTop = await topFile.createWritable();
+                await wTop.write(u8);
+                await wTop.close();
+            }
+        } catch(e2) {}
+
+        console.log('✓ Successfully saved AME export to drive handle:', safeName);
     } catch (err) {
         console.warn('Could not write export to drive handle:', err);
     }
@@ -5271,16 +5289,22 @@ if ($('btnBrowseZDrive')) $('btnBrowseZDrive').onclick = () => connectZDrive();
 
 var currentAmeTab = 'exports'; // 'exports' | 'uploads'
 
-function saveWB(wb, fn) {
-    try {
-        XLSX.writeFile(wb, fn);
-    } catch(e) {
-        alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || ''));
+function saveWB(wb, fn, allowDownload) {
+    // Note: Do NOT download directly to local PC unless explicitly allowed
+    if(allowDownload === true) {
+        try {
+            XLSX.writeFile(wb, fn);
+        } catch(e) {
+            alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || ''));
+        }
     }
-    // Also save directly into Z:\ drive if connected
-    if(typeof mirrorExportToZDrive === 'function') mirrorExportToZDrive(fn, wb);
 
-    // Also save copy to server / drive in data/aba/ame_exports/
+    // Also save directly into H:\ drive via browser handle if available
+    if(typeof mirrorExportToZDrive === 'function') {
+        mirrorExportToZDrive(fn, wb);
+    }
+
+    // Always save copy to server / drive in H:\InvoiceAI\ame_exports\ and data/aba/ame_exports/
     try {
         var b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
         fetch('/api/aba/save-export', {
@@ -5291,12 +5315,14 @@ function saveWB(wb, fn) {
         .then(function(r) { return r.json(); })
         .then(function(res) {
             if(res && res.success) {
-                console.log('✓ Saved copy of ' + fn + ' to drive storage.');
+                console.log('✓ Saved copy of ' + fn + ' to H:\\InvoiceAI storage.');
                 updateAmeBadge();
+                showToast('💾 ហ្វាល់ AME ត្រូវបានរក្សាទុកដោយស្វ័យប្រវត្តិក្នង <b>H:\\InvoiceAI\\ame_exports\\</b> (' + esc(fn) + ') រួចរាល់!', 5000);
             }
         })
         .catch(function(err) {
             console.warn('Could not save export copy to server:', err);
+            showToast('⚠️ មិនអាចរក្សាទុកទៅកាន់ H:\\ ៖ ' + esc(err.message), 5000);
         });
     } catch(err) {
         console.warn('Export encoding error:', err);
@@ -5348,7 +5374,7 @@ function switchAmeTab(tab) {
     if(tab === 'exports') {
         if(btnExp) { btnExp.classList.add('on'); btnExp.style.background = '#059669'; btnExp.style.color = '#fff'; }
         if(btnUp) { btnUp.classList.remove('on'); btnUp.style.background = '#fff'; btnUp.style.color = '#475569'; }
-        if(banner) banner.innerHTML = '💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>data/aba/ame_exports/</code>)។';
+        if(banner) banner.innerHTML = '💡 <b>ហ្វាល់ AME៖</b> រាល់ពេលអ្នកចុច <i>«ទាញយកទាំងអស់ (ALL OR / ALL JV)»</i> ឬ <i>«ទាញយកតាមគ្រូពេទ្យ»</i> កម្មវិធីនឹងរក្សាទុកមួយច្បាប់ដោយស្វ័យប្រវត្តិក្នង Drive (<code>H:\\InvoiceAI\\ame_exports\\</code>) ដោយមិនទាញយកដាក់លើកុំព្យូទ័រផ្ទាល់ឡើយ។';
         if(thColDate) thColDate.textContent = 'កាលបរិច្ឆេទរក្សាទុក';
     } else {
         if(btnUp) { btnUp.classList.add('on'); btnUp.style.background = '#059669'; btnUp.style.color = '#fff'; }
