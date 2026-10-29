@@ -254,6 +254,25 @@ export function parseDateRobust(val: any): { dateObj: Date | null; dateStr: stri
 // Parse customer profiles from customers.xls or customers.xlsx
 export function parseCustomerProfiles(): Record<string, any> {
   const profiles: Record<string, any> = {};
+
+  // 1. First load from public/khema_customers.json or data/aba/khema_customers.json
+  const jsonPaths = [
+    path.join(process.cwd(), 'public', 'khema_customers.json'),
+    path.join(dataDir, 'khema_customers.json')
+  ];
+  for (const jp of jsonPaths) {
+    if (fs.existsSync(jp)) {
+      try {
+        const d = JSON.parse(fs.readFileSync(jp, 'utf8'));
+        if (d && d.map) {
+          Object.assign(profiles, d.map);
+          break;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 2. Check uploaded customer files if present to override / supplement
   const candidates = ['customers.xls', 'customers.xlsx', 'Customer_List.xls', 'Customer_List.xlsx'];
   let foundFile = '';
   for (const c of candidates) {
@@ -282,14 +301,14 @@ export function parseCustomerProfiles(): Record<string, any> {
       const r = aoa[i] || [];
       const code = String(r[1] || r[0] || '').trim().toUpperCase();
       if (code && /^C\d{4,}/i.test(code)) {
-        profiles[code] = {
+        profiles[code] = Object.assign(profiles[code] || {}, {
           code,
-          nameEn: String(r[2] || '').trim(),
-          nameKh: String(r[3] || '').trim(),
-          phone: String(r[6] || r[4] || '').trim(),
-          address: String(r[9] || '').trim(),
-          currency: String(r[10] || 'USD').trim()
-        };
+          nameEn: String(r[2] || (profiles[code] && profiles[code].nameEn) || '').trim(),
+          nameKh: String(r[3] || (profiles[code] && profiles[code].nameKh) || '').trim(),
+          phone: String(r[6] || r[4] || (profiles[code] && profiles[code].phone) || '').trim(),
+          address: String(r[9] || (profiles[code] && profiles[code].address) || '').trim(),
+          currency: String(r[10] || (profiles[code] && profiles[code].currency) || 'USD').trim()
+        });
       }
     }
   } catch (err) {
@@ -304,6 +323,46 @@ export function parseAccountsMap(): any[] {
     { entry: 'C00168', customerId: 'C00168', name: 'Ong Mach', acct: '000428736', rawAcct: '000 428 736' },
     { entry: 'C00007', customerId: 'C00007', name: 'Aesthetic Dental Clinic', acct: '000111222', rawAcct: '000 111 222' }
   ]);
+
+  // Auto-seed accounts from customer profiles (khema_customers.json)
+  const profiles = parseCustomerProfiles();
+  for (const code in profiles) {
+    const prof = profiles[code];
+    const rawAcc = String(prof.bankAccounts || prof.abaAcc || '').trim();
+    if (!rawAcc) continue;
+
+    const rawParts = rawAcc.split('/').map((p: string) => p.trim()).filter(Boolean);
+    const cleanParts = rawParts.map((p: string) => p.replace(/\D/g, '')).filter(Boolean);
+    if (!cleanParts.length && !rawParts.length) continue;
+
+    const cCode = (prof.code || code).toUpperCase();
+    const cName = prof.nameKh || prof.nameEn || cCode;
+
+    const existing = list.find((x: any) => 
+      (x.customerId && x.customerId.toUpperCase() === cCode) ||
+      (x.entry && x.entry.toUpperCase() === cCode)
+    );
+
+    if (existing) {
+      if (!existing.name) existing.name = cName;
+      existing.accounts = Array.from(new Set([...(existing.accounts || []), ...cleanParts]));
+      existing.rawAccounts = Array.from(new Set([...(existing.rawAccounts || []), ...rawParts]));
+      existing.acct = existing.accounts[0] || '';
+      existing.rawAcct = existing.rawAccounts.join(' / ');
+      if (prof.telegram && !existing.telegram) existing.telegram = prof.telegram;
+    } else {
+      list.push({
+        entry: cCode,
+        customerId: cCode,
+        name: cName,
+        acct: cleanParts[0] || '',
+        rawAcct: rawParts.join(' / '),
+        accounts: cleanParts,
+        rawAccounts: rawParts,
+        telegram: prof.telegram || ''
+      });
+    }
+  }
 
   const accCandidates = [
     path.join('H:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
@@ -326,9 +385,9 @@ export function parseAccountsMap(): any[] {
         const s = wb.Sheets[wb.SheetNames[0]];
         const rows: any[] = xlsx.utils.sheet_to_json(s);
         rows.forEach(r => {
-          const entry = String(r['Entry No'] || r['Entry'] || r['Code'] || '').trim();
-          const name = String(r['Name'] || r['Customer Name'] || '').trim();
-          const rawAcc = String(r['accound aba'] || r['account aba'] || r['aba account'] || '').trim();
+          const entry = String(r['Clinic ID'] || r['Entry No'] || r['Entry'] || r['Code'] || '').trim();
+          const name = String(r['Clinic Name'] || r['Name'] || r['Customer Name'] || '').trim();
+          const rawAcc = String(r['Account Number'] || r['accound aba'] || r['account aba'] || r['aba account'] || '').trim();
           
           // Split multiple accounts by '/' (e.g. 025934450001/001 654 720)
           const rawParts = rawAcc ? rawAcc.split('/').map(p => p.trim()).filter(Boolean) : [];
@@ -375,10 +434,34 @@ export function parseAccountsMap(): any[] {
 
 // Parse Telegram directory
 export function parseTgDirectory(): any[] {
-  return readJsonFile<any[]>('tg_directory.json', [
+  let list = readJsonFile<any[]>('tg_directory.json', [
     { id: 'C00168', name: 'Ong Mach', tg: '@ongmach', phone: '0975973959' },
     { id: 'C00007', name: 'Aesthetic Dental Clinic', tg: '727477829', phone: '077 731 777' }
   ]);
+
+  // Merge any Telegram from customer profiles
+  const profiles = parseCustomerProfiles();
+  for (const code in profiles) {
+    const prof = profiles[code];
+    if (prof.telegram) {
+      const tgVal = String(prof.telegram).trim();
+      const cCode = (prof.code || code).toUpperCase();
+      const cName = prof.nameKh || prof.nameEn || cCode;
+      const existing = list.find((x: any) => x.id && x.id.toUpperCase() === cCode);
+      if (existing) {
+        existing.tg = tgVal;
+        if (prof.phone && !existing.phone) existing.phone = prof.phone;
+      } else {
+        list.push({
+          id: cCode,
+          name: cName,
+          tg: tgVal,
+          phone: prof.phone || ''
+        });
+      }
+    }
+  }
+  return list;
 }
 
 // Parse Telegram sent logs

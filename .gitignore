@@ -16,3 +16,6 @@ __pycache__/
 # Office temp lock files
 ~$*
 
+# Local runtime directories
+data/aba/ame_exports/
+data/aba/uploads/

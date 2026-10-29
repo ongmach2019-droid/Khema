@@ -227,7 +227,7 @@ summary:hover{background:var(--bg)}
     <b>៣. គណនីគ្រូពេទ្យ</b>
     <button type="button" id="delAcc" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
   </div>
-  <span class="mu">(ជម្រើស) Entry, Name, Acc</span>
+  <span class="mu" style="color:#059669;font-weight:600;font-size:0.75rem">🟢 ចាប់យកស្វ័យប្រវត្តពីបញ្ជីអតិថិជន (ឬផ្ទុកឯកសារបន្ថែម)</span>
   <input type="file" id="fAcc" accept=".xlsx,.xls,.csv">
   <div class="mu" id="sAcc" style="margin-top:4px"></div>
 </div>
@@ -466,10 +466,10 @@ summary:hover{background:var(--bg)}
 
 <!-- Customer Profiles Directory Modal -->
 <div id="custManagerModal" class="modal-overlay">
-  <div class="modal-card" style="max-width:980px;height:88vh;display:flex;flex-direction:column">
+  <div class="modal-card" style="max-width:1240px;width:96vw;height:90vh;display:flex;flex-direction:column">
     <div class="modal-header" style="background:#059669;color:#fff">
       <h3 style="color:#fff;margin:0;display:flex;align-items:center;gap:6px">
-        👥 តារាងគ្រប់គ្រងព័ត៌មានអតិថិជន (Customer Profiles & Directory)
+        👥 តារាងគ្រប់គ្រងព័ត៌មានអតិថិជន និងគណនីគ្រូពេទ្យ (Customer Profiles, Bank Accounts & Telegram)
       </h3>
       <button type="button" id="btnCloseCustManagerModal" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
     </div>
@@ -477,10 +477,12 @@ summary:hover{background:var(--bg)}
     <div class="modal-body" style="padding:14px;display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden">
       <!-- 1. Quick Add / Update Form -->
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 12px">
-        <div style="font-weight:700;color:#166534;margin-bottom:6px;font-size:0.86rem">
-          ➕ បន្ថែម ឬ កែប្រែព័ត៌មានអតិថិជនថ្មី (នឹងចងចាំដោយស្វ័យប្រវត្តិ)
+        <div style="font-weight:700;color:#166534;margin-bottom:8px;font-size:0.86rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+          <span>➕ បន្ថែម ឬ កែប្រែព័ត៌មានអតិថិជនថ្មី (ភ្ជាប់លេខកុង ABA និង Telegram ស្វ័យប្រវត្ត)</span>
+          <span style="font-size:0.75rem;color:#047857;font-weight:400">💡 អាចបញ្ចូលលេខកុង ABA ច្រើនដោយប្រើសញ្ញា <code>/</code> (ឧ. <code>001 654 720 / 025934450001</code>)</span>
         </div>
-        <div style="display:grid;grid-template-columns:120px 1.2fr 1.2fr 1.2fr 1.5fr auto;gap:8px;align-items:flex-end">
+        <!-- Row 1: Code, Khmer Name, English Name, Bank Accounts -->
+        <div style="display:grid;grid-template-columns:110px 1.2fr 1.3fr 1.8fr;gap:8px;align-items:flex-end;margin-bottom:8px">
           <div>
             <label style="font-size:0.75rem;color:#475569;display:block">Code (ID):</label>
             <input type="text" id="newCustCode" placeholder="C00007" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-weight:700;color:#059669">
@@ -494,6 +496,17 @@ summary:hover{background:var(--bg)}
             <input type="text" id="newCustNameEn" placeholder="Aesthetic Dental Clinic" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
           </div>
           <div>
+            <label style="font-size:0.75rem;color:#0369a1;display:block;font-weight:700">លេខកុងធនាគារ (ABA / Bank Acc - ប្រើ / បំបែក):</label>
+            <input type="text" id="newCustBankAcc" placeholder="000 566 234 / 001 779 000" style="width:100%;height:32px;padding:3px 6px;border:1.5px solid #38bdf8;border-radius:4px;font-weight:600;color:#0369a1">
+          </div>
+        </div>
+        <!-- Row 2: Telegram, Phone, Address, Save button -->
+        <div style="display:grid;grid-template-columns:180px 1.2fr 1.6fr auto;gap:8px;align-items:flex-end">
+          <div>
+            <label style="font-size:0.75rem;color:#0284c7;display:block;font-weight:700">Telegram (@username ឬ ID):</label>
+            <input type="text" id="newCustTg" placeholder="@OngMach2026" style="width:100%;height:32px;padding:3px 6px;border:1.5px solid #38bdf8;border-radius:4px;color:#0369a1">
+          </div>
+          <div>
             <label style="font-size:0.75rem;color:#475569;display:block">ទូរស័ព្ទ / Telephone:</label>
             <input type="text" id="newCustPhone" placeholder="077 731 777" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
           </div>
@@ -501,7 +514,7 @@ summary:hover{background:var(--bg)}
             <label style="font-size:0.75rem;color:#475569;display:block">អាសយដ្ឋាន / Address:</label>
             <input type="text" id="newCustAddress" placeholder="ទល់មុខផ្សារម៉ាក្រូ" style="width:100%;height:32px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px">
           </div>
-          <button type="button" id="btnAddCustProfile" style="background:#059669;color:#fff;border:none;height:32px;padding:0 14px;border-radius:4px;font-weight:600;font-size:0.8rem;cursor:pointer;white-space:nowrap">
+          <button type="button" id="btnAddCustProfile" style="background:#059669;color:#fff;border:none;height:32px;padding:0 18px;border-radius:4px;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap">
             + រក្សាទុក
           </button>
         </div>
@@ -510,13 +523,15 @@ summary:hover{background:var(--bg)}
       <!-- 2. Search, Filter, & Excel Controls -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="display:flex;gap:6px;align-items:center;flex:1;max-width:340px">
-          <input type="text" id="searchCustDir" placeholder="🔍 ស្វែងរក Code, ឈ្មោះ, ទូរស័ព្ទ, អាសយដ្ឋាន..." style="width:100%;height:32px;padding:4px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.82rem">
+          <input type="text" id="searchCustDir" placeholder="🔍 ស្វែងរក Code, ឈ្មោះ, កុង ABA, Telegram, ទូរស័ព្ទ..." style="width:100%;height:32px;padding:4px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.82rem">
         </div>
 
-        <div style="display:flex;gap:4px;align-items:center">
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
           <button type="button" class="btn-cust-tab on" data-custtab="all">ទាំងអស់ (<span id="custTotalCnt">0</span>)</button>
-          <button type="button" class="btn-cust-tab" data-custtab="has" style="color:#047857">✓ មានលេខទូរស័ព្ទ (<span id="custHasCnt">0</span>)</button>
-          <button type="button" class="btn-cust-tab" data-custtab="missing" style="color:#b45309">⚠️ ខ្វះលេខទូរស័ព្ទ (<span id="custMissCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="hasAcc" style="color:#0369a1;font-weight:600">✓ មានកុង ABA (<span id="custHasAccCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="hasTg" style="color:#0284c7;font-weight:600">✓ មាន Telegram (<span id="custHasTgCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="has" style="color:#047857">✓ មានទូរស័ព្ទ (<span id="custHasCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="missing" style="color:#b45309">⚠️ ខ្វះទូរស័ព្ទ (<span id="custMissCnt">0</span>)</button>
         </div>
 
         <div style="display:flex;gap:6px;align-items:center">
@@ -535,13 +550,15 @@ summary:hover{background:var(--bg)}
         <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
           <thead style="position:sticky;top:0;background:#f1f5f9;z-index:2">
             <tr>
-              <th style="width:40px;text-align:center;padding:8px 4px">ល.រ</th>
-              <th style="width:85px;padding:8px 6px">Code</th>
-              <th style="width:160px;padding:8px 8px">ឈ្មោះក្រុមហ៊ុន (ខ្មែរ)</th>
-              <th style="width:170px;padding:8px 8px">Company Name (EN)</th>
-              <th style="width:160px;padding:8px 8px">ទូរស័ព្ទ / Telephone</th>
-              <th style="padding:8px 8px">អាសយដ្ឋាន / Address</th>
-              <th style="width:70px;text-align:center;padding:8px 6px">សកម្មភាព</th>
+              <th style="width:36px;text-align:center;padding:8px 4px">ល.រ</th>
+              <th style="width:75px;padding:8px 6px">Code</th>
+              <th style="width:140px;padding:8px 6px">ឈ្មោះក្រុមហ៊ុន (ខ្មែរ)</th>
+              <th style="width:150px;padding:8px 6px">Company Name (EN)</th>
+              <th style="width:180px;padding:8px 6px;color:#0369a1">លេខកុងធនាគារ (ABA / Bank)</th>
+              <th style="width:130px;padding:8px 6px;color:#0284c7">Telegram</th>
+              <th style="width:125px;padding:8px 6px">ទូរស័ព្ទ / Tel</th>
+              <th style="padding:8px 6px">អាសយដ្ឋាន / Address</th>
+              <th style="width:50px;text-align:center;padding:8px 4px">សកម្មភាព</th>
             </tr>
           </thead>
           <tbody id="custDirTableBody">
@@ -552,7 +569,7 @@ summary:hover{background:var(--bg)}
 
       <!-- 4. Footer -->
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
-        <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់ទូរស័ព្ទ ឬអាសយដ្ឋានដើម្បីកែប្រែភ្លាមៗ (Auto-save)</span>
+        <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save)</span>
         <button type="button" id="btnCloseCustManagerModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
           ✕ បិទ
         </button>
@@ -869,9 +886,15 @@ function updateBoxUI() {
     var nmAcc = FILE_NAMES.acc || localStorage.getItem('acc_file_name') || '';
     var hasAcc = !!nmAcc || !!(ACC && ACC.length);
     if(hasAcc) {
-        if($('delAcc')) $('delAcc').style.display = 'inline-block';
-        var cntAcc = (ACC && ACC.length) ? (ACC.length + ' គណនី') : 'រក្សាទុកលើ Server';
-        $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAcc || 'ឯកសារគណនី/អតិថិជន') + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntAcc;
+        if(nmAcc) {
+            if($('delAcc')) $('delAcc').style.display = 'inline-block';
+            var cntAcc = (ACC && ACC.length) ? (ACC.length + ' គណនី') : 'រក្សាទុកលើ Server';
+            $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAcc) + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntAcc;
+        } else {
+            if($('delAcc')) $('delAcc').style.display = 'none';
+            var cntAccAuto = (ACC && ACC.length) ? ACC.length : 0;
+            $('sAcc').innerHTML = '<span style="color:#059669;font-weight:700">🟢 ស្គាល់អូតូមកពីបញ្ជីអតិថិជន</span> <span class="tag ok" style="font-size:0.65rem">Auto Linked</span><br><span style="color:#475569;font-size:0.75rem">' + cntAccAuto.toLocaleString() + ' គណនីគ្រូពេទ្យ</span>';
+        }
     } else {
         if($('delAcc')) $('delAcc').style.display = 'none';
         $('sAcc').innerHTML = '';
@@ -890,6 +913,9 @@ function initBoxPlaceholders() {
     if(FILE_NAMES.acc) {
         if($('delAcc')) $('delAcc').style.display = 'inline-block';
         $('sAcc').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(FILE_NAMES.acc) + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span>';
+    } else if(ACC && ACC.length) {
+        if($('delAcc')) $('delAcc').style.display = 'none';
+        $('sAcc').innerHTML = '<span style="color:#059669;font-weight:700">🟢 ស្គាល់អូតូមកពីបញ្ជីអតិថិជន</span> <span class="tag ok" style="font-size:0.65rem">Auto Linked</span><br><span style="color:#475569;font-size:0.75rem">' + ACC.length.toLocaleString() + ' គណនីគ្រូពេទ្យ</span>';
     }
 }
 
@@ -1005,7 +1031,7 @@ try {
 } catch(e) {}
 
 // ============================================================================
-// CUSTOMER PROFILES DIRECTORY (គ្រប់គ្រងព័ត៌មានអតិថិជន ឈ្មោះខ្មែរ/អង់គ្លេស ទូរស័ព្ទ អាសយដ្ឋាន)
+// CUSTOMER PROFILES DIRECTORY (គ្រប់គ្រងព័ត៌មានអតិថិជន ឈ្មោះខ្មែរ/អង់គ្លេស លេខកុងធនាគារ Telegram ទូរស័ព្ទ អាសយដ្ឋាន)
 // ============================================================================
 var SEED_CUSTOMER_PROFILES = {
     'C00001': { code: 'C00001', nameEn: 'Beung Bai Tong Dental Clinic', nameKh: 'ពេទ្យធ្មេញ  បឹងបៃតង', contact: '087 777 345', phone: '', address: 'ផ្សាបឺងបៃតង', currency: 'USD' },
@@ -1014,13 +1040,13 @@ var SEED_CUSTOMER_PROFILES = {
     'C00004': { code: 'C00004', nameEn: '3D Dental Laboratory', nameKh: 'ឡាបូ 3D', contact: '', phone: '017 98 09 55', address: 'ក្រោយផ្សារសំណង់12', currency: 'USD' },
     'C00005': { code: 'C00005', nameEn: '52-Teeth Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ៥២', contact: '', phone: '010 876 088', address: 'N0.17 ,ST.143, S.Beng Trabek, K. Chamka Morn , Phnom Penh Cambodia 12305', currency: 'USD' },
     'C00006': { code: 'C00006', nameEn: '87 Design Dental Laboratory', nameKh: 'ឡេប 87', contact: '', phone: '095 387 587', address: 'សំណង់១២', currency: 'USD' },
-    'C00007': { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', contact: '', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD' },
+    'C00007': { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', contact: '', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD', bankAccounts: '000 566 234', telegram: '@OngMach2026', accountHolder: 'LEANG CHHENGKIM' },
     'C00008': { code: 'C00008', nameEn: 'ARECA Dental Clinic', nameKh: 'បន្ទប់ព្យាបាលធ្មេញ អារីកា', contact: 'ទន្តបណ្ឌិត លីម ម៉ីហ័ង', phone: '017 61 62 78 , 093 61 62 78', address: '#291, St 369, ភូមិ ចំពុះក្អែក សង្កាត់ព្រែកថ្មី ខណ្ឌច្បារអំពៅ ភ្នំពេញ', currency: 'USD' },
     'C00009': { code: 'C00009', nameEn: 'Alliance Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អាលីយ៉ង់', contact: 'Dr. KONG BUNLY (DDS)', phone: '089 53 53 08', address: '089 53 53 08 #East of Capitol Bus Station (Boeung Chhuk Market) Battambong Province', currency: 'USD' },
     'C00010': { code: 'C00010', nameEn: 'Amatak Dental Clinic', nameKh: 'ពេទ្យធ្មេញ​ អមតះ', contact: 'Dr. Amatak', phone: '093 815 265', address: '', currency: 'USD' },
     'C00011': { code: 'C00011', nameEn: 'Americain Dental Laboratory', nameKh: 'ឡាបូ អាមេរិកាំង', contact: '', phone: '017 74 04 53 , 098 74 04 53', address: 'Chomka Dong', currency: 'USD' },
     'C00012': { code: 'C00012', nameEn: 'American Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ​ អាមេរិកាំង', contact: '', phone: '092 62 24 02 , 023 884 234', address: 'Road 289 (Samdach Penh Nout), Boeung Kok I, Phnom Penh', currency: 'USD' },
-    'C00013': { code: 'C00013', nameEn: 'Narun Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ណារុន', contact: 'ទន្តបណ្ឌិត ចេង ចណ្ណារុន', phone: '010 89 89 00 , 067 22 52 02', address: 'ផ្លូវជាតិលេខ 21 ភូមិព្រែកស៊ឹង ឃុំសំពៅពូន ស្រុកកោះធំ ខេត្តកណ្តាល​ (ហួស្ពានទី 74 ជ្រៃធំ ជិតទល់ដែនវៀតណាម)', currency: 'USD' },
+    'C00013': { code: 'C00013', nameEn: 'Narun Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ណារុន', contact: 'ទន្តបណ្ឌិត ចេង ចណ្ណារុន', phone: '010 89 89 00 , 067 22 52 02', address: 'ផ្លូវជាតិលេខ 21 ភូមិព្រែកស៊ឹង ឃុំសំពៅពូន ស្រុកកោះធំ ខេត្តកណ្តាល​ (ហួស្ពានទី 74 ជ្រៃធំ ជិតទល់ដែនវៀតណាម)', currency: 'USD', telegram: '@Ziinea0024' },
     'C00014': { code: 'C00014', nameEn: 'Amret Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អម្រឹត', contact: '', phone: '012 907 006', address: '#97A, ST.43, S.Olympic ,K. Chamkarmorn, Phnom Penh Cambodia 12312', currency: 'USD' },
     'C00015': { code: 'C00015', nameEn: 'An Niroth Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អាន និរោធ', contact: '', phone: '099 91 99 96', address: 'ផ្សារកំបូល', currency: 'USD' },
     'C00016': { code: 'C00016', nameEn: 'Anderkmeas Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ អណ្ដើកមាស', contact: '', phone: '010 358 738', address: 'SiemReap Province', currency: 'USD' },
@@ -1028,7 +1054,10 @@ var SEED_CUSTOMER_PROFILES = {
     'C00018': { code: 'C00018', nameEn: 'Angkor Cheat Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អង្គរជាតិ', contact: '', phone: '096 600 0585', address: 'Prey Toteng, Kampong Cham Province', currency: 'USD' },
     'C00019': { code: 'C00019', nameEn: 'Angkor Chom Dental Clinic', nameKh: 'ពេត្យធ្មេញ អង្គរជុំ', contact: '', phone: '097 33 85 777', address: 'S.  ,K. , Kratie Province', currency: 'USD' },
     'C00020': { code: 'C00020', nameEn: 'Angkor Dental Association', nameKh: 'សមាគមពេទ្យធ្មេញ អង្គរ', contact: '', phone: '063 63 09 099 , 070 24 24 24', address: 'Siem Reap City, Siem Reap', currency: 'USD' },
-    'C00045': { code: 'C00045', nameEn: 'Beauty Smile Dental Clinic', nameKh: 'គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍', contact: '', phone: '012 647 758', address: 'Touk Kok , Camko', currency: 'USD' }
+    'C00045': { code: 'C00045', nameEn: 'Beauty Smile Dental Clinic', nameKh: 'គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍', contact: '', phone: '012 647 758', address: 'Touk Kok , Camko', currency: 'USD', bankAccounts: '000 614 343' },
+    'C00168': { code: 'C00168', nameEn: 'Chheung Eng Hong Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ ឈឿង អេងហុង', contact: '', phone: '012 858 531', address: 'ភ្នំពេញ', currency: 'USD', bankAccounts: '002 085 113', telegram: '@ongmach' },
+    'C00254': { code: 'C00254', nameEn: 'Doctor Care Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ ដុកទ័រ ឃែរ', contact: 'Dr. EUNG KIMCHHAY', phone: '086 232 483 , 089 515 176', address: 'ផ្ទះលេខ 612​, ផ្លូវ1019 ភូមិ រោងចក្រ១ សង្កាត់គោកឃ្លោក ខណ្ឌសែនសុខ', currency: 'USD', bankAccounts: '001 779 000 / 001 779 008' },
+    'C02029': { code: 'C02029', nameEn: 'Zirconia Dental laboratory', nameKh: 'ឡាបូផលិតគ្រាប់ធ្មេញ ហ្សឺកូនៀម', contact: '', phone: '096 602 4972', address: 'St108, Wat Phnom', currency: 'USD', bankAccounts: '105 469 341 / 018 397 509' }
 };
 
 var CUSTOMER_PROFILES = Object.assign({}, SEED_CUSTOMER_PROFILES);
@@ -1052,6 +1081,73 @@ function updateCustomerCountBadge() {
     if(el) el.textContent = cnt.toLocaleString();
 }
 
+// Auto-sync bank accounts from CUSTOMER_PROFILES directly into ACC
+function syncAccFromCustomerProfiles() {
+    var count = 0;
+    for(var k in CUSTOMER_PROFILES) {
+        var prof = CUSTOMER_PROFILES[k];
+        if(!prof) continue;
+        var rawAcc = String(prof.bankAccounts || prof.abaAcc || '').trim();
+        var cCode = (prof.code || k).toUpperCase();
+        var cName = prof.nameKh || prof.nameEn || cCode;
+
+        if(rawAcc) {
+            var rawParts = rawAcc.split('/').map(p => p.trim()).filter(Boolean);
+            var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
+            if(cleanParts.length || rawParts.length) {
+                var existing = ACC.find(o => 
+                    (o.customerId && o.customerId.toUpperCase() === cCode) ||
+                    (o.entry && o.entry.toUpperCase() === cCode)
+                );
+                if(existing) {
+                    if(!existing.name && cName) existing.name = cName;
+                    existing.accounts = Array.from(new Set((existing.accounts || []).concat(cleanParts)));
+                    existing.rawAccounts = Array.from(new Set((existing.rawAccounts || []).concat(rawParts)));
+                    existing.acct = existing.accounts[0] || '';
+                    existing.rawAcct = existing.rawAccounts.join(' / ');
+                    if(prof.telegram && !existing.telegram) existing.telegram = prof.telegram;
+                } else {
+                    ACC.push({
+                        entry: cCode,
+                        customerId: cCode,
+                        name: cName,
+                        acct: cleanParts[0] || '',
+                        rawAcct: rawParts.join(' / '),
+                        accounts: cleanParts,
+                        rawAccounts: rawParts,
+                        telegram: prof.telegram || '',
+                        fromCustomerProfile: true
+                    });
+                }
+                count++;
+            }
+        }
+
+        // Also sync Telegram if present
+        if(prof.telegram) {
+            var tgVal = String(prof.telegram).trim();
+            if(tgVal) {
+                if(!tgVal.startsWith('@') && !/^\+?\d+$/.test(tgVal)) tgVal = '@' + tgVal;
+                var tgItem = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cCode);
+                if(tgItem) {
+                    tgItem.tg = tgVal;
+                    if(prof.phone && !tgItem.phone) tgItem.phone = prof.phone;
+                } else {
+                    TG_DIRECTORY.push({ id: cCode, name: cName, tg: tgVal, phone: prof.phone || '' });
+                }
+                TG_MAP[cCode] = tgVal;
+            }
+        }
+    }
+
+    if(count > 0) {
+        if(typeof syncTgMapFromDirectory === 'function') syncTgMapFromDirectory();
+        if(typeof updateBoxUI === 'function') updateBoxUI();
+    }
+    return count;
+}
+try { syncAccFromCustomerProfiles(); } catch(e) {}
+
 function loadDefaultCustomerProfiles() {
     fetch('/khema_customers.json')
         .then(r => r.json())
@@ -1060,20 +1156,26 @@ function loadDefaultCustomerProfiles() {
                 var added = 0;
                 for(var k in data.map) {
                     var code = k.toUpperCase();
+                    var src = data.map[k];
                     if(!CUSTOMER_PROFILES[code]) {
-                        CUSTOMER_PROFILES[code] = data.map[k];
+                        CUSTOMER_PROFILES[code] = src;
                         added++;
                     } else {
                         var cur = CUSTOMER_PROFILES[code];
-                        var src = data.map[k];
                         if(!cur.nameKh && src.nameKh) cur.nameKh = src.nameKh;
                         if(!cur.nameEn && src.nameEn) cur.nameEn = src.nameEn;
                         if(!cur.phone && src.phone) cur.phone = src.phone;
                         if(!cur.address && src.address) cur.address = src.address;
                         if(!cur.currency && src.currency) cur.currency = src.currency;
+                        if(src.bankAccounts && (!cur.bankAccounts || cur.bankAccounts !== src.bankAccounts)) {
+                            cur.bankAccounts = src.bankAccounts;
+                        }
+                        if(src.accountHolder && !cur.accountHolder) cur.accountHolder = src.accountHolder;
+                        if(src.telegram && !cur.telegram) cur.telegram = src.telegram;
                     }
                 }
                 saveCustomerProfiles();
+                syncAccFromCustomerProfiles();
                 console.log('Customer profiles loaded. Total:', Object.keys(CUSTOMER_PROFILES).length);
                 if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
             }
@@ -1104,7 +1206,7 @@ function getCustomerProfile(custName, custNo) {
         }
     }
     if(custNo === 'C00007' || /C00007/i.test(custName)) {
-        return { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD' };
+        return { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD', bankAccounts: '000 566 234', telegram: '@OngMach2026' };
     }
     return null;
 }
@@ -1116,13 +1218,55 @@ function saveCustomerProfile(code, data) {
     CUSTOMER_PROFILES[cUpper] = Object.assign(existing, data, { code: cUpper });
     saveCustomerProfiles();
     
-    // Auto-sync with TG_DIRECTORY if phone provided
-    if(data.phone) {
+    // Auto-sync with TG_DIRECTORY if telegram or phone provided
+    var tgVal = data.telegram !== undefined ? String(data.telegram).trim() : (existing.telegram || '');
+    if(tgVal) {
+        if(!tgVal.startsWith('@') && !/^\+?\d+$/.test(tgVal)) tgVal = '@' + tgVal;
         var tgItem = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
-        if(tgItem && !tgItem.phone) {
-            tgItem.phone = data.phone;
+        if(tgItem) {
+            tgItem.tg = tgVal;
+            if(data.phone) tgItem.phone = data.phone;
+        } else {
+            TG_DIRECTORY.push({ id: cUpper, name: existing.nameKh || existing.nameEn || cUpper, tg: tgVal, phone: data.phone || existing.phone || '' });
+        }
+        TG_MAP[cUpper] = tgVal;
+        syncTgMapFromDirectory();
+    } else if(data.phone) {
+        var tgItemP = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
+        if(tgItemP && !tgItemP.phone) {
+            tgItemP.phone = data.phone;
             syncTgMapFromDirectory();
         }
+    }
+
+    // Auto-sync with ACC if bankAccounts provided or updated
+    var bankVal = data.bankAccounts !== undefined ? String(data.bankAccounts).trim() : (existing.bankAccounts || existing.abaAcc || '');
+    if(bankVal) {
+        var rawParts = bankVal.split('/').map(p => p.trim()).filter(Boolean);
+        var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
+        var accItem = ACC.find(x => (x.customerId && x.customerId.toUpperCase() === cUpper) || (x.entry && x.entry.toUpperCase() === cUpper));
+        var cName = existing.nameKh || existing.nameEn || cUpper;
+        if(accItem) {
+            accItem.name = cName;
+            accItem.rawAcct = bankVal;
+            accItem.acct = cleanParts[0] || '';
+            accItem.accounts = cleanParts;
+            accItem.rawAccounts = rawParts;
+            if(existing.telegram) accItem.telegram = existing.telegram;
+        } else {
+            ACC.push({
+                entry: cUpper,
+                customerId: cUpper,
+                name: cName,
+                acct: cleanParts[0] || '',
+                rawAcct: bankVal,
+                accounts: cleanParts,
+                rawAccounts: rawParts,
+                telegram: existing.telegram || '',
+                fromCustomerProfile: true
+            });
+        }
+        updateBoxUI();
     }
 
     // Also update any active docs in memory
@@ -1137,6 +1281,8 @@ function saveCustomerProfile(code, data) {
                 if(data.nameEn) D.meta.custEn = data.nameEn;
                 if(data.phone) D.meta.phone = data.phone;
                 if(data.address) D.meta.address = data.address;
+                if(bankVal) D.bankAcc = bankVal;
+                if(existing.telegram) D.meta.telegram = existing.telegram;
             }
         }
     }
@@ -1146,21 +1292,25 @@ function saveCustomerProfile(code, data) {
 function ingestCustomerList(t) {
     if(!t || !t.h || !t.rows) return;
     var fk = {}; t.h.forEach(k => { fk[k.toLowerCase().trim()] = k; });
-    var kcode = fk['customer code'] || fk['code'] || fk['customer no'] || fk['customer id'] || fk['id'];
-    var knameEn = fk['customer name'] || fk['company name'] || fk['name'] || fk['clinic'];
+    var kcode = fk['customer code'] || fk['clinic id'] || fk['code'] || fk['customer no'] || fk['customer id'] || fk['id'];
+    var knameEn = fk['customer name'] || fk['clinic name'] || fk['company name'] || fk['name'] || fk['clinic'];
     var knameKh = fk['customer name (2nd lang.)'] || fk['customer name (2nd lang)'] || fk['name (2nd lang.)'] || fk['2nd lang'] || fk['customer name (khmer)'] || fk['ឈ្មោះខ្មែរ'] || fk['ឈ្មោះ'];
+    var kbank = fk['bank accounts'] || fk['bank account'] || fk['account number'] || fk['accound aba'] || fk['account aba'] || fk['aba account'] || fk['aba acc'] || fk['aba'] || fk['លេខកុង'] || fk['លេខគណនី'];
+    var ktg = fk['telegram'] || fk['tg'] || fk['telegram username'] || fk['telegram name'] || fk['តេលេក្រាម'];
     var kphone = fk['telephone'] || fk['phone'] || fk['tel'] || fk['ទូរស័ព្ទ'] || fk['លេខទូរស័ព្ទ'];
     var kaddr = fk['address'] || fk['អាសយដ្ឋាន'] || fk['ទីតាំង'];
     var kcur = fk['currency'] || fk['រូបិយប័ណ្ណ'];
-    var kcontact = fk['contact name'] || fk['contact'];
+    var kcontact = fk['contact name'] || fk['contact'] || fk['account holder'] || fk['name'];
 
-    if(kcode && (knameEn || knameKh || kphone || kaddr)) {
+    if(kcode && (knameEn || knameKh || kphone || kaddr || kbank || ktg)) {
         var added = 0;
         t.rows.forEach(r => {
             var code = String(r[kcode] || '').trim().toUpperCase();
-            if(!code || !/^C\d{4,}/i.test(code)) return;
+            if(!code || !/^C\d{3,}/i.test(code)) return;
             var nameEn = knameEn ? String(r[knameEn] || '').trim() : '';
             var nameKh = knameKh ? String(r[knameKh] || '').trim() : '';
+            var bankAccounts = kbank ? String(r[kbank] || '').trim() : '';
+            var telegram = ktg ? String(r[ktg] || '').trim() : '';
             var phone = kphone ? String(r[kphone] || '').trim() : '';
             var address = kaddr ? String(r[kaddr] || '').trim() : '';
             var currency = kcur ? String(r[kcur] || 'USD').trim() : 'USD';
@@ -1175,25 +1325,39 @@ function ingestCustomerList(t) {
                 currency: currency,
                 contact: contact
             };
+            if(bankAccounts) item.bankAccounts = bankAccounts;
+            if(telegram) item.telegram = telegram;
+
             CUSTOMER_PROFILES[code] = Object.assign(CUSTOMER_PROFILES[code] || {}, item);
             added++;
 
-            if(phone) {
+            if(telegram) {
+                var tgVal = telegram.startsWith('@') || /^\+?\d+$/.test(telegram) ? telegram : ('@' + telegram);
                 var tgItem = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === code);
-                if(tgItem && !tgItem.phone) {
-                    tgItem.phone = phone;
+                if(tgItem) {
+                    tgItem.tg = tgVal;
+                    if(phone && !tgItem.phone) tgItem.phone = phone;
+                } else {
+                    TG_DIRECTORY.push({ id: code, name: nameKh || nameEn || code, tg: tgVal, phone: phone || '' });
+                }
+                TG_MAP[code] = tgVal;
+            } else if(phone) {
+                var tgItem2 = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === code);
+                if(tgItem2 && !tgItem2.phone) {
+                    tgItem2.phone = phone;
                 }
             }
         });
         if(added > 0) {
             saveCustomerProfiles();
+            syncAccFromCustomerProfiles();
             if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
             console.log('Ingested ' + added + ' customer profiles from sheet:', t.name);
         }
     }
 }
 
-var currentCustManagerTab = 'all'; // 'all' | 'has' | 'missing'
+var currentCustManagerTab = 'all'; // 'all' | 'hasAcc' | 'hasTg' | 'has' | 'missing'
 
 function openCustomerManagerModal(filterText) {
     if(filterText) {
@@ -1228,8 +1392,12 @@ function renderCustManagerTable() {
 
     var hasPhoneCount = list.filter(x => x.phone && String(x.phone).trim()).length;
     var missPhoneCount = list.length - hasPhoneCount;
+    var hasAccCount = list.filter(x => (x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim())).length;
+    var hasTgCount = list.filter(x => (x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()])).length;
 
     if($('custTotalCnt')) $('custTotalCnt').textContent = list.length.toLocaleString();
+    if($('custHasAccCnt')) $('custHasAccCnt').textContent = hasAccCount.toLocaleString();
+    if($('custHasTgCnt')) $('custHasTgCnt').textContent = hasTgCount.toLocaleString();
     if($('custHasCnt')) $('custHasCnt').textContent = hasPhoneCount.toLocaleString();
     if($('custMissCnt')) $('custMissCnt').textContent = missPhoneCount.toLocaleString();
     updateCustomerCountBadge();
@@ -1238,6 +1406,10 @@ function renderCustManagerTable() {
         list = list.filter(x => x.phone && String(x.phone).trim());
     } else if(currentCustManagerTab === 'missing') {
         list = list.filter(x => !x.phone || !String(x.phone).trim());
+    } else if(currentCustManagerTab === 'hasAcc') {
+        list = list.filter(x => (x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim()));
+    } else if(currentCustManagerTab === 'hasTg') {
+        list = list.filter(x => (x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()]));
     }
 
     if(search) {
@@ -1246,12 +1418,16 @@ function renderCustManagerTable() {
             (x.nameKh && x.nameKh.toLowerCase().includes(search)) ||
             (x.nameEn && x.nameEn.toLowerCase().includes(search)) ||
             (x.phone && x.phone.includes(search)) ||
-            (x.address && x.address.toLowerCase().includes(search))
+            (x.address && x.address.toLowerCase().includes(search)) ||
+            (x.bankAccounts && x.bankAccounts.toLowerCase().includes(search)) ||
+            (x.abaAcc && x.abaAcc.toLowerCase().includes(search)) ||
+            (x.telegram && x.telegram.toLowerCase().includes(search)) ||
+            (x.accountHolder && x.accountHolder.toLowerCase().includes(search))
         );
     }
 
     if(!list.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b">រកមិនឃើញទិន្នន័យអតិថិជនឡើយ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#64748b">រកមិនឃើញទិន្នន័យអតិថិជនឡើយ</td></tr>';
         return;
     }
 
@@ -1259,11 +1435,21 @@ function renderCustManagerTable() {
     var displayList = list.slice(0, 200);
     var html = '';
     displayList.forEach((item, idx) => {
+        var rawBank = item.bankAccounts || item.abaAcc || '';
+        var rawTg = item.telegram || '';
+        if(!rawTg && item.code) {
+            var tgF = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === item.code.toUpperCase());
+            if(tgF && tgF.tg) rawTg = tgF.tg;
+            else if(TG_MAP[item.code.toUpperCase()]) rawTg = TG_MAP[item.code.toUpperCase()];
+        }
+
         html += '<tr style="border-bottom:1px solid #f1f5f9;background:' + (idx % 2 === 0 ? '#fff' : '#fafafa') + '">' +
             '<td style="text-align:center;color:#94a3b8;font-size:0.75rem">' + (idx + 1) + '</td>' +
             '<td style="font-weight:700;color:#059669">' + esc(item.code || '-') + '</td>' +
             '<td style="font-weight:600;color:#1e293b">' + esc(item.nameKh || '-') + '</td>' +
             '<td style="color:#475569">' + esc(item.nameEn || '-') + '</td>' +
+            '<td><input type="text" class="cust-dir-input" data-field="bankAccounts" data-code="' + esc(item.code) + '" value="' + esc(rawBank) + '" placeholder="លេខកុង ABA (ប្រើ / បំបែក)..." style="color:#0369a1;font-weight:600" title="អាចបញ្ចូលលេខកុងច្រើនដោយប្រើសញ្ញា / ឧ. 001 654 720 / 025934450001"></td>' +
+            '<td><input type="text" class="cust-dir-input" data-field="telegram" data-code="' + esc(item.code) + '" value="' + esc(rawTg) + '" placeholder="@username ឬ Chat ID..." style="color:#0284c7" title="Telegram username ឬ ID សម្រាប់ផ្ញើវិក័យបត្រ"></td>' +
             '<td><input type="text" class="cust-dir-input" data-field="phone" data-code="' + esc(item.code) + '" value="' + esc(item.phone || '') + '" placeholder="ទូរស័ព្ទ..."></td>' +
             '<td><input type="text" class="cust-dir-input" data-field="address" data-code="' + esc(item.code) + '" value="' + esc(item.address || '') + '" placeholder="អាសយដ្ឋាន..."></td>' +
             '<td style="text-align:center">' +
@@ -1273,7 +1459,7 @@ function renderCustManagerTable() {
     });
 
     if(list.length > 200) {
-        html += '<tr><td colspan="7" style="text-align:center;padding:10px;color:#64748b;font-size:0.78rem"><i>បង្ហាញ ២០០ នាក់ដំបូងក្នុងចំណោម ' + list.length.toLocaleString() + ' នាក់ (សូមប្រើប្រអប់ស្វែងរកដើម្បីមើលជាក់លាក់)</i></td></tr>';
+        html += '<tr><td colspan="9" style="text-align:center;padding:10px;color:#64748b;font-size:0.78rem"><i>បង្ហាញ ២០០ នាក់ដំបូងក្នុងចំណោម ' + list.length.toLocaleString() + ' នាក់ (សូមប្រើប្រអប់ស្វែងរកដើម្បីមើលជាក់លាក់)</i></td></tr>';
     }
 
     tbody.innerHTML = html;
@@ -1283,12 +1469,16 @@ function addCustomerProfileFromForm() {
     var codeInp = $('newCustCode');
     var khInp = $('newCustNameKh');
     var enInp = $('newCustNameEn');
+    var bankInp = $('newCustBankAcc');
+    var tgInp = $('newCustTg');
     var phoneInp = $('newCustPhone');
     var addrInp = $('newCustAddress');
 
     var code = (codeInp.value || '').trim().toUpperCase();
     var kh = (khInp.value || '').trim();
     var en = (enInp.value || '').trim();
+    var bank = (bankInp ? bankInp.value : '').trim();
+    var tg = (tgInp ? tgInp.value : '').trim();
     var phone = (phoneInp.value || '').trim();
     var address = (addrInp.value || '').trim();
 
@@ -1302,6 +1492,8 @@ function addCustomerProfileFromForm() {
         code: code,
         nameKh: kh,
         nameEn: en,
+        bankAccounts: bank,
+        telegram: tg,
         phone: phone,
         address: address,
         currency: 'USD'
@@ -1310,6 +1502,8 @@ function addCustomerProfileFromForm() {
     codeInp.value = '';
     khInp.value = '';
     enInp.value = '';
+    if(bankInp) bankInp.value = '';
+    if(tgInp) tgInp.value = '';
     phoneInp.value = '';
     addrInp.value = '';
     codeInp.focus();
@@ -1318,29 +1512,32 @@ function addCustomerProfileFromForm() {
     if(msg) {
         msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានរក្សាទុកព័ត៌មាន ' + esc(code) + ' ដោយជោគជ័យ!</span>';
         setTimeout(() => {
-            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់ទូរស័ព្ទ ឬអាសយដ្ឋានដើម្បីកែប្រែភ្លាមៗ (Auto-save)';
+            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save)';
         }, 3000);
     }
 }
 
 function exportCustomerProfilesExcel() {
     var data = [
-        ['Customer Code', 'Customer Name', 'Customer Name (2nd Lang.)', 'Telephone', 'Address', 'Currency']
+        ['Customer Code', 'Customer Name', 'Customer Name (2nd Lang.)', 'Bank Accounts (ABA)', 'Telegram', 'Telephone', 'Address', 'Currency']
     ];
     var list = Object.values(CUSTOMER_PROFILES);
     list.sort((a,b) => (a.code||'').localeCompare(b.code||''));
     list.forEach(item => {
+        var tgVal = item.telegram || (item.code ? (TG_MAP[item.code.toUpperCase()] || '') : '');
         data.push([
             item.code || '',
             item.nameEn || '',
             item.nameKh || '',
+            item.bankAccounts || item.abaAcc || '',
+            tgVal || '',
             item.phone || '',
             item.address || '',
             item.currency || 'USD'
         ]);
     });
     var ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 30 }, { wch: 25 }, { wch: 45 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 45 }, { wch: 10 }];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Customer_List');
     XLSX.writeFile(wb, 'Khema_Customer_List_' + iso(new Date()) + '.xlsx');
@@ -2879,6 +3076,7 @@ async function executeDeleteFile(fileType, labelKh) {
             localStorage.removeItem('acc_file_name');
             $('fAcc').value = '';
             await dbDel('acc_state');
+            syncAccFromCustomerProfiles();
         }
         var resp = await fetch('/api/aba/delete-file', {
             method: 'POST',
