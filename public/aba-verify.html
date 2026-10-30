@@ -1979,7 +1979,9 @@ fetch('/khema-logo.jpg')
 
 var QR_RMS_URL = '/qr-rms.png';
 var QR_KHEMA_URL = '/qr-khema.png';
-var CURRENT_STATEMENT_QR = null;
+var QR_SQUARE_RMS_URL = '/qr-square-rms.png';
+var QR_SQUARE_KHEMA_URL = '/qr-square-khema.png';
+var CURRENT_STATEMENT_QR_TYPE = null; // 'rms' | 'khema'
 
 fetch('/qr-rms.png')
   .then(r => r.blob())
@@ -1997,53 +1999,92 @@ fetch('/qr-khema.png')
     fr.readAsDataURL(b);
   }).catch(() => {});
 
-function getStatementQrCode(custName) {
-    if (CURRENT_STATEMENT_QR) {
-        return CURRENT_STATEMENT_QR;
-    }
+fetch('/qr-square-rms.png')
+  .then(r => r.blob())
+  .then(b => {
+    var fr = new FileReader();
+    fr.onload = () => { QR_SQUARE_RMS_URL = fr.result; };
+    fr.readAsDataURL(b);
+  }).catch(() => {});
 
-    var isRms = false;
-    // 1. Check active debt filter or bank slot selection
-    if (typeof activeDebtKey !== 'undefined' && activeDebtKey === 'rms') {
-        isRms = true;
-    } else if (typeof activeDebtKey !== 'undefined' && activeDebtKey === 'khema') {
-        isRms = false;
-    } else if (typeof activeBankKey !== 'undefined' && (activeBankKey === 'rms_aba' || activeBankKey === 'rms_acleda')) {
-        isRms = true;
-    } else if (typeof activeBankKey !== 'undefined' && (activeBankKey === 'khema_aba' || activeBankKey === 'khema_acleda')) {
-        isRms = false;
-    } else {
-        // 2. Check customer document metadata or invoices
-        var D = res && res.docs && res.docs[custName];
-        if (D) {
-            if (D.slotKey === 'rms') isRms = true;
-            else if (D.inv && D.inv.some(v => v.slotKey === 'rms' || /rms/i.test(v.file || '') || (v.classId && /RMS/i.test(v.classId)))) {
-                isRms = true;
-            } else if (typeof DEBT_SLOTS !== 'undefined' && DEBT_SLOTS.rms && DEBT_SLOTS.rms.files && DEBT_SLOTS.rms.files.length) {
-                var rmsFile = DEBT_SLOTS.rms.files[0];
-                if (rmsFile && rmsFile.rows) {
-                    var cId = D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
-                    if (cId && rmsFile.rows.some(r => Object.values(r).some(val => String(val).toUpperCase().includes(cId.toUpperCase())))) {
-                        isRms = true;
+fetch('/qr-square-khema.png')
+  .then(r => r.blob())
+  .then(b => {
+    var fr = new FileReader();
+    fr.onload = () => { QR_SQUARE_KHEMA_URL = fr.result; };
+    fr.readAsDataURL(b);
+  }).catch(() => {});
+
+function getStatementQrInfo(custName) {
+    var type = CURRENT_STATEMENT_QR_TYPE;
+    if (!type) {
+        var isRms = false;
+        // 1. Check active debt filter or bank slot selection
+        if (typeof activeDebtKey !== 'undefined' && activeDebtKey === 'rms') {
+            isRms = true;
+        } else if (typeof activeDebtKey !== 'undefined' && activeDebtKey === 'khema') {
+            isRms = false;
+        } else if (typeof activeBankKey !== 'undefined' && (activeBankKey === 'rms_aba' || activeBankKey === 'rms_acleda')) {
+            isRms = true;
+        } else if (typeof activeBankKey !== 'undefined' && (activeBankKey === 'khema_aba' || activeBankKey === 'khema_acleda')) {
+            isRms = false;
+        } else {
+            // 2. Check customer document metadata or invoices
+            var D = res && res.docs && res.docs[custName];
+            if (D) {
+                if (D.slotKey === 'rms') isRms = true;
+                else if (D.inv && D.inv.some(v => v.slotKey === 'rms' || /rms/i.test(v.file || '') || (v.classId && /RMS/i.test(v.classId)))) {
+                    isRms = true;
+                } else if (typeof DEBT_SLOTS !== 'undefined' && DEBT_SLOTS.rms && DEBT_SLOTS.rms.files && DEBT_SLOTS.rms.files.length) {
+                    var rmsFile = DEBT_SLOTS.rms.files[0];
+                    if (rmsFile && rmsFile.rows) {
+                        var cId = D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
+                        if (cId && rmsFile.rows.some(r => Object.values(r).some(val => String(val).toUpperCase().includes(cId.toUpperCase())))) {
+                            isRms = true;
+                        }
                     }
                 }
             }
         }
+        type = isRms ? 'rms' : 'khema';
+        CURRENT_STATEMENT_QR_TYPE = type;
     }
 
-    return isRms ? (QR_RMS_URL || '/qr-rms.png') : (QR_KHEMA_URL || '/qr-khema.png');
+    var isRmsType = (type === 'rms');
+    return {
+        type: type,
+        qrUrl: isRmsType ? (QR_SQUARE_RMS_URL || '/qr-square-rms.png') : (QR_SQUARE_KHEMA_URL || '/qr-square-khema.png'),
+        name: 'SAMNANG MEUNG',
+        khrAcc: '001 180 129',
+        usdAcc: isRmsType ? '088 928 555' : '000 193 633'
+    };
+}
+
+function getStatementQrCode(custName) {
+    return getStatementQrInfo(custName).qrUrl;
 }
 
 function toggleStatementQr() {
     var img = document.getElementById('statementQrImg');
-    if (!img) return;
-    if (img.src.includes('qr-rms') || img.src === QR_RMS_URL) {
-        img.src = QR_KHEMA_URL || '/qr-khema.png';
-        CURRENT_STATEMENT_QR = QR_KHEMA_URL || '/qr-khema.png';
+    var usdAccEl = document.getElementById('statementQrUsdAcc');
+    var currentType = CURRENT_STATEMENT_QR_TYPE;
+    if (!currentType) {
+        if (img && (img.src.includes('rms') || img.src === QR_SQUARE_RMS_URL)) {
+            currentType = 'rms';
+        } else {
+            currentType = 'khema';
+        }
+    }
+
+    if (currentType === 'rms') {
+        CURRENT_STATEMENT_QR_TYPE = 'khema';
+        if (img) img.src = QR_SQUARE_KHEMA_URL || '/qr-square-khema.png';
+        if (usdAccEl) usdAccEl.textContent = '000 193 633';
         if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR Khema (USD: 000 193 633)');
     } else {
-        img.src = QR_RMS_URL || '/qr-rms.png';
-        CURRENT_STATEMENT_QR = QR_RMS_URL || '/qr-rms.png';
+        CURRENT_STATEMENT_QR_TYPE = 'rms';
+        if (img) img.src = QR_SQUARE_RMS_URL || '/qr-square-rms.png';
+        if (usdAccEl) usdAccEl.textContent = '088 928 555';
         if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR RMS (USD: 088 928 555)');
     }
 }
@@ -5475,8 +5516,8 @@ function openPrintModal(custName) {
     var curDateStr = dmy(new Date());
     var currency = (prof && prof.currency) || meta.currency || ($('cur') && $('cur').value) || 'USD';
     var nowDT = nowDateTimeStr();
-    CURRENT_STATEMENT_QR = null;
-    var qrCodeUrl = getStatementQrCode(custName);
+    CURRENT_STATEMENT_QR_TYPE = null;
+    var qrInfo = getStatementQrInfo(custName);
 
     var totalAmt = 0;
     var rowsHtml = '';
@@ -5515,8 +5556,34 @@ function openPrintModal(custName) {
                         '<div style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
                         '<div style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">Telephone : 099 744 497</div>' +
                     '</div>' +
-                    '<div style="flex:0 0 160px;display:flex;justify-content:flex-end;align-items:center">' +
-                        '<img id="statementQrImg" src="' + qrCodeUrl + '" alt="ABA QR Code" onclick="toggleStatementQr()" style="max-height:85px;max-width:130px;object-fit:contain;display:block;border-radius:4px;border:1px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;background:#fff;padding:1px" title="ABA QR Code (ចុចដើម្បីប្ដូររវាង RMS & Khema)">' +
+                    '<div style="flex:0 0 165px;display:flex;justify-content:flex-end;align-items:center">' +
+                        '<div onclick="toggleStatementQr()" style="position:relative;width:150px;margin-top:6px;padding:6px 8px 5px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;cursor:pointer;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)" title="ចុចដើម្បីប្ដូររវាង QR RMS & Khema">' +
+                            '<!-- SCAN TO PAY BADGE -->' +
+                            '<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#f8fafc;padding:0 6px;font-size:0.62rem;font-weight:800;letter-spacing:0.8px;color:#0f172a;white-space:nowrap;line-height:1;-webkit-print-color-adjust:exact;print-color-adjust:exact">SCAN TO PAY</div>' +
+                            '<!-- QR CODE IMAGE -->' +
+                            '<div style="display:flex;justify-content:center;margin-top:2px;margin-bottom:3px">' +
+                                '<img id="statementQrImg" src="' + qrInfo.qrUrl + '" alt="QR Code" style="width:68px;height:68px;object-fit:contain;display:block;border-radius:4px">' +
+                            '</div>' +
+                            '<!-- NAME UNDER QR -->' +
+                            '<div style="font-size:0.64rem;font-weight:800;color:#0f172a;line-height:1.1;letter-spacing:0.3px;margin-bottom:4px">' + qrInfo.name + '</div>' +
+                            '<!-- ACCOUNT NUMBERS -->' +
+                            '<div style="width:100%;font-size:0.56rem;line-height:1.2;text-align:left">' +
+                                '<div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:2px;border-bottom:1px solid #e2e8f0">' +
+                                    '<span style="display:inline-flex;align-items:center;gap:3px;color:#475569">' +
+                                        '<span style="display:inline-flex;align-items:center;justify-content:center;width:11px;height:11px;border-radius:50%;background:#0f172a;color:#fff;font-size:7px;font-family:serif;font-weight:700;line-height:1">ℹ</span>' +
+                                        '<span style="font-weight:600">KHR account:</span>' +
+                                    '</span>' +
+                                    '<b style="color:#0f172a;font-family:Consolas,monospace,sans-serif;font-size:0.58rem">' + qrInfo.khrAcc + '</b>' +
+                                </div>' +
+                                '<div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">' +
+                                    '<span style="display:inline-flex;align-items:center;gap:3px;color:#475569">' +
+                                        '<span style="display:inline-flex;align-items:center;justify-content:center;width:11px;height:11px;border-radius:50%;background:#0f172a;color:#fff;font-size:7px;font-family:serif;font-weight:700;line-height:1">ℹ</span>' +
+                                        '<span style="font-weight:600">USD account:</span>' +
+                                    '</span>' +
+                                    '<b style="color:#0f172a;font-family:Consolas,monospace,sans-serif;font-size:0.58rem" id="statementQrUsdAcc">' + qrInfo.usdAcc + '</b>' +
+                                </div>' +
+                            '</div>' +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
 
