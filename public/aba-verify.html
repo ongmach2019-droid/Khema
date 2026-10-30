@@ -4650,15 +4650,21 @@ function allocateDoctorPayments(D, forceAuto) {
     D.remToAlloc = D.extra;
 
     // Doctor status
-    if(D.rem <= 0.005 && D.owed > 0) {
+    if(D.owed > 0 && D.rem <= 0.005) {
         D.status = 'Fully Paid';
         D.statusKh = 'សងគ្រប់';
-    } else if(D.paidTotal > 0) {
+    } else if(D.owed > 0 && D.paidTotal > 0.005 && D.rem > 0.005) {
         D.status = 'Partially Paid';
         D.statusKh = 'សងមួយផ្នែក';
-    } else {
+    } else if(D.owed > 0 && D.paidTotal <= 0.005) {
         D.status = 'Unpaid';
         D.statusKh = 'មិនទាន់សង';
+    } else if(D.owed === 0 && totalAbaPay > 0.005) {
+        D.status = 'Advance Payment';
+        D.statusKh = 'ទូទាត់មុន';
+    } else {
+        D.status = 'No Debt';
+        D.statusKh = 'គ្មានបំណុល';
     }
 
     // Sort invoices inside doctor: paid/selected invoices first, then by invoice number
@@ -4684,27 +4690,40 @@ function run() {
     var from = $('dFrom').value ? new Date($('dFrom').value) : null, to = $('dTo').value ? new Date($('dTo').value+'T23:59:59') : new Date(8.64e15);
     var docs = {}, names = [];
 
+    // Helper to get canonical doctor name without duplicate ID prefixes (e.g. "C01683 - Cam Lab", never "C01683 - C01683 - Cam Lab")
+    function getCanonicalDocName(code, name) {
+        var rawName = (name || '').trim();
+        var c = (code || '').trim().toUpperCase();
+        if(!c) {
+            var m = rawName.match(/^([A-Z]\d{4,})/i);
+            if(m) c = m[1].toUpperCase();
+        }
+        if(c === 'C00168' || rawName.toLowerCase().includes('ong mach')) {
+            return 'C00168 - Chheung Eng Hong Dental Clinic';
+        }
+        var clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–]\s*)+/gi, '').trim();
+        if(c && clean) {
+            return c + ' - ' + clean;
+        }
+        return clean || c || rawName || 'គ្មានឈ្មោះ';
+    }
+
     // 1. If debts exist, extract customers in EXACT sequential order of appearance in the file! (តាមលំដាប់ ចាប់ពី C00007...)
     debts.forEach(d => {
-        var pName = d.party || d.entry || 'គ្មានឈ្មោះ';
-        var cIdRaw = d.custId || (pName.match(/^([A-Z]\d+)/i) ? pName.match(/^([A-Z]\d+)/i)[1] : '');
+        var rawName = d.party || d.entry || 'គ្មានឈ្មោះ';
+        var cIdRaw = d.custId || (rawName.match(/^([A-Z]\d+)/i) ? rawName.match(/^([A-Z]\d+)/i)[1] : '');
         if(cIdRaw) cIdRaw = cIdRaw.toUpperCase();
 
         // Check if ACC has a doctor/customer name for this ID (e.g. C00168 -> "Ong Mach")
         var accMatch = ACC.find(a => 
             (a.customerId && cIdRaw && a.customerId.toUpperCase() === cIdRaw) ||
             (a.entry && cIdRaw && a.entry.toUpperCase() === cIdRaw) ||
-            (a.name && (a.name === pName || pName.indexOf(a.name) > -1 || a.name.indexOf(pName) > -1))
+            (a.name && (a.name === rawName || rawName.indexOf(a.name) > -1 || a.name.indexOf(rawName) > -1))
         );
 
-        if(accMatch && accMatch.name && !accMatch.name.toLowerCase().includes('ong mach')) {
-            pName = cIdRaw ? (cIdRaw + ' - ' + accMatch.name) : accMatch.name;
-            d.party = pName;
-        }
-        if(cIdRaw === 'C00168' || pName.toLowerCase().includes('ong mach')) {
-            pName = 'C00168 - Chheung Eng Hong Dental Clinic';
-            d.party = pName;
-        }
+        var pName = getCanonicalDocName(cIdRaw || (accMatch && (accMatch.customerId || accMatch.entry)), (accMatch && accMatch.name) || rawName);
+        d.party = pName;
+        if(cIdRaw) d.custId = cIdRaw;
 
         var profMatch = getCustomerProfile(pName, cIdRaw);
 
@@ -4729,6 +4748,7 @@ function run() {
                 pay: [],
                 al: aliases(pName)
             };
+            if(cIdRaw && !docs[cIdRaw]) docs[cIdRaw] = docs[pName];
             names.push(pName);
         } else {
             if(d.meta && (!docs[pName].meta || !docs[pName].meta.custNo)) {
@@ -4750,32 +4770,56 @@ function run() {
     // 2. Index accounts from ACC in docs for rapid lookup without flooding the list
     if(ACC && ACC.length) {
         ACC.forEach((a, idx) => {
-            var dn = String(a.name || a.customerId || a.entry || ('គណនី ' + (idx + 1))).trim();
-            if(!docs[dn]) {
-                var profMatchA = getCustomerProfile(dn, a.customerId || a.entry);
-                var mDataA = Object.assign({}, profMatchA || {}, a.meta || {});
-                if(profMatchA) {
-                    if(profMatchA.code) mDataA.custNo = profMatchA.code;
-                    if(profMatchA.nameKh) mDataA.custKh = profMatchA.nameKh;
-                    if(profMatchA.nameEn) mDataA.custEn = profMatchA.nameEn;
-                    if(profMatchA.phone) mDataA.phone = profMatchA.phone;
-                    if(profMatchA.address) mDataA.address = profMatchA.address;
+            var cIdA = (a.customerId || a.entry || '').toUpperCase();
+            var dn = getCanonicalDocName(cIdA, a.name || ('គណនី ' + (idx + 1)));
+
+            // Check if doctor already exists in docs by canonical name, raw name, or customerId!
+            var existingDoc = docs[dn] || (a.name && docs[a.name]) || (cIdA && docs[cIdA]);
+            if(!existingDoc && cIdA) {
+                for(var k in docs) {
+                    if(docs[k] && docs[k].customerId && docs[k].customerId.toUpperCase() === cIdA) {
+                        existingDoc = docs[k];
+                        break;
+                    }
                 }
-                docs[dn] = {
-                    name: dn,
-                    accItem: a,
-                    meta: mDataA,
-                    entry: a.entry || '',
-                    customerId: (profMatchA && profMatchA.code) || a.customerId || '',
-                    bankAcc: a.rawAcct || a.bankAcc || a.acct || '',
-                    inv: [],
-                    pay: [],
-                    al: aliases(dn)
-                };
-                // Only push to names if debts list is completely empty (user loaded only accounts)
-                if(!debts.length && names.length < 50) {
-                    names.push(dn);
-                }
+            }
+
+            if(existingDoc) {
+                if(!existingDoc.accItem) existingDoc.accItem = a;
+                if(!existingDoc.bankAcc) existingDoc.bankAcc = a.rawAcct || a.bankAcc || a.acct || '';
+                // Alias keys to existing doctor object to prevent phantom duplicate doctor
+                docs[dn] = existingDoc;
+                if(a.name && !docs[a.name]) docs[a.name] = existingDoc;
+                if(cIdA && !docs[cIdA]) docs[cIdA] = existingDoc;
+                return;
+            }
+
+            var profMatchA = getCustomerProfile(dn, cIdA);
+            var mDataA = Object.assign({}, profMatchA || {}, a.meta || {});
+            if(profMatchA) {
+                if(profMatchA.code) mDataA.custNo = profMatchA.code;
+                if(profMatchA.nameKh) mDataA.custKh = profMatchA.nameKh;
+                if(profMatchA.nameEn) mDataA.custEn = profMatchA.nameEn;
+                if(profMatchA.phone) mDataA.phone = profMatchA.phone;
+                if(profMatchA.address) mDataA.address = profMatchA.address;
+            }
+            var newDoc = {
+                name: dn,
+                accItem: a,
+                meta: mDataA,
+                entry: a.entry || '',
+                customerId: (profMatchA && profMatchA.code) || cIdA || '',
+                bankAcc: a.rawAcct || a.bankAcc || a.acct || '',
+                inv: [],
+                pay: [],
+                al: aliases(dn)
+            };
+            docs[dn] = newDoc;
+            if(a.name && a.name !== dn) docs[a.name] = newDoc;
+            if(cIdA && !docs[cIdA]) docs[cIdA] = newDoc;
+            // Only push to names if debts list is completely empty (user loaded only accounts)
+            if(!debts.length && names.length < 50) {
+                names.push(dn);
             }
         });
     }
@@ -4888,45 +4932,44 @@ function run() {
             if(matchedAcc) {
                 var targetId = (matchedAcc.customerId || matchedAcc.entry || '').toUpperCase();
                 var targetName = (matchedAcc.name || '').trim();
+                var targetCanon = getCanonicalDocName(targetId, targetName);
 
                 var hitDoc = null;
-                if(targetName && docs[targetName]) hitDoc = docs[targetName];
+                // 1. Direct lookups by canonical name, id, and raw name
+                if(targetCanon && docs[targetCanon]) hitDoc = docs[targetCanon];
                 if(!hitDoc && targetId && docs[targetId]) hitDoc = docs[targetId];
-                if(!hitDoc && targetId && targetName && docs[targetId + ' - ' + targetName]) hitDoc = docs[targetId + ' - ' + targetName];
+                if(!hitDoc && targetName && docs[targetName]) hitDoc = docs[targetName];
 
-                if(!hitDoc) {
+                // 2. If hitDoc was found but has NO invoices, scan to see if there is another doctor that HAS invoices!
+                if(!hitDoc || (hitDoc.inv && hitDoc.inv.length === 0)) {
                     for(var dName in docs) {
                         var DItem = docs[dName];
+                        if(!DItem) continue;
                         var dCId = ((DItem.customerId || (DItem.meta && DItem.meta.custNo) || (dName.match(/^([A-Z]\d+)/i) ? dName.match(/^([A-Z]\d+)/i)[1] : '')) || '').toUpperCase();
-                        if(targetId && dCId === targetId) { hitDoc = DItem; break; }
-                        if(targetId && (dName.toUpperCase().indexOf(targetId) > -1 || (DItem.entry && DItem.entry.toUpperCase() === targetId))) { hitDoc = DItem; break; }
-                        if(targetName && (dName.toLowerCase().indexOf(targetName.toLowerCase()) > -1 || (DItem.name && DItem.name.toLowerCase().indexOf(targetName.toLowerCase()) > -1))) { hitDoc = DItem; break; }
+                        var hasInvs = DItem.inv && DItem.inv.length > 0;
+                        if(targetId && dCId === targetId && hasInvs) { hitDoc = DItem; break; }
+                        if(targetId && (dName.toUpperCase().indexOf(targetId) > -1 || (DItem.entry && DItem.entry.toUpperCase() === targetId)) && hasInvs) { hitDoc = DItem; break; }
                         if(targetId && DItem.inv && DItem.inv.some(v => (v.custId && v.custId.toUpperCase() === targetId) || (v.entry && v.entry.toUpperCase() === targetId))) { hitDoc = DItem; break; }
                     }
                 }
 
-                if(hitDoc) {
-                    if(targetName && !targetName.toLowerCase().includes('ong mach')) {
-                        var cleanOldName = hitDoc.name.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-                        if(cleanOldName !== targetName) {
-                            var newName = targetId ? (targetId + ' - ' + targetName) : targetName;
-                            var oldName = hitDoc.name;
-                            hitDoc.name = newName;
-                            if(hitDoc.meta) {
-                                hitDoc.meta.custKh = targetName;
-                                hitDoc.meta.custEn = targetName;
-                                if(targetId) hitDoc.meta.custNo = targetId;
-                            }
-                            docs[newName] = hitDoc;
-                            docs[targetName] = hitDoc;
-                            var nIdx = names.indexOf(oldName);
-                            if(nIdx > -1) names[nIdx] = newName;
-                            else if(names.indexOf(newName) === -1) names.push(newName);
-                        }
+                if(!hitDoc) {
+                    for(var dName in docs) {
+                        var DItem = docs[dName];
+                        if(!DItem) continue;
+                        var dCId = ((DItem.customerId || (DItem.meta && DItem.meta.custNo) || (dName.match(/^([A-Z]\d+)/i) ? dName.match(/^([A-Z]\d+)/i)[1] : '')) || '').toUpperCase();
+                        if(targetId && dCId === targetId) { hitDoc = DItem; break; }
+                        if(targetId && (dName.toUpperCase().indexOf(targetId) > -1 || (DItem.entry && DItem.entry.toUpperCase() === targetId))) { hitDoc = DItem; break; }
+                        if(targetName && (dName.toLowerCase().indexOf(targetName.toLowerCase()) > -1 || (DItem.name && DItem.name.toLowerCase().indexOf(targetName.toLowerCase()) > -1))) { hitDoc = DItem; break; }
                     }
+                }
+
+                if(hitDoc) {
+                    if(!hitDoc.bankAcc) hitDoc.bankAcc = matchedAcc.acct || matchedAcc.rawAcct || '';
+                    if(!hitDoc.accItem) hitDoc.accItem = matchedAcc;
                     hit = hitDoc;
                 } else if(targetName || targetId) {
-                    var newCustName = targetId ? (targetId + ' - ' + (targetName || targetId)) : targetName;
+                    var newCustName = targetCanon || (targetId ? (targetId + ' - ' + targetName) : targetName);
                     var newD = {
                         name: newCustName,
                         accItem: matchedAcc,
@@ -4939,7 +4982,8 @@ function run() {
                         al: aliases(newCustName)
                     };
                     docs[newCustName] = newD;
-                    if(targetName) docs[targetName] = newD;
+                    if(targetName && !docs[targetName]) docs[targetName] = newD;
+                    if(targetId && !docs[targetId]) docs[targetId] = newD;
                     names.push(newCustName);
                     hit = newD;
                 }
@@ -5038,11 +5082,13 @@ function render() {
             if(isTelegramSent(name, cId)) sentCount++;
             else notSentCount++;
         }
-        if(hasInv || hasPay) {
-            var isFull = dItem.rem <= 0.005;
+        if(hasInv) {
+            var isFull = dItem.owed > 0 && dItem.rem <= 0.005;
+            var isPart = dItem.owed > 0 && dItem.paidTotal > 0.005 && dItem.rem > 0.005;
+            var isUnp = dItem.owed > 0 && dItem.paidTotal <= 0.005;
             if(isFull) fullyPaidCount++;
-            else if(dItem.paidTotal > 0.005) partiallyPaidCount++;
-            else unpaidCount++;
+            else if(isPart) partiallyPaidCount++;
+            else if(isUnp) unpaidCount++;
         }
     });
 
@@ -5085,9 +5131,9 @@ function render() {
         if(tgFilter === 'sent' && !sentInfo) return;
         if(tgFilter === 'notsent' && sentInfo) return;
 
-        var isDocFull = D.rem <= 0.005;
-        var isDocPartial = !isDocFull && D.paidTotal > 0.005;
-        var isDocUnpaid = !isDocFull && (!D.paidTotal || D.paidTotal <= 0.005);
+        var isDocFull = D.owed > 0 && D.rem <= 0.005;
+        var isDocPartial = D.owed > 0 && D.paidTotal > 0.005 && D.rem > 0.005;
+        var isDocUnpaid = D.owed > 0 && D.paidTotal <= 0.005;
 
         if(doctorPayFilter === 'paid' && !isDocFull) return;
         if(doctorPayFilter === 'partial' && !isDocPartial) return;
@@ -5102,14 +5148,20 @@ function render() {
             if(!hasMatchInInvoices) return;
         }
 
-        var full = D.rem <= 0.005;
+        var full = D.owed > 0 && D.rem <= 0.005;
+        var partial = D.owed > 0 && D.paidTotal > 0.005 && D.rem > 0.005;
+        var unpaid = D.owed > 0 && D.paidTotal <= 0.005;
         var pct = D.owed > 0 ? Math.min(100, (D.paidTotal / D.owed) * 100) : (full ? 100 : 0);
 
         var st = full 
             ? '<span class="tag ok">សងគ្រប់</span>' 
-            : (D.paidTotal > 0 
+            : (partial 
                 ? '<span class="tag wa">សងមួយផ្នែក</span>' 
-                : '<span class="tag er">មិនទាន់សង</span>');
+                : (unpaid 
+                    ? '<span class="tag er">មិនទាន់សង</span>'
+                    : (D.paidTotal > 0.005 
+                        ? '<span class="tag ok" style="background:#e0f2fe;color:#0284c7">ទូទាត់មុន</span>' 
+                        : '<span class="tag mu">គ្មានបំណុល</span>')));
 
         var remHtml = D.rem > 0.005 ? '<b class="er">' + fmt(D.rem) + '</b>' : '<b class="ok">0</b>';
 
@@ -5263,7 +5315,11 @@ function render() {
 
             h += '</tbody></table></div>';
         } else {
-            h += '<div class="tw"><table><tr><td colspan="13" style="text-align:center;color:var(--ok);padding:15px;font-weight:600">✓ សងគ្រប់រួចរាល់ (គ្មានវិក័យបត្រជំពាក់ទេ)</td></tr></table></div>';
+            if(D.paidTotal > 0.005) {
+                h += '<div class="tw"><table><tr><td colspan="13" style="text-align:center;color:#0284c7;padding:15px;font-weight:600">💵 បានទទួលការទូទាត់ $' + fmt(D.paidTotal) + ' (មិនទាន់មានវិក័យបត្រក្នុងតារាងបំណុលទេ)</td></tr></table></div>';
+            } else {
+                h += '<div class="tw"><table><tr><td colspan="13" style="text-align:center;color:#64748b;padding:15px;font-weight:600">គ្មានវិក័យបត្រជំពាក់ទេ</td></tr></table></div>';
+            }
         }
 
         h += '</div></details>';

@@ -45,8 +45,8 @@ export interface DoctorStatement {
   paidCurrent: number;
   rem: number;
   extra: number;
-  status: 'Fully Paid' | 'Partially Paid' | 'Unpaid';
-  statusKh: 'សងគ្រប់' | 'សងមួយផ្នែក' | 'មិនទាន់សង';
+  status: 'Fully Paid' | 'Partially Paid' | 'Unpaid' | 'Advance Payment' | 'No Debt';
+  statusKh: 'សងគ្រប់' | 'សងមួយផ្នែក' | 'មិនទាន់សង' | 'ទូទាត់មុន' | 'គ្មានបំណុល';
   tgSent?: {
     sentAt: string;
     target: string;
@@ -124,13 +124,15 @@ export function getNetworkDriveAbaDirs(): string[] {
 function readJsonFile<T>(filename: string, defaultVal: T): T {
   ensureDataDir();
   const filePath = path.join(dataDir, filename);
+  let localData: any = null;
   if (fs.existsSync(filePath)) {
     try {
       const raw = fs.readFileSync(filePath, 'utf-8');
-      return JSON.parse(raw);
+      localData = JSON.parse(raw);
     } catch {}
   }
-  // Check network drive if local is missing
+
+  // Check network drive if local is missing, empty, or smaller
   const netDirs = getNetworkDriveAbaDirs();
   for (const dir of netDirs) {
     try {
@@ -138,12 +140,25 @@ function readJsonFile<T>(filename: string, defaultVal: T): T {
       if (fs.existsSync(zp)) {
         const raw = fs.readFileSync(zp, 'utf-8');
         const parsed = JSON.parse(raw);
-        try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
-        return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (!Array.isArray(localData) || localData.length < parsed.length) {
+            try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
+            return parsed as T;
+          }
+        } else if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          if (!localData || Object.keys(localData).length < Object.keys(parsed).length) {
+            try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
+            return parsed as T;
+          }
+        }
       }
     } catch {}
   }
-  return defaultVal;
+
+  if (localData !== null && localData !== undefined && (!Array.isArray(localData) || localData.length > 0)) {
+    return localData as T;
+  }
+  return (localData as T) || defaultVal;
 }
 
 // Write JSON helper
@@ -251,6 +266,24 @@ export function parseDateRobust(val: any): { dateObj: Date | null; dateStr: stri
   const dateStr = `${yrFull}-${monNum}-${day}`;
 
   return { dateObj: d, dateStr, dmyStr, shortStr };
+}
+
+// Canonical customer name helper: ensures code is prefixed exactly once (e.g. "C01683 - Cam Lab", never "C01683 - C01683 - Cam Lab")
+export function getCanonicalCustomerName(code: string, name: string): string {
+  const rawName = (name || '').trim();
+  let c = (code || '').trim().toUpperCase();
+  if (!c) {
+    const m = rawName.match(/^([A-Z]\d{4,})/i);
+    if (m) c = m[1].toUpperCase();
+  }
+  if (c === 'C00168' || rawName.toLowerCase().includes('ong mach')) {
+    return 'C00168 - Chheung Eng Hong Dental Clinic';
+  }
+  const clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–]\s*)+/gi, '').trim();
+  if (c && clean) {
+    return `${c} - ${clean}`;
+  }
+  return clean || c || rawName || 'គ្មានឈ្មោះ';
 }
 
 // Parse customer profiles from customers.xls or customers.xlsx
@@ -366,6 +399,10 @@ export function parseAccountsMap(): any[] {
   }
 
   const accCandidates = [
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'Customer_Bank_Account_Number.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'Customer_Bank_Account_Number.xls'),
+    path.join('H:\\', 'InvoiceAI', 'Customer_Bank_Account_Number.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'Customer_Bank_Account_Number.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'accounts.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'accounts.xls'),
@@ -374,6 +411,7 @@ export function parseAccountsMap(): any[] {
     path.join('H:\\', 'InvoiceAI', 'accounts.xls'),
     path.join('Z:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
     path.join('Z:\\', 'InvoiceAI', 'uploads', 'accounts.xlsx'),
+    path.join(dataDir, 'Customer_Bank_Account_Number.xlsx'),
     path.join(dataDir, 'Account id aba.xlsx'),
     path.join(dataDir, 'accounts.xlsx'),
     path.join(dataDir, 'accounts.xls'),
@@ -552,17 +590,8 @@ export function computeAbaReconciliation(): AbaState {
           );
 
           // Check if mapped to a customer profile or custom name
-          let displayName = rawName;
-          if (prof.nameEn || prof.nameKh) {
-            displayName = custId ? `${custId} - ${prof.nameEn || prof.nameKh}` : (prof.nameEn || prof.nameKh);
-          } else {
-            if (matchedAcc && matchedAcc.name && !matchedAcc.name.toLowerCase().includes('ong mach')) {
-              displayName = custId ? `${custId} - ${matchedAcc.name}` : matchedAcc.name;
-            }
-          }
-          if (custId === 'C00168' || displayName.toLowerCase().includes('ong mach') || rawName.toLowerCase().includes('ong mach')) {
-            displayName = 'C00168 - Chheung Eng Hong Dental Clinic';
-          }
+          const baseName = prof.nameEn || prof.nameKh || (matchedAcc && matchedAcc.name) || rawName;
+          const displayName = getCanonicalCustomerName(custId, baseName);
 
           if (doctorsMap[displayName] || (custId && doctorsMap[custId])) {
             currentDoc = doctorsMap[displayName] || (custId ? doctorsMap[custId] : null);
@@ -787,7 +816,9 @@ export function computeAbaReconciliation(): AbaState {
           if (hitThis) {
             const targetId = (a.customerId || a.entry || '').toUpperCase();
             const targetName = (a.name || '').trim();
+            const targetCanon = getCanonicalCustomerName(targetId, targetName);
             if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
+            if (!hitDoc && targetCanon && doctorsMap[targetCanon]) hitDoc = doctorsMap[targetCanon];
             if (!hitDoc && targetName && doctorsMap[targetName]) hitDoc = doctorsMap[targetName];
             if (!hitDoc && targetId && targetName && doctorsMap[`${targetId} - ${targetName}`]) {
               hitDoc = doctorsMap[`${targetId} - ${targetName}`];
@@ -802,7 +833,9 @@ export function computeAbaReconciliation(): AbaState {
             const aName = (a.name || '').trim();
             if (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) {
               const targetId = (a.customerId || a.entry || '').toUpperCase();
+              const targetCanon = getCanonicalCustomerName(targetId, aName);
               if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
+              if (!hitDoc && targetCanon && doctorsMap[targetCanon]) hitDoc = doctorsMap[targetCanon];
               if (!hitDoc && doctorsMap[aName]) hitDoc = doctorsMap[aName];
               if (!hitDoc && targetId && doctorsMap[`${targetId} - ${aName}`]) {
                 hitDoc = doctorsMap[`${targetId} - ${aName}`];
@@ -840,8 +873,8 @@ export function computeAbaReconciliation(): AbaState {
                              (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) ||
                              (aId && aId.length >= 4 && text.toUpperCase().includes(aId));
             if (hasMatch) {
-              const newKey = aId && aName ? `${aId} - ${aName}` : (aName || aId);
-              if (!doctorsMap[newKey]) {
+              const newKey = getCanonicalCustomerName(aId, aName || aId);
+              if (!doctorsMap[newKey] && !(aId && doctorsMap[aId])) {
                 const newDoc: DoctorStatement = {
                   id: newKey,
                   name: newKey,
@@ -861,17 +894,18 @@ export function computeAbaReconciliation(): AbaState {
                   paidCurrent: 0,
                   rem: 0,
                   extra: 0,
-                  status: 'Fully Paid',
-                  statusKh: 'សងគ្រប់',
+                  status: 'No Debt',
+                  statusKh: 'គ្មានបំណុល',
                   invoices: [],
                   inv: [],
                   payments: [],
                   pay: []
                 };
                 doctorsMap[newKey] = newDoc;
+                if (aId) doctorsMap[aId] = newDoc;
                 doctorOrder.push(newKey);
               }
-              hitDoc = doctorsMap[newKey];
+              hitDoc = doctorsMap[newKey] || (aId ? doctorsMap[aId] : null);
               break;
             }
           }
@@ -1072,9 +1106,26 @@ export function computeAbaReconciliation(): AbaState {
     (D as any).lastD = maxServerPayDate;
     (D as any).lastPaymentDate = maxServerPayDate;
 
-    const fullDoc = D.rem <= 0.005 && D.paidTotal > 0;
-    D.status = fullDoc ? 'Fully Paid' : (D.paidTotal > 0 ? 'Partially Paid' : 'Unpaid');
-    D.statusKh = fullDoc ? 'សងគ្រប់' : (D.paidTotal > 0 ? 'សងមួយផ្នែក' : 'មិនទាន់សង');
+    const fullDoc = D.owed > 0 && D.rem <= 0.005;
+    const partialDoc = D.owed > 0 && D.paidTotal > 0.005 && D.rem > 0.005;
+    const unpaidDoc = D.owed > 0 && D.paidTotal <= 0.005;
+
+    if (fullDoc) {
+      D.status = 'Fully Paid';
+      D.statusKh = 'សងគ្រប់';
+    } else if (partialDoc) {
+      D.status = 'Partially Paid';
+      D.statusKh = 'សងមួយផ្នែក';
+    } else if (unpaidDoc) {
+      D.status = 'Unpaid';
+      D.statusKh = 'មិនទាន់សង';
+    } else if (D.owed === 0 && D.payments.length > 0) {
+      D.status = 'Advance Payment';
+      D.statusKh = 'ទូទាត់មុន';
+    } else {
+      D.status = 'No Debt';
+      D.statusKh = 'គ្មានបំណុល';
+    }
 
     // Sort invoices inside doctor: paid invoices first (សងគ្រប់/សងខ្លះ នៅខាងលើ)
     D.invoices.sort((a, b) => {
