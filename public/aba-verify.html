@@ -61,7 +61,6 @@
 }
 .a4-content{flex:1;display:flex;flex-direction:column}
 .a4-footer-block{margin-top:auto;padding-top:20px;page-break-inside:avoid;break-inside:avoid}
-.print-page-spacer{display:block;width:100%;height:var(--print-spacer-h, 0mm);margin:0;padding:0;border:none}
 
 .print-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
 .print-table th,.print-table td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}
@@ -97,7 +96,7 @@
   .print-paper, #printDocument{
     width:100% !important;
     max-width:100% !important;
-    min-height:var(--print-min-height, 270mm) !important;
+    min-height:270mm !important;
     display:flex !important;
     flex-direction:column !important;
     justify-content:space-between !important;
@@ -110,18 +109,9 @@
     box-sizing:border-box !important;
   }
   .a4-content{
-    flex:none !important;
-    display:block !important;
-  }
-  .print-page-spacer{
-    display:block !important;
-    width:100% !important;
-    height:var(--print-spacer-h, 0mm) !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:none !important;
-    page-break-inside:avoid !important;
-    break-inside:avoid !important;
+    flex:1 0 auto !important;
+    display:flex !important;
+    flex-direction:column !important;
   }
   .print-table{
     width:100% !important;
@@ -132,7 +122,7 @@
   .print-table tr{page-break-inside:avoid !important;page-break-after:auto}
   .print-table th,.print-table td{border:1px solid #1e293b !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .a4-footer-block, .signature-block{
-    margin-top:auto !important;
+    margin-top:auto;
     padding-top:24px !important;
     padding-bottom:6mm !important;
     page-break-inside:avoid !important;
@@ -5533,9 +5523,6 @@ function openPrintModal(custName) {
                 '</table>' +
             '</div>' +
 
-            '<!-- DYNAMIC PRINT PAGE SPACER (រុញហត្ថលេខាទៅបាតទំព័រ) -->' +
-            '<div id="printPageSpacer" class="print-page-spacer" style="height:var(--print-spacer-h, 0mm)"></div>' +
-
             '<!-- 5. SIGNATURE FOOTER (ជើងទំព័រហត្ថលេខា) -->' +
             '<div class="a4-footer-block signature-block">' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px;text-align:center;font-size:0.85rem;color:#334155">' +
@@ -5560,78 +5547,44 @@ function openPrintModal(custName) {
 
     $('printModalBody').innerHTML = docHtml;
     $('printModal').classList.add('active');
-    updatePrintLayout();
-    requestAnimationFrame(() => updatePrintLayout());
-    setTimeout(() => updatePrintLayout(), 60);
+    adjustMultiPageFooter();
+    requestAnimationFrame(() => adjustMultiPageFooter());
 }
 
-function updatePrintLayout() {
+function adjustMultiPageFooter() {
     var doc = document.getElementById('printDocument');
     if(!doc) return;
+    var sig = doc.querySelector('.signature-block');
+    if(!sig) return;
 
-    var header = doc.querySelector('.print-header');
-    var title = doc.querySelector('.khmer-moul') ? doc.querySelector('.khmer-moul').parentElement : null;
-    var custBox = doc.querySelector('#custInfoDisplay') ? doc.querySelector('#custInfoDisplay').closest('div') : null;
-    var table = doc.querySelector('.print-table');
-    var thead = table ? table.querySelector('thead') : null;
-    var rows = table ? table.querySelectorAll('tbody tr') : [];
-    var sigBlock = doc.querySelector('.signature-block');
-    var spacer = doc.querySelector('#printPageSpacer');
-
-    // Reset spacer & CSS variable temporarily to measure natural un-spaced layout
-    doc.style.setProperty('--print-spacer-h', '0mm');
-    doc.style.setProperty('--print-min-height', '268mm');
-    if(spacer) spacer.style.height = '0mm';
-
-    // A4 printable height with @page margin (10mm top, 10mm bottom):
-    // 297mm - 20mm = 277mm.
-    // Target 268mm to leave ~9mm buffer from bottom margin, guaranteeing zero accidental page overflows.
-    var TARGET_PAGE_H_MM = 268;
-    var MM_TO_PX = 96 / 25.4; // ~3.779528 px per mm
-    var TARGET_PAGE_H_PX = TARGET_PAGE_H_MM * MM_TO_PX; // ~1012.9 px
-
-    var currentPage = 1;
-
-    // Measured element heights with safe fallbacks
-    var hHeader = (header && header.offsetHeight > 0) ? header.offsetHeight : 110;
-    var hTitle = (title && title.offsetHeight > 0) ? title.offsetHeight : 48;
-    var hCustBox = (custBox && custBox.offsetHeight > 0) ? custBox.offsetHeight : 115;
-    var hThead = (thead && thead.offsetHeight > 0) ? thead.offsetHeight : 42;
-    var hSig = (sigBlock && sigBlock.offsetHeight > 0) ? sigBlock.offsetHeight : 145;
-
-    // Header margins in DOM: 14px (header) + 14px (title) + 12px (custBox) + 10px (table margin) = 50px
-    var hPreTable = hHeader + hTitle + hCustBox + 50;
-    var pageUsed_px = hPreTable + hThead;
-
-    for (var i = 0; i < rows.length; i++) {
-        var rH = (rows[i] && rows[i].offsetHeight > 0) ? rows[i].offsetHeight : 42;
-        if (pageUsed_px + rH > TARGET_PAGE_H_PX) {
-            currentPage++;
-            pageUsed_px = hThead + rH;
-        } else {
-            pageUsed_px += rH;
-        }
+    var rows = doc.querySelectorAll('.print-table tbody tr');
+    // If 11 rows or fewer (including Total Balance row), the statement fits on 1 page.
+    // For 1 page, flexbox margin-top: auto pushes the footer to the bottom of Page 1.
+    if(rows.length <= 11) {
+        sig.style.marginTop = '';
+        return;
     }
 
-    var sigTotalNeed_px = hSig + 35;
-    if (pageUsed_px + sigTotalNeed_px > TARGET_PAGE_H_PX) {
-        currentPage++;
-        pageUsed_px = 0;
-    }
+    // For multi-page statements (e.g. 14 rows):
+    // Page 1 holds rows 1 to 12.
+    // Page 2 holds rows 13 to end.
+    var rowsOnPage1 = 12;
+    var rowsOnPage2 = Math.max(1, rows.length - rowsOnPage1);
 
-    var totalPages = currentPage;
-    var remainingGap_px = TARGET_PAGE_H_PX - pageUsed_px - sigTotalNeed_px;
-    var gapMm = 0;
-    if (remainingGap_px > 15) {
-        gapMm = remainingGap_px / MM_TO_PX;
-    }
+    // Each row on Page 2 takes ~35px. Table header takes ~38px.
+    // Signatures need ~130px.
+    // A4 printable height is ~1000px (~265mm).
+    var tableHOnPage2 = (rowsOnPage2 * 35) + 38;
+    var sigH = 130;
+    var availableGapPx = 960 - tableHOnPage2 - sigH;
 
-    var totalMinHeightMm = totalPages * 268;
-    doc.style.setProperty('--print-min-height', totalMinHeightMm + 'mm');
-    doc.style.setProperty('--print-spacer-h', gapMm.toFixed(1) + 'mm');
-    if(spacer) {
-        spacer.style.height = gapMm.toFixed(1) + 'mm';
-    }
+    // Leave a safe buffer of 60px so it NEVER overflows to Page 3
+    var safeMarginPx = Math.max(20, availableGapPx - 60);
+    var safeMarginMm = Math.floor(safeMarginPx * 25.4 / 96);
+
+    // Bound safeMarginMm safely between 20mm and 125mm
+    safeMarginMm = Math.min(125, Math.max(20, safeMarginMm));
+    sig.style.marginTop = safeMarginMm + 'mm';
 }
 
 function closePrintModal() {
@@ -6450,10 +6403,10 @@ document.addEventListener('click', e => {
 });
 
 $('btnPrintNow').onclick = () => {
-    updatePrintLayout();
+    adjustMultiPageFooter();
     window.print();
 };
-window.addEventListener('beforeprint', updatePrintLayout);
+window.addEventListener('beforeprint', adjustMultiPageFooter);
 $('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
 $('btnSaveExcel').onclick = () => exportCustomerStatementExcel(currentPrintCustomer);
 $('btnSaveCSV').onclick = () => exportCustomerStatementCSV(currentPrintCustomer);
