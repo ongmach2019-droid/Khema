@@ -245,6 +245,38 @@ app.get('/api/aba/exports', (_req, res) => {
     if (fs.existsSync(histPath)) {
       try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch {}
     }
+    const candidateDirs = [
+      path.join(process.cwd(), 'data', 'aba', 'ame_exports'),
+      'H:\\InvoiceAI\\ame_exports',
+      'Z:\\InvoiceAI\\ame_exports',
+    ];
+    const knownNames = new Set(history.map(x => x.fileName));
+    for (const dir of candidateDirs) {
+      if (fs.existsSync(dir)) {
+        try {
+          const files = fs.readdirSync(dir);
+          for (const f of files) {
+            if (!knownNames.has(f) && !f.startsWith('.')) {
+              try {
+                const fullP = path.join(dir, f);
+                const st = fs.statSync(fullP);
+                if (st.isFile()) {
+                  knownNames.add(f);
+                  history.push({
+                    id: Math.round(st.mtimeMs),
+                    fileName: f,
+                    size: st.size,
+                    source: 'AME',
+                    savedAt: st.mtime.toISOString(),
+                  });
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+    }
+    history.sort((a, b) => new Date(b.savedAt || 0).getTime() - new Date(a.savedAt || 0).getTime());
     res.json({ success: true, exports: history });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -305,6 +337,41 @@ app.get('/api/aba/uploads-history', (_req, res) => {
     if (fs.existsSync(histPath)) {
       try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch {}
     }
+    const candidateDirs = [
+      path.join(process.cwd(), 'data', 'aba', 'uploads'),
+      'H:\\InvoiceAI\\uploads',
+      'Z:\\InvoiceAI\\uploads',
+    ];
+    const knownNames = new Set(history.map(x => x.originalName || x.savedAs));
+    for (const dir of candidateDirs) {
+      if (fs.existsSync(dir)) {
+        try {
+          const files = fs.readdirSync(dir);
+          for (const f of files) {
+            if (!knownNames.has(f) && !f.startsWith('.')) {
+              try {
+                const fullP = path.join(dir, f);
+                const st = fs.statSync(fullP);
+                if (st.isFile()) {
+                  knownNames.add(f);
+                  const isAba = /aba/i.test(f);
+                  const isDebt = /debt|aged|receivable/i.test(f);
+                  history.push({
+                    id: Math.round(st.mtimeMs),
+                    fileType: isAba ? 'aba' : (isDebt ? 'debt' : 'acc'),
+                    originalName: f,
+                    savedAs: f,
+                    size: st.size,
+                    uploadedAt: st.mtime.toISOString(),
+                  });
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+    }
+    history.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
     res.json({ success: true, uploads: history });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
