@@ -1199,7 +1199,7 @@ function uploadAbaSlotFileToServer(fileType, file, slotKey) {
 
 function processBankSlotFile(slotKey, file) {
     if (!file) return;
-    if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('aba', file);
+    if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('aba', file, slotKey);
     readWB(file, wb => {
         var allSheets = sheetsOf(wb);
         allSheets.forEach(s => {
@@ -1230,7 +1230,7 @@ function processBankSlotFile(slotKey, file) {
 
 function processDebtSlotFile(slotKey, file) {
     if (!file) return;
-    if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('debt', file);
+    if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('debt', file, slotKey);
     readWB(file, wb => {
         var ts = sheetsOf(wb), dt = null;
         var slotHdr = {};
@@ -5563,10 +5563,35 @@ function exportModalPNG(custName) {
     if(!el) return;
     if(typeof html2canvas === 'function') {
         html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
-            var link = document.createElement('a');
             var meta = (res && res.docs[custName] && res.docs[custName].meta) || {};
             var custNo = meta.custNo || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : custName);
-            link.download = 'Customer_Statement_' + (custNo || 'Document').replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.png';
+            var fn = 'Customer_Statement_' + (custNo || 'Document').replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.png';
+            
+            // Mirror PNG directly into H:\InvoiceAI\ame_exports\
+            if(canvas.toBlob) {
+                canvas.toBlob(blob => {
+                    if(blob && typeof mirrorExportToZDrive === 'function') {
+                        mirrorExportToZDrive(fn, blob);
+                    }
+                    if(blob) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            var b64 = (e.target.result || '').split(',')[1];
+                            if(b64) {
+                                fetch('/api/aba/save-export', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ fileName: fn, fileBase64: b64, source: 'PNG' })
+                                }).then(() => updateAmeBadge()).catch(() => {});
+                            }
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                });
+            }
+
+            var link = document.createElement('a');
+            link.download = fn;
             link.href = canvas.toDataURL('image/png');
             link.click();
         }).catch(err => {
@@ -5738,9 +5763,30 @@ function exportCustomerStatementCSV(custName) {
 
     var csvContent = '\uFEFF' + rows.map(e => e.join(',')).join('\r\n');
     var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var fn = 'Customer_Statement_' + (custNo || custName).replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.csv';
+    
+    // Also save directly to H:\InvoiceAI\ame_exports\
+    if (typeof mirrorExportToZDrive === 'function') {
+        mirrorExportToZDrive(fn, blob);
+    }
+    try {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var b64 = (e.target.result || '').split(',')[1];
+            if (b64) {
+                fetch('/api/aba/save-export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: fn, fileBase64: b64, source: 'CSV' })
+                }).then(() => updateAmeBadge()).catch(() => {});
+            }
+        };
+        reader.readAsDataURL(blob);
+    } catch(e) {}
+
     var link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'Customer_Statement_' + (custNo || custName).replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.csv';
+    link.download = fn;
     link.click();
 }
 
@@ -6855,49 +6901,96 @@ async function mirrorCustomerFileToZDrive(showUserNotice = false) {
     }
 }
 
-async function mirrorFileToZDrive(fileType, file) {
+async function mirrorFileToZDrive(fileType, file, slotKey) {
     var handle = await ensureZDriveHandle(false);
     if (!handle) return;
 
     try {
         var ext = file.name.substring(file.name.lastIndexOf('.')) || '.xlsx';
-        var standardName = '';
-        if (fileType === 'aba') standardName = 'aba_statement' + ext;
-        else if (fileType === 'debt') standardName = 'debts' + ext;
-        else if (fileType === 'acc') standardName = 'accounts' + ext;
+        var slotFileName = '';
+        if (slotKey) {
+            slotFileName = fileType === 'debt' ? (slotKey + '_debt' + ext) : (slotKey + ext);
+        }
+        var genericName = '';
+        if (fileType === 'aba') genericName = 'aba_statement' + ext;
+        else if (fileType === 'debt') genericName = 'debts' + ext;
+        else if (fileType === 'acc') genericName = 'accounts' + ext;
 
         // Save in clean Subfolder: H:\InvoiceAI\uploads\
         var uploadsDirHandle = await handle.getDirectoryHandle('uploads', { create: true });
-        if (standardName) {
-            var activeFileHandle = await uploadsDirHandle.getFileHandle(standardName, { create: true });
-            var writableActive = await activeFileHandle.createWritable();
-            await writableActive.write(file);
-            await writableActive.close();
+
+        // 1. Save original file name (e.g. "Khema Aged Receivable.xls", "RMS Aged Receivable.xls")
+        try {
+            var origHandle = await uploadsDirHandle.getFileHandle(file.name, { create: true });
+            var wOrig = await origHandle.createWritable();
+            await wOrig.write(file);
+            await wOrig.close();
+            console.log('✓ Successfully wrote original file to H:\\InvoiceAI\\uploads\\:', file.name);
+        } catch(e) {
+            console.warn('Could not write orig file:', e);
         }
 
-        showToast('💾 បានរក្សាទុកក្នុង Subfolder <b>H:\\InvoiceAI\\uploads\\</b> (' + (standardName || file.name) + ') រួចរាល់!');
-        console.log('✓ Successfully wrote to H:\\InvoiceAI\\uploads\\:', standardName);
+        // 2. Also save slot-specific file name (e.g. "khema_debt.xls", "rms_debt.xls")
+        if (slotFileName && slotFileName !== file.name) {
+            try {
+                var slotHandle = await uploadsDirHandle.getFileHandle(slotFileName, { create: true });
+                var wSlot = await slotHandle.createWritable();
+                await wSlot.write(file);
+                await wSlot.close();
+                console.log('✓ Successfully wrote slot file to H:\\InvoiceAI\\uploads\\:', slotFileName);
+            } catch(e) {
+                console.warn('Could not write slot file:', e);
+            }
+        }
+
+        // 3. Also update generic active file for legacy compatibility
+        if (genericName && genericName !== file.name) {
+            try {
+                var activeFileHandle = await uploadsDirHandle.getFileHandle(genericName, { create: true });
+                var writableActive = await activeFileHandle.createWritable();
+                await writableActive.write(file);
+                await writableActive.close();
+            } catch(e) {}
+        }
+
+        showToast('💾 បានរក្សាទុកក្នុង Subfolder <b>H:\\InvoiceAI\\uploads\\</b> (' + esc(file.name) + ') រួចរាល់!');
     } catch(err) {
         console.warn('Could not write to drive handle:', err);
     }
 }
 
-async function mirrorExportToZDrive(fileName, wb) {
+async function mirrorExportToZDrive(fileName, contentOrWb) {
     var handle = await ensureZDriveHandle(false);
-    if (!handle) return;
+    if (!handle) {
+        console.warn('Drive H: handle not connected, skipping direct export write');
+        return false;
+    }
     try {
         var safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
         // Save in clean Subfolder: H:\InvoiceAI\ame_exports\
         var ameDirHandle = await handle.getDirectoryHandle('ame_exports', { create: true });
         var exportFileHandle = await ameDirHandle.getFileHandle(safeName, { create: true });
-        var u8 = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        
+        var dataToWrite;
+        if (contentOrWb && contentOrWb.Sheets) {
+            // SheetJS workbook
+            dataToWrite = XLSX.write(contentOrWb, { bookType: 'xlsx', type: 'array' });
+        } else if (contentOrWb instanceof Blob || contentOrWb instanceof ArrayBuffer || contentOrWb instanceof Uint8Array || typeof contentOrWb === 'string') {
+            dataToWrite = contentOrWb;
+        } else {
+            dataToWrite = String(contentOrWb || '');
+        }
+
         var writable = await exportFileHandle.createWritable();
-        await writable.write(u8);
+        await writable.write(dataToWrite);
         await writable.close();
 
-        console.log('✓ Successfully saved AME export directly to H:\\InvoiceAI\\ame_exports\\:', safeName);
+        console.log('✓ Successfully saved export directly to H:\\InvoiceAI\\ame_exports\\:', safeName);
+        showToast('💾 បានរក្សាទុកក្នុង <b>H:\\InvoiceAI\\ame_exports\\</b> (' + esc(safeName) + ') រួចរាល់!', 3500);
+        return true;
     } catch (err) {
-        console.warn('Could not write export to drive handle:', err);
+        console.error('Could not write export to drive handle:', err);
+        return false;
     }
 }
 
@@ -6911,12 +7004,12 @@ if ($('btnBrowseZDrive')) $('btnBrowseZDrive').onclick = () => connectZDrive();
 var currentAmeTab = 'exports'; // 'exports' | 'uploads'
 
 function saveWB(wb, fn, allowDownload) {
-    // Note: Do NOT download directly to local PC unless explicitly allowed
-    if(allowDownload === true) {
+    // Automatically trigger browser download unless explicitly disallowed
+    if(allowDownload !== false) {
         try {
             XLSX.writeFile(wb, fn);
         } catch(e) {
-            alert('មានបញ្ហាក្នុងការទាញយកឯកសារ៖ ' + (e.message || ''));
+            console.warn('Browser download issue:', e);
         }
     }
 

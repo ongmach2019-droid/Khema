@@ -486,13 +486,20 @@ export function computeAbaReconciliation(): AbaState {
   const debtFilesToRead: string[] = [];
 
   debtSlots.forEach(slot => {
+    const slotPrefix = slot === 'khema' ? 'Khema' : (slot === 'rms' ? 'RMS' : 'New Smile');
     const candidates = [
       path.join(hUploadsDir, `${slot}_debt.xlsx`),
       path.join(hUploadsDir, `${slot}_debt.xls`),
+      path.join(hUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
+      path.join(hUploadsDir, `${slotPrefix} Aged Receivable.xls`),
       path.join(localUploadsDir, `${slot}_debt.xlsx`),
       path.join(localUploadsDir, `${slot}_debt.xls`),
+      path.join(localUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
+      path.join(localUploadsDir, `${slotPrefix} Aged Receivable.xls`),
       path.join(zUploadsDir, `${slot}_debt.xlsx`),
-      path.join(zUploadsDir, `${slot}_debt.xls`)
+      path.join(zUploadsDir, `${slot}_debt.xls`),
+      path.join(zUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
+      path.join(zUploadsDir, `${slotPrefix} Aged Receivable.xls`)
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) {
@@ -1272,6 +1279,17 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   fs.writeFileSync(path.join(uploadsDir, targetName), buffer);
 
+  // Also save the clean original file name (e.g. "Khema Aged Receivable.xls", "RMS Aged Receivable.xls")
+  if (cleanOriginalName && cleanOriginalName !== targetName) {
+    try { fs.writeFileSync(path.join(uploadsDir, cleanOriginalName), buffer); } catch {}
+  }
+  // Also maintain generic name for backwards compatibility
+  if (fileType === 'debt' && targetName !== `debts${ext}`) {
+    try { fs.writeFileSync(path.join(uploadsDir, `debts${ext}`), buffer); } catch {}
+  } else if (fileType === 'aba' && targetName !== `aba_statement${ext}`) {
+    try { fs.writeFileSync(path.join(uploadsDir, `aba_statement${ext}`), buffer); } catch {}
+  }
+
   // If slot file, remove older extensions for this slot
   if (slotKey) {
     const basePrefix = fileType === 'debt' ? `${slotKey}_debt` : slotKey;
@@ -1296,6 +1314,18 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
       const upDir = path.join(zBase, 'uploads');
       if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true });
       fs.writeFileSync(path.join(upDir, targetName), buffer);
+
+      // Also save clean original filename to network drive uploads/
+      if (cleanOriginalName && cleanOriginalName !== targetName) {
+        try { fs.writeFileSync(path.join(upDir, cleanOriginalName), buffer); } catch {}
+      }
+      // Also maintain generic name on network drive
+      if (fileType === 'debt' && targetName !== `debts${ext}`) {
+        try { fs.writeFileSync(path.join(upDir, `debts${ext}`), buffer); } catch {}
+      } else if (fileType === 'aba' && targetName !== `aba_statement${ext}`) {
+        try { fs.writeFileSync(path.join(upDir, `aba_statement${ext}`), buffer); } catch {}
+      }
+
       if (slotKey) {
         const basePrefix = fileType === 'debt' ? `${slotKey}_debt` : slotKey;
         ['.xlsx', '.xls', '.csv'].forEach(e => {
@@ -1305,7 +1335,7 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
           }
         });
       }
-      console.log(`✓ Synchronized upload file to network drive in uploads (${upDir}/${targetName})`);
+      console.log(`✓ Synchronized upload file to network drive in uploads (${upDir}/${targetName} and ${cleanOriginalName})`);
     }
   } catch (zErr) {
     console.warn('Could not mirror file to network drive:', zErr);

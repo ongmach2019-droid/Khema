@@ -203,7 +203,7 @@ app.post('/api/aba/save-export', (req, res) => {
     // Mirror to H: and Z: drive in clean subfolder (H:\InvoiceAI\ame_exports)
     const savedLocations: string[] = [path.join(ameDir, safeName)];
     try {
-      const candidateDrives = ['H:\\', 'Z:\\'];
+      const candidateDrives = ['H:\\', 'Z:\\', '\\\\192.168.1.7\\Finance_Accounting'];
       for (const d of candidateDrives) {
         if (fs.existsSync(d)) {
           // Save in H:\InvoiceAI\ame_exports\${safeName}
