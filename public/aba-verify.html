@@ -999,15 +999,55 @@ var DEBT_SLOTS = {
     'newsmile': { name: '', files: [], hdr: {}, count: 0 }
 };
 
+// Immediate hydration from localStorage so UI never flickers empty on reload
+try {
+    var _bsMeta = JSON.parse(localStorage.getItem('aba_bank_slots_meta') || '{}');
+    Object.keys(_bsMeta).forEach(k => {
+        if(BANK_SLOTS[k] && _bsMeta[k]) {
+            BANK_SLOTS[k].name = _bsMeta[k].name || '';
+            BANK_SLOTS[k].count = _bsMeta[k].count || 0;
+        }
+    });
+    var _dsMeta = JSON.parse(localStorage.getItem('aba_debt_slots_meta') || '{}');
+    Object.keys(_dsMeta).forEach(k => {
+        if(DEBT_SLOTS[k] && _dsMeta[k]) {
+            DEBT_SLOTS[k].name = _dsMeta[k].name || '';
+            DEBT_SLOTS[k].count = _dsMeta[k].count || 0;
+        }
+    });
+} catch(e) {}
+
 var activeBankKey = localStorage.getItem('aba_bank_source_key') || 'khema_aba';
 var activeDebtKey = localStorage.getItem('aba_debt_filter_key') || 'all';
 
 function saveBankSlotsToStorage() {
-    try { dbSet('bank_slots_state', BANK_SLOTS); } catch(e){}
+    try {
+        dbSet('bank_slots_state', BANK_SLOTS);
+        var meta = {};
+        Object.keys(BANK_SLOTS).forEach(k => {
+            if(BANK_SLOTS[k] && BANK_SLOTS[k].name) {
+                meta[k] = { name: BANK_SLOTS[k].name, count: BANK_SLOTS[k].count || 0 };
+            }
+        });
+        localStorage.setItem('aba_bank_slots_meta', JSON.stringify(meta));
+    } catch(e) {
+        console.warn('saveBankSlotsToStorage error:', e);
+    }
 }
 
 function saveDebtSlotsToStorage() {
-    try { dbSet('debt_slots_state', DEBT_SLOTS); } catch(e){}
+    try {
+        dbSet('debt_slots_state', DEBT_SLOTS);
+        var meta = {};
+        Object.keys(DEBT_SLOTS).forEach(k => {
+            if(DEBT_SLOTS[k] && DEBT_SLOTS[k].name) {
+                meta[k] = { name: DEBT_SLOTS[k].name, count: DEBT_SLOTS[k].count || 0 };
+            }
+        });
+        localStorage.setItem('aba_debt_slots_meta', JSON.stringify(meta));
+    } catch(e) {
+        console.warn('saveDebtSlotsToStorage error:', e);
+    }
 }
 
 function rebuildDebtFiles() {
@@ -1119,6 +1159,38 @@ function setActiveDebtFilter(filterKey, syncBank) {
     if (typeof updateBoxUI === 'function') updateBoxUI();
 }
 
+function uploadAbaSlotFileToServer(fileType, file, slotKey) {
+    if(!file) return;
+    try {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var base64Data = e.target.result;
+            fetch('/api/aba/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileType: fileType,
+                    fileName: file.name,
+                    slotKey: slotKey || '',
+                    fileBase64: base64Data
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data && data.success) {
+                    console.log('✓ File mirrored to server disk for slot ' + slotKey + ':', file.name);
+                }
+            })
+            .catch(err => {
+                console.warn('Server background file sync warning:', err);
+            });
+        };
+        reader.readAsDataURL(file);
+    } catch(err) {
+        console.warn('uploadAbaSlotFileToServer error:', err);
+    }
+}
+
 function processBankSlotFile(slotKey, file) {
     if (!file) return;
     if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('aba', file);
@@ -1145,6 +1217,9 @@ function processBankSlotFile(slotKey, file) {
             }
         }
     });
+
+    // Mirror to server in background so server also has persistent copy!
+    uploadAbaSlotFileToServer('aba', file, slotKey);
 }
 
 function processDebtSlotFile(slotKey, file) {
@@ -1191,6 +1266,9 @@ function processDebtSlotFile(slotKey, file) {
             }
         }
     });
+
+    // Mirror to server in background so server also has persistent copy!
+    uploadAbaSlotFileToServer('debt', file, slotKey);
 }
 
 function handleBatchBankUpload(files) {
@@ -1256,6 +1334,11 @@ function clearBankSlot(slotKey) {
         if (typeof run === 'function') run();
     }
     updateBoxUI();
+    fetch('/api/aba/delete-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileType: 'aba', slotKey: slotKey })
+    }).catch(() => {});
 }
 
 function clearAllBankSlots() {
@@ -1271,6 +1354,11 @@ function clearAllBankSlots() {
     localStorage.removeItem('aba_file_name');
     if (typeof run === 'function') run();
     updateBoxUI();
+    fetch('/api/aba/delete-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileType: 'aba' })
+    }).catch(() => {});
 }
 
 function clearDebtSlot(slotKey) {
@@ -1280,6 +1368,11 @@ function clearDebtSlot(slotKey) {
     rebuildDebtFiles();
     if (typeof run === 'function') run();
     updateBoxUI();
+    fetch('/api/aba/delete-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileType: 'debt', slotKey: slotKey })
+    }).catch(() => {});
 }
 
 function clearAllDebtSlots() {
@@ -1294,6 +1387,11 @@ function clearAllDebtSlots() {
     localStorage.removeItem('debt_file_name');
     if (typeof run === 'function') run();
     updateBoxUI();
+    fetch('/api/aba/delete-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileType: 'debt' })
+    }).catch(() => {});
 }
 
 function initMultiFileSlots() {
@@ -1573,7 +1671,7 @@ function updateBoxUI() {
         var rad = document.querySelector('input[name="radBankSlot"][value="' + k + '"]');
         var delBtn = document.querySelector('.bank-slot-row .btn-slot-del[data-slot="' + k + '"]');
         var slotData = BANK_SLOTS[k];
-        var isLoaded = !!(slotData && slotData.name && slotData.raw);
+        var isLoaded = !!(slotData && slotData.name && (slotData.raw || slotData.count > 0));
         if (isLoaded) loadedBankCount++;
 
         if (card) {
@@ -1617,7 +1715,7 @@ function updateBoxUI() {
         var rad = document.querySelector('input[name="radDebtSlot"][value="' + k + '"]');
         var delBtn = document.querySelector('.debt-slot-row .btn-slot-del[data-slot="' + k + '"]');
         var slotData = DEBT_SLOTS[k];
-        var isLoaded = !!(slotData && slotData.name && slotData.files && slotData.files.length);
+        var isLoaded = !!(slotData && slotData.name && ((slotData.files && slotData.files.length) || slotData.count > 0));
         if (isLoaded) loadedDebtCount++;
 
         if (card) {
@@ -3560,18 +3658,45 @@ function applyServerState(state) {
     if(!state) return false;
     if(state.updatedAt) lastServerUpdatedAt = state.updatedAt;
     
-    if(state.fileNames) {
-        FILE_NAMES.aba = state.fileNames.aba || '';
-        if(state.fileNames.aba) localStorage.setItem('aba_file_name', state.fileNames.aba);
-        else localStorage.removeItem('aba_file_name');
+    // Ingest slot info from server if available and not present locally
+    if(state.bankSlots && typeof state.bankSlots === 'object') {
+        Object.keys(state.bankSlots).forEach(k => {
+            if(state.bankSlots[k] && state.bankSlots[k].exists && (!BANK_SLOTS[k] || !BANK_SLOTS[k].name)) {
+                BANK_SLOTS[k] = Object.assign(BANK_SLOTS[k] || {}, {
+                    name: state.bankSlots[k].name || 'ឯកសារលើ Server',
+                    count: 1
+                });
+            }
+        });
+    }
+    if(state.debtSlots && typeof state.debtSlots === 'object') {
+        Object.keys(state.debtSlots).forEach(k => {
+            if(state.debtSlots[k] && state.debtSlots[k].exists && (!DEBT_SLOTS[k] || !DEBT_SLOTS[k].name)) {
+                DEBT_SLOTS[k] = Object.assign(DEBT_SLOTS[k] || {}, {
+                    name: state.debtSlots[k].name || 'ឯកសារលើ Server',
+                    count: 1
+                });
+            }
+        });
+    }
 
-        FILE_NAMES.debt = state.fileNames.debt || '';
-        if(state.fileNames.debt) localStorage.setItem('debt_file_name', state.fileNames.debt);
-        else localStorage.removeItem('debt_file_name');
+    if(state.fileNames) {
+        if(BANK_SLOTS[activeBankKey] && BANK_SLOTS[activeBankKey].name) {
+            FILE_NAMES.aba = BANK_SLOTS[activeBankKey].name;
+        } else {
+            FILE_NAMES.aba = state.fileNames.aba || '';
+        }
+        if(FILE_NAMES.aba) localStorage.setItem('aba_file_name', FILE_NAMES.aba);
+
+        if(DEBT_SLOTS[activeDebtKey] && DEBT_SLOTS[activeDebtKey].name) {
+            FILE_NAMES.debt = DEBT_SLOTS[activeDebtKey].name;
+        } else {
+            FILE_NAMES.debt = state.fileNames.debt || '';
+        }
+        if(FILE_NAMES.debt) localStorage.setItem('debt_file_name', FILE_NAMES.debt);
 
         FILE_NAMES.acc = state.fileNames.acc || '';
         if(state.fileNames.acc) localStorage.setItem('acc_file_name', state.fileNames.acc);
-        else localStorage.removeItem('acc_file_name');
     }
 
     if(!state.doctors || !state.doctors.length) {
@@ -7364,7 +7489,7 @@ $('exUn').onclick = () => {
 };
 
 function restoreFromLocalIndexedDB() {
-    Promise.all([
+    return Promise.all([
         dbGet('acc_state'),
         dbGet('debt_state'),
         dbGet('aba_state'),
@@ -7426,7 +7551,7 @@ function restoreFromLocalIndexedDB() {
         // Restore Multi-Slot Bank & Debt data
         if(bankSlotsData && typeof bankSlotsData === 'object') {
             Object.assign(BANK_SLOTS, bankSlotsData);
-            if(BANK_SLOTS[activeBankKey] && BANK_SLOTS[activeBankKey].raw) {
+            if(BANK_SLOTS[activeBankKey] && (BANK_SLOTS[activeBankKey].raw || BANK_SLOTS[activeBankKey].name)) {
                 RAW.aba = BANK_SLOTS[activeBankKey].raw;
                 M.aba = BANK_SLOTS[activeBankKey].m || (RAW.aba && RAW.aba.m) || {};
                 FILE_NAMES.aba = BANK_SLOTS[activeBankKey].name || '';
@@ -7463,14 +7588,15 @@ function restoreFromLocalIndexedDB() {
             shouldRun = true;
         }
 
+        updateBoxUI();
         if(shouldRun) {
-            run();
-        } else {
-            updateBoxUI();
+            try { run(); } catch(e) { console.warn('Run error during restore:', e); }
         }
+        return true;
     }).catch(err => {
         console.warn('restoreFromLocalIndexedDB error:', err);
         updateBoxUI();
+        return false;
     });
 }
 
@@ -7478,51 +7604,53 @@ function restoreSavedData() {
     if(typeof initMultiFileSlots === 'function') initMultiFileSlots();
     initBoxPlaceholders();
     initZDrive();
+
+    // 1. Instantly restore from localStorage metadata if available (zero blank flicker on refresh)
+    try {
+        var bankMeta = JSON.parse(localStorage.getItem('aba_bank_slots_meta') || '{}');
+        Object.keys(bankMeta).forEach(k => {
+            if(BANK_SLOTS[k] && bankMeta[k]) {
+                BANK_SLOTS[k].name = bankMeta[k].name || '';
+                BANK_SLOTS[k].count = bankMeta[k].count || 0;
+            }
+        });
+        var debtMeta = JSON.parse(localStorage.getItem('aba_debt_slots_meta') || '{}');
+        Object.keys(debtMeta).forEach(k => {
+            if(DEBT_SLOTS[k] && debtMeta[k]) {
+                DEBT_SLOTS[k].name = debtMeta[k].name || '';
+                DEBT_SLOTS[k].count = debtMeta[k].count || 0;
+            }
+        });
+    } catch(e) {}
+    updateBoxUI();
+
     showServerLoading('កំពុងផ្ទុកទិន្នន័យពី Server (កុំបារម្ភ មិនគាំងទេ)...');
 
+    // 2. Unconditionally restore full tables from IndexedDB
+    var localRestorePromise = restoreFromLocalIndexedDB();
+
+    // 3. Fetch server state to sync with team & server calculations
     fetch('/api/aba/state')
         .then(r => r.json())
         .then(data => {
             hideServerLoading();
-            var state = (data && data.state) ? data.state : data;
-            if(state && state.doctors && state.doctors.length > 0) {
-                console.log('✓ Loaded ready state from server:', state.summary);
-                applyServerState(state);
-
-                // Load Telegram and Customer profiles in background
-                dbGet('khema_customer_profiles').then(cp => {
-                    if(cp && typeof cp === 'object') CUSTOMER_PROFILES = Object.assign(CUSTOMER_PROFILES, cp);
-                    loadDefaultCustomerProfiles();
-                    updateCustomerCountBadge();
-                });
-                dbGet('aba_tg_directory').then(tgDirData => {
-                    if(Array.isArray(tgDirData) && tgDirData.length) {
-                        tgDirData.forEach(item => {
-                            if(!item || !item.id) return;
-                            var existing = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === item.id.toUpperCase());
-                            if(existing) {
-                                if(item.tg) existing.tg = item.tg;
-                                if(item.name && !existing.name) existing.name = item.name;
-                                if(item.phone && !existing.phone) existing.phone = item.phone;
-                            } else {
-                                TG_DIRECTORY.push(item);
-                            }
-                        });
-                        syncTgMapFromDirectory();
-                    }
-                });
+            localRestorePromise.then(() => {
+                var state = (data && data.state) ? data.state : data;
+                if(state && state.doctors && state.doctors.length > 0) {
+                    console.log('✓ Loaded ready state from server:', state.summary);
+                    applyServerState(state);
+                }
+                updateBoxUI();
                 updateAmeBadge();
-                return;
-            }
-            // If server had no doctors, check local IndexedDB
-            restoreFromLocalIndexedDB();
-            updateAmeBadge();
+            });
         })
         .catch(err => {
             hideServerLoading();
-            console.warn('Server state fetch failed, falling back to local DB:', err);
-            restoreFromLocalIndexedDB();
-            updateAmeBadge();
+            console.warn('Server state fetch failed, using local DB:', err);
+            localRestorePromise.then(() => {
+                updateBoxUI();
+                updateAmeBadge();
+            });
         });
 }
 

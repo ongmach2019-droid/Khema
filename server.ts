@@ -133,10 +133,11 @@ app.post('/api/aba/reset', (_req, res) => {
 app.post('/api/aba/delete-file', (req, res) => {
   try {
     const fileType = req.body.fileType;
+    const slotKey = req.body.slotKey;
     if (!fileType || !['aba', 'debt', 'acc'].includes(fileType)) {
       return res.status(400).json({ success: false, error: 'Invalid or missing fileType' });
     }
-    const state = deleteAbaFile(fileType as 'aba' | 'debt' | 'acc');
+    const state = deleteAbaFile(fileType as 'aba' | 'debt' | 'acc', slotKey);
     res.json({ success: true, state });
   } catch (err: any) {
     console.error('Error in /api/aba/delete-file:', err);

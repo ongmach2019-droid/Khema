@@ -82,6 +82,8 @@ export interface AbaState {
     debt: string;
     acc: string;
   };
+  bankSlots?: Record<string, { exists: boolean; name: string }>;
+  debtSlots?: Record<string, { exists: boolean; name: string }>;
   doctors: DoctorStatement[];
   unmatched: Array<{
     id: number;
@@ -480,11 +482,17 @@ export function computeAbaReconciliation(): AbaState {
   // 1. Read debts (supports multiple files: khema_debt, rms_debt, newsmile_debt, debts)
   const debtCandidates = [
     path.join(dataDir, 'khema_debt.xlsx'),
+    path.join(dataDir, 'khema_debt.xls'),
     path.join(dataDir, 'rms_debt.xlsx'),
+    path.join(dataDir, 'rms_debt.xls'),
     path.join(dataDir, 'newsmile_debt.xlsx'),
+    path.join(dataDir, 'newsmile_debt.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_debt.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_debt.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_debt.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_debt.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'newsmile_debt.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'newsmile_debt.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'debts.xls'),
@@ -604,6 +612,22 @@ export function computeAbaReconciliation(): AbaState {
 
   // 2. Read ABA statements
   const abaCandidates = [
+    path.join(dataDir, 'khema_aba.xlsx'),
+    path.join(dataDir, 'khema_aba.xls'),
+    path.join(dataDir, 'khema_acleda.xlsx'),
+    path.join(dataDir, 'khema_acleda.xls'),
+    path.join(dataDir, 'rms_aba.xlsx'),
+    path.join(dataDir, 'rms_aba.xls'),
+    path.join(dataDir, 'rms_acleda.xlsx'),
+    path.join(dataDir, 'rms_acleda.xls'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_aba.xls'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_acleda.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_acleda.xls'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_aba.xls'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_acleda.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_acleda.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'aba_statement.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'aba_statement.xls'),
     path.join('H:\\', 'InvoiceAI', 'aba_statement.xlsx'),
@@ -1044,6 +1068,48 @@ export function computeAbaReconciliation(): AbaState {
     return 0; // Keep code order within same group
   });
 
+  // Compute bank & debt slots existence
+  const bankSlotsMeta: Record<string, { exists: boolean; name: string }> = {
+    khema_aba: { exists: false, name: '' },
+    khema_acleda: { exists: false, name: '' },
+    rms_aba: { exists: false, name: '' },
+    rms_acleda: { exists: false, name: '' }
+  };
+  ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'].forEach(k => {
+    const candidates = [
+      path.join(dataDir, `${k}.xlsx`),
+      path.join(dataDir, `${k}.xls`),
+      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}.xlsx`),
+      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}.xls`)
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        bankSlotsMeta[k] = { exists: true, name: path.basename(c) };
+        break;
+      }
+    }
+  });
+
+  const debtSlotsMeta: Record<string, { exists: boolean; name: string }> = {
+    khema: { exists: false, name: '' },
+    rms: { exists: false, name: '' },
+    newsmile: { exists: false, name: '' }
+  };
+  ['khema', 'rms', 'newsmile'].forEach(k => {
+    const candidates = [
+      path.join(dataDir, `${k}_debt.xlsx`),
+      path.join(dataDir, `${k}_debt.xls`),
+      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}_debt.xlsx`),
+      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}_debt.xls`)
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        debtSlotsMeta[k] = { exists: true, name: path.basename(c) };
+        break;
+      }
+    }
+  });
+
   const finalState: AbaState = {
     success: true,
     summary: {
@@ -1059,6 +1125,8 @@ export function computeAbaReconciliation(): AbaState {
       debt: debtFilesToRead.length ? debtFilesToRead.map(f => path.basename(f)).join(', ') : '',
       acc: accFile ? path.basename(accFile) : (fs.existsSync(path.join(dataDir, 'customers.xls')) ? 'customers.xls' : '')
     },
+    bankSlots: bankSlotsMeta,
+    debtSlots: debtSlotsMeta,
     doctors: resultDoctors,
     unmatched,
     updatedAt: new Date().toISOString()
@@ -1203,13 +1271,29 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
 }
 
 // Delete single file (aba, debt, or acc) on server and all network drive locations
-export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc'): AbaState {
+export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc', slotKey?: string): AbaState {
   ensureDataDir();
   let targetFiles: string[] = [];
   if (fileType === 'aba') {
-    targetFiles = ['aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv'];
+    if (slotKey) {
+      targetFiles = [`${slotKey}.xlsx`, `${slotKey}.xls`, `${slotKey}.csv`];
+    } else {
+      targetFiles = [
+        'aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv',
+        'khema_aba.xlsx', 'khema_aba.xls', 'khema_acleda.xlsx', 'khema_acleda.xls',
+        'rms_aba.xlsx', 'rms_aba.xls', 'rms_acleda.xlsx', 'rms_acleda.xls'
+      ];
+    }
   } else if (fileType === 'debt') {
-    targetFiles = ['debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx'];
+    if (slotKey) {
+      targetFiles = [`${slotKey}_debt.xlsx`, `${slotKey}_debt.xls`];
+    } else {
+      targetFiles = [
+        'debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx',
+        'khema_debt.xlsx', 'khema_debt.xls', 'rms_debt.xlsx', 'rms_debt.xls',
+        'newsmile_debt.xlsx', 'newsmile_debt.xls'
+      ];
+    }
   } else if (fileType === 'acc') {
     targetFiles = ['accounts.xlsx', 'accounts.xls', 'Account id aba.xlsx', 'customers.xls', 'customers.xlsx'];
   }
@@ -1252,7 +1336,11 @@ export function resetAbaState(): AbaState {
   ensureDataDir();
   const files = [
     'aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv',
+    'khema_aba.xlsx', 'khema_aba.xls', 'khema_acleda.xlsx', 'khema_acleda.xls',
+    'rms_aba.xlsx', 'rms_aba.xls', 'rms_acleda.xlsx', 'rms_acleda.xls',
     'debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx',
+    'khema_debt.xlsx', 'khema_debt.xls', 'rms_debt.xlsx', 'rms_debt.xls',
+    'newsmile_debt.xlsx', 'newsmile_debt.xls',
     'accounts.xlsx', 'accounts.xls', 'Account id aba.xlsx', 'customers.xls', 'customers.xlsx',
     'state.json'
   ];
