@@ -105,7 +105,7 @@ function ensureDataDir() {
 // Helper to get network drive directories (single primary folder: H:\InvoiceAI)
 export function getNetworkDriveAbaDirs(): string[] {
   const dirs: string[] = [];
-  const candidateDrives = ['H:\\', 'Z:\\'];
+  const candidateDrives = ['H:\\', 'Z:\\', '\\\\192.168.1.7\\Finance_Accounting'];
   for (const d of candidateDrives) {
     try {
       if (fs.existsSync(d)) {
@@ -1363,12 +1363,24 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
   writeJsonFile('accounts_map.json', accList);
 
   // 4. Write directly to network drive H:\InvoiceAI\Customer_Bank_Account_Number.xlsx
+  let anyFileLocked = false;
   const netDirs = getNetworkDriveAbaDirs();
   netDirs.forEach(dir => {
     try {
       const targetPath = path.join(dir, 'Customer_Bank_Account_Number.xlsx');
-      xlsx.writeFile(wb, targetPath);
-      console.log(`✓ Synced single customer file to network drive: ${targetPath}`);
+      try {
+        xlsx.writeFile(wb, targetPath);
+        console.log(`✓ Synced single customer file to network drive: ${targetPath}`);
+      } catch (writeErr: any) {
+        if (writeErr && writeErr.code === 'EBUSY') {
+          anyFileLocked = true;
+          console.warn(`File ${targetPath} is locked by Excel. Writing backup to Customer_Bank_Account_Number_Latest.xlsx`);
+          const fbPath = path.join(dir, 'Customer_Bank_Account_Number_Latest.xlsx');
+          xlsx.writeFile(wb, fbPath);
+        } else {
+          throw writeErr;
+        }
+      }
       const targetAccMap = path.join(dir, 'accounts_map.json');
       fs.writeFileSync(targetAccMap, JSON.stringify(accList, null, 2), 'utf8');
     } catch (err) {
@@ -1376,6 +1388,6 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
     }
   });
 
-  return { success: true, count: list.length };
+  return { success: true, count: list.length, fileLocked: anyFileLocked };
 }
 

@@ -543,6 +543,9 @@ summary:hover{background:var(--bg)}
         </div>
 
         <div style="display:flex;gap:6px;align-items:center">
+          <button type="button" id="btnSyncCustHdrive" onclick="mirrorCustomerFileToZDrive(true)" style="background:#eff6ff;border:1.5px solid #3b82f6;color:#1d4ed8;padding:5px 12px;font-size:0.75rem;border-radius:4px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:4px" title="Sync ទិន្នន័យទាំងអស់ទៅកាន់ H:\InvoiceAI\Customer_Bank_Account_Number.xlsx">
+            🔄 Sync ទៅ H:\ Drive
+          </button>
           <input type="file" id="fImportCust" accept=".xlsx,.xls,.csv" style="display:none">
           <button type="button" id="btnImportCustExcel" style="background:#f0fdf4;border:1px solid #86efac;color:#047857;padding:5px 10px;font-size:0.75rem;border-radius:4px;cursor:pointer;font-weight:600">
             📥 នាំចូល Excel
@@ -578,7 +581,7 @@ summary:hover{background:var(--bg)}
       <!-- 4. Footer -->
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
         <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save) ឬចុច Edit ដើម្បីកែក្នុងផ្ទាំងលម្អិត</span>
-        <button type="button" id="btnCloseCustManagerModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
+        <button type="button" id="btnCloseCustManagerModal2" onclick="closeCustomerManagerModal()" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
           ✕ បិទ
         </button>
       </div>
@@ -594,7 +597,7 @@ summary:hover{background:var(--bg)}
       <h3 style="color:#fff;margin:0;font-size:1.05rem;display:flex;align-items:center;gap:6px">
         ✏️ កែប្រែព័ត៌មានអតិថិជន & គណនីគ្រូពេទ្យ (<span id="editCustTitleCode"></span>)
       </h3>
-      <button type="button" id="btnCloseEditCustModal" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+      <button type="button" id="btnCloseEditCustModal" onclick="closeEditCustModal()" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
     </div>
     
     <div class="modal-body" style="padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8fafc">
@@ -648,8 +651,8 @@ summary:hover{background:var(--bg)}
     </div>
     
     <div style="background:#f1f5f9;padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e2e8f0">
-      <button type="button" id="btnCancelEditCustModal" style="padding:6px 16px;border:1px solid #cbd5e1;background:#fff;border-radius:4px;cursor:pointer;font-weight:600">✕ បោះបង់</button>
-      <button type="button" id="btnSaveCustModalDetail" style="padding:6px 20px;border:none;background:#1d4ed8;color:#fff;border-radius:4px;cursor:pointer;font-weight:700">💾 រក្សាទុក (Save)</button>
+      <button type="button" id="btnCancelEditCustModal" onclick="closeEditCustModal()" style="padding:6px 16px;border:1px solid #cbd5e1;background:#fff;border-radius:4px;cursor:pointer;font-weight:600">✕ បោះបង់</button>
+      <button type="button" id="btnSaveCustModalDetail" onclick="saveEditCustModal()" style="padding:6px 20px;border:none;background:#1d4ed8;color:#fff;border-radius:4px;cursor:pointer;font-weight:700">💾 រក្សាទុក (Save)</button>
     </div>
   </div>
 </div>
@@ -1080,6 +1083,8 @@ if(!localStorage.getItem('aba_tg_bot_token') || !localStorage.getItem('aba_tg_bo
     localStorage.setItem('aba_tg_bot_token', DEFAULT_BOT_TOKEN);
 }
 
+var ACC = (typeof ACC !== 'undefined' && Array.isArray(ACC)) ? ACC : [];
+var TG_DIRECTORY = (typeof TG_DIRECTORY !== 'undefined' && Array.isArray(TG_DIRECTORY)) ? TG_DIRECTORY : [];
 var TG_MAP = {
     'C00007': '@OngMach2026',
     'C00013': '@Ziinea0024',
@@ -1172,11 +1177,17 @@ function syncCustomerFileToServer() {
     }, 300);
 }
 
+var syncMirrorCustomerTimeout = null;
 function saveCustomerProfiles() {
     localStorage.setItem('khema_customer_profiles', JSON.stringify(CUSTOMER_PROFILES));
     if(typeof dbSet === 'function') dbSet('khema_customer_profiles', CUSTOMER_PROFILES);
     updateCustomerCountBadge();
     syncCustomerFileToServer();
+
+    if(syncMirrorCustomerTimeout) clearTimeout(syncMirrorCustomerTimeout);
+    syncMirrorCustomerTimeout = setTimeout(() => {
+        if(typeof mirrorCustomerFileToZDrive === 'function') mirrorCustomerFileToZDrive();
+    }, 400);
 }
 
 function updateCustomerCountBadge() {
@@ -1199,9 +1210,9 @@ function syncAccFromCustomerProfiles() {
             var rawParts = rawAcc.split('/').map(p => p.trim()).filter(Boolean);
             var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
             if(cleanParts.length || rawParts.length) {
-                var existing = ACC.find(o => 
-                    (o.customerId && o.customerId.toUpperCase() === cCode) ||
-                    (o.entry && o.entry.toUpperCase() === cCode)
+                var existing = (Array.isArray(ACC) ? ACC : []).find(o => 
+                    o && ((o.customerId && String(o.customerId).trim().toUpperCase() === cCode) ||
+                    (o.entry && String(o.entry).trim().toUpperCase() === cCode))
                 );
                 if(existing) {
                     if(!existing.name && cName) existing.name = cName;
@@ -1317,80 +1328,89 @@ function getCustomerProfile(custName, custNo) {
 
 function saveCustomerProfile(code, data) {
     if(!code) return;
-    var cUpper = String(code).trim().toUpperCase();
-    var existing = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
-    CUSTOMER_PROFILES[cUpper] = Object.assign(existing, data, { code: cUpper });
-    saveCustomerProfiles();
-    
-    // Auto-sync with TG_DIRECTORY if telegram or phone provided
-    var tgVal = data.telegram !== undefined ? String(data.telegram).trim() : (existing.telegram || '');
-    if(tgVal) {
-        if(!tgVal.startsWith('@') && !/^\+?\d+$/.test(tgVal)) tgVal = '@' + tgVal;
-        var tgItem = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
-        if(tgItem) {
-            tgItem.tg = tgVal;
-            if(data.phone) tgItem.phone = data.phone;
-        } else {
-            TG_DIRECTORY.push({ id: cUpper, name: existing.nameKh || existing.nameEn || cUpper, tg: tgVal, phone: data.phone || existing.phone || '' });
-        }
-        TG_MAP[cUpper] = tgVal;
-        syncTgMapFromDirectory();
-    } else if(data.phone) {
-        var tgItemP = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
-        if(tgItemP && !tgItemP.phone) {
-            tgItemP.phone = data.phone;
-            syncTgMapFromDirectory();
-        }
-    }
-
-    // Auto-sync with ACC if bankAccounts provided or updated
-    var bankVal = data.bankAccounts !== undefined ? String(data.bankAccounts).trim() : (existing.bankAccounts || existing.abaAcc || '');
-    if(bankVal) {
-        var rawParts = bankVal.split('/').map(p => p.trim()).filter(Boolean);
-        var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
-        var accItem = ACC.find(x => (x.customerId && x.customerId.toUpperCase() === cUpper) || (x.entry && x.entry.toUpperCase() === cUpper));
-        var cName = existing.nameKh || existing.nameEn || cUpper;
-        if(accItem) {
-            accItem.name = cName;
-            accItem.rawAcct = bankVal;
-            accItem.acct = cleanParts[0] || '';
-            accItem.accounts = cleanParts;
-            accItem.rawAccounts = rawParts;
-            if(existing.telegram) accItem.telegram = existing.telegram;
-        } else {
-            ACC.push({
-                entry: cUpper,
-                customerId: cUpper,
-                name: cName,
-                acct: cleanParts[0] || '',
-                rawAcct: bankVal,
-                accounts: cleanParts,
-                rawAccounts: rawParts,
-                telegram: existing.telegram || '',
-                fromCustomerProfile: true
-            });
-        }
-        updateBoxUI();
-    }
-
-    // Also update any active docs in memory
-    if(res && res.docs) {
-        for(var n in res.docs) {
-            var D = res.docs[n];
-            var dCode = (D.meta && D.meta.custNo) || D.customerId || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
-            if(dCode && dCode.toUpperCase() === cUpper) {
-                D.meta = Object.assign(D.meta || {}, CUSTOMER_PROFILES[cUpper]);
-                D.meta.custNo = cUpper;
-                if(data.nameKh) D.meta.custKh = data.nameKh;
-                if(data.nameEn) D.meta.custEn = data.nameEn;
-                if(data.phone) D.meta.phone = data.phone;
-                if(data.address) D.meta.address = data.address;
-                if(bankVal) D.bankAcc = bankVal;
-                if(existing.telegram) D.meta.telegram = existing.telegram;
+    try {
+        var cUpper = String(code).trim().toUpperCase();
+        var existing = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
+        CUSTOMER_PROFILES[cUpper] = Object.assign(existing, data, { code: cUpper });
+        saveCustomerProfiles();
+        
+        // Auto-sync with TG_DIRECTORY if telegram or phone provided
+        var tgVal = data.telegram !== undefined ? String(data.telegram).trim() : (existing.telegram || '');
+        if(tgVal) {
+            if(!tgVal.startsWith('@') && !/^\+?\d+$/.test(tgVal)) tgVal = '@' + tgVal;
+            if(!Array.isArray(TG_DIRECTORY)) TG_DIRECTORY = [];
+            var tgItem = TG_DIRECTORY.find(x => x && x.id && String(x.id).trim().toUpperCase() === cUpper);
+            if(tgItem) {
+                tgItem.tg = tgVal;
+                if(data.phone) tgItem.phone = data.phone;
+            } else {
+                TG_DIRECTORY.push({ id: cUpper, name: existing.nameKh || existing.nameEn || cUpper, tg: tgVal, phone: data.phone || existing.phone || '' });
+            }
+            if(!TG_MAP) TG_MAP = {};
+            TG_MAP[cUpper] = tgVal;
+            if(typeof syncTgMapFromDirectory === 'function') syncTgMapFromDirectory();
+        } else if(data.phone) {
+            if(!Array.isArray(TG_DIRECTORY)) TG_DIRECTORY = [];
+            var tgItemP = TG_DIRECTORY.find(x => x && x.id && String(x.id).trim().toUpperCase() === cUpper);
+            if(tgItemP && !tgItemP.phone) {
+                tgItemP.phone = data.phone;
+                if(typeof syncTgMapFromDirectory === 'function') syncTgMapFromDirectory();
             }
         }
+
+        // Auto-sync with ACC if bankAccounts provided or updated
+        var bankVal = data.bankAccounts !== undefined ? String(data.bankAccounts).trim() : (existing.bankAccounts || existing.abaAcc || '');
+        if(bankVal) {
+            if(!Array.isArray(ACC)) ACC = [];
+            var rawParts = bankVal.split('/').map(p => p.trim()).filter(Boolean);
+            var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
+            var accItem = ACC.find(x => x && ((x.customerId && String(x.customerId).trim().toUpperCase() === cUpper) || (x.entry && String(x.entry).trim().toUpperCase() === cUpper)));
+            var cName = existing.nameKh || existing.nameEn || cUpper;
+            if(accItem) {
+                accItem.name = cName;
+                accItem.rawAcct = bankVal;
+                accItem.acct = cleanParts[0] || '';
+                accItem.accounts = cleanParts;
+                accItem.rawAccounts = rawParts;
+                if(existing.telegram) accItem.telegram = existing.telegram;
+            } else {
+                ACC.push({
+                    entry: cUpper,
+                    customerId: cUpper,
+                    name: cName,
+                    acct: cleanParts[0] || '',
+                    rawAcct: bankVal,
+                    accounts: cleanParts,
+                    rawAccounts: rawParts,
+                    telegram: existing.telegram || '',
+                    fromCustomerProfile: true
+                });
+            }
+            if(typeof updateBoxUI === 'function') updateBoxUI();
+        }
+
+        // Also update any active docs in memory
+        if(res && res.docs) {
+            for(var n in res.docs) {
+                var D = res.docs[n];
+                if(!D) continue;
+                var dCode = (D.meta && D.meta.custNo) || D.customerId || (n.match(/^([A-Z]\d+)/i) ? n.match(/^([A-Z]\d+)/i)[1] : '');
+                if(dCode && String(dCode).trim().toUpperCase() === cUpper) {
+                    D.meta = Object.assign(D.meta || {}, CUSTOMER_PROFILES[cUpper]);
+                    D.meta.custNo = cUpper;
+                    if(data.nameKh) D.meta.custKh = data.nameKh;
+                    if(data.nameEn) D.meta.custEn = data.nameEn;
+                    if(data.phone) D.meta.phone = data.phone;
+                    if(data.address) D.meta.address = data.address;
+                    if(bankVal) D.bankAcc = bankVal;
+                    if(existing.telegram) D.meta.telegram = existing.telegram;
+                }
+            }
+        }
+        if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+    } catch(err) {
+        console.error('saveCustomerProfile error:', err);
     }
-    if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
 }
 
 function ingestCustomerList(t) {
@@ -1549,10 +1569,11 @@ function renderCustManagerTable() {
     displayList.forEach((item, idx) => {
         var rawBank = item.bankAccounts || item.abaAcc || '';
         var rawTg = item.telegram || '';
-        if(!rawTg && item.code) {
-            var tgF = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === item.code.toUpperCase());
+        var cUp = String(item.code || '').trim().toUpperCase();
+        if(!rawTg && cUp) {
+            var tgF = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.id && String(x.id).trim().toUpperCase() === cUp);
             if(tgF && tgF.tg) rawTg = tgF.tg;
-            else if(TG_MAP[item.code.toUpperCase()]) rawTg = TG_MAP[item.code.toUpperCase()];
+            else if(TG_MAP && TG_MAP[cUp]) rawTg = TG_MAP[cUp];
         }
 
         html += '<tr style="border-bottom:1px solid #f1f5f9;background:' + (idx % 2 === 0 ? '#fff' : '#fafafa') + '">' +
@@ -1565,7 +1586,7 @@ function renderCustManagerTable() {
             '<td><input type="text" class="cust-dir-input" data-field="phone" data-code="' + esc(item.code) + '" value="' + esc(item.phone || '') + '" placeholder="ទូរស័ព្ទ..."></td>' +
             '<td><input type="text" class="cust-dir-input" data-field="address" data-code="' + esc(item.code) + '" value="' + esc(item.address || '') + '" placeholder="អាសយដ្ឋាន..."></td>' +
             '<td style="text-align:center;white-space:nowrap">' +
-                '<button type="button" class="btn-edit-cust" data-edit-cust="' + esc(item.code) + '" title="កែប្រែព័ត៌មានលម្អិត">✏️ Edit</button> ' +
+                '<button type="button" class="btn-edit-cust" onclick="openEditCustModal(\'' + esc(item.code) + '\')" data-edit-cust="' + esc(item.code) + '" title="កែប្រែព័ត៌មានលម្អិត">✏️ Edit</button> ' +
                 '<button type="button" class="btn-del-cust" data-del-cust="' + esc(item.code) + '" title="លុបអតិថិជននេះ" style="padding:2px 6px;font-size:0.72rem;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:4px;cursor:pointer">🗑️</button>' +
             '</td>' +
         '</tr>';
@@ -1580,31 +1601,35 @@ function renderCustManagerTable() {
 
 function openEditCustModal(code) {
     if(!code) return;
-    var cUpper = String(code).trim().toUpperCase();
-    var p = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
+    try {
+        var cUpper = String(code).trim().toUpperCase();
+        var p = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
 
-    var titleEl = $('editCustTitleCode');
-    if(titleEl) titleEl.textContent = cUpper;
+        var titleEl = $('editCustTitleCode');
+        if(titleEl) titleEl.textContent = cUpper;
 
-    if($('editCustCode')) $('editCustCode').value = cUpper;
-    if($('editCustCodeDisplay')) $('editCustCodeDisplay').value = cUpper;
-    if($('editCustCurrency')) $('editCustCurrency').value = p.currency || 'USD';
-    if($('editCustNameKh')) $('editCustNameKh').value = p.nameKh || '';
-    if($('editCustNameEn')) $('editCustNameEn').value = p.nameEn || '';
+        if($('editCustCode')) $('editCustCode').value = cUpper;
+        if($('editCustCodeDisplay')) $('editCustCodeDisplay').value = cUpper;
+        if($('editCustCurrency')) $('editCustCurrency').value = p.currency || 'USD';
+        if($('editCustNameKh')) $('editCustNameKh').value = p.nameKh || '';
+        if($('editCustNameEn')) $('editCustNameEn').value = p.nameEn || '';
 
-    var bankVal = p.bankAccounts || p.abaAcc || '';
-    if($('editCustBankAcc')) $('editCustBankAcc').value = bankVal;
+        var bankVal = p.bankAccounts || p.abaAcc || '';
+        if($('editCustBankAcc')) $('editCustBankAcc').value = bankVal;
 
-    var tgVal = p.telegram || '';
-    if(!tgVal && TG_MAP[cUpper]) tgVal = TG_MAP[cUpper];
-    if($('editCustTelegram')) $('editCustTelegram').value = tgVal;
+        var tgVal = p.telegram || '';
+        if(!tgVal && TG_MAP && TG_MAP[cUpper]) tgVal = TG_MAP[cUpper];
+        if($('editCustTelegram')) $('editCustTelegram').value = tgVal;
 
-    if($('editCustPhone')) $('editCustPhone').value = p.phone || '';
-    if($('editCustAccountHolder')) $('editCustAccountHolder').value = p.accountHolder || '';
-    if($('editCustAddress')) $('editCustAddress').value = p.address || '';
+        if($('editCustPhone')) $('editCustPhone').value = p.phone || '';
+        if($('editCustAccountHolder')) $('editCustAccountHolder').value = p.accountHolder || '';
+        if($('editCustAddress')) $('editCustAddress').value = p.address || '';
 
-    var modal = $('editCustModal');
-    if(modal) modal.classList.add('active');
+        var modal = $('editCustModal');
+        if(modal) modal.classList.add('active');
+    } catch(err) {
+        console.error('Error opening edit customer modal:', err);
+    }
 }
 
 function closeEditCustModal() {
@@ -1613,33 +1638,54 @@ function closeEditCustModal() {
 }
 
 function saveEditCustModal() {
-    var code = ($('editCustCode') ? $('editCustCode').value : '').trim().toUpperCase();
-    if(!code) return;
+    try {
+        var code = ($('editCustCode') ? $('editCustCode').value : '').trim().toUpperCase();
+        if(!code) {
+            closeEditCustModal();
+            return;
+        }
 
-    var cur = CUSTOMER_PROFILES[code] || { code: code };
-    var updated = Object.assign({}, cur, {
-        code: code,
-        currency: ($('editCustCurrency') ? $('editCustCurrency').value : 'USD') || 'USD',
-        nameKh: ($('editCustNameKh') ? $('editCustNameKh').value : '').trim(),
-        nameEn: ($('editCustNameEn') ? $('editCustNameEn').value : '').trim(),
-        bankAccounts: ($('editCustBankAcc') ? $('editCustBankAcc').value : '').trim(),
-        telegram: ($('editCustTelegram') ? $('editCustTelegram').value : '').trim(),
-        phone: ($('editCustPhone') ? $('editCustPhone').value : '').trim(),
-        accountHolder: ($('editCustAccountHolder') ? $('editCustAccountHolder').value : '').trim(),
-        address: ($('editCustAddress') ? $('editCustAddress').value : '').trim()
-    });
+        var cur = CUSTOMER_PROFILES[code] || { code: code };
+        var updated = Object.assign({}, cur, {
+            code: code,
+            currency: ($('editCustCurrency') ? $('editCustCurrency').value : 'USD') || 'USD',
+            nameKh: ($('editCustNameKh') ? $('editCustNameKh').value : '').trim(),
+            nameEn: ($('editCustNameEn') ? $('editCustNameEn').value : '').trim(),
+            bankAccounts: ($('editCustBankAcc') ? $('editCustBankAcc').value : '').trim(),
+            telegram: ($('editCustTelegram') ? $('editCustTelegram').value : '').trim(),
+            phone: ($('editCustPhone') ? $('editCustPhone').value : '').trim(),
+            accountHolder: ($('editCustAccountHolder') ? $('editCustAccountHolder').value : '').trim(),
+            address: ($('editCustAddress') ? $('editCustAddress').value : '').trim()
+        });
 
-    saveCustomerProfile(code, updated);
-    syncCustomerFileToServer();
-    closeEditCustModal();
-    renderCustManagerTable();
+        saveCustomerProfile(code, updated);
+        closeEditCustModal();
+        if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+        if(typeof render === 'function') {
+            try { render(); } catch(e) {}
+        }
 
-    var msg = $('custDirStatusMsg');
-    if(msg) {
-        msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានកែប្រែ និងរក្សាទុកព័ត៌មាន ' + esc(code) + ' ដោយជោគជ័យ!</span>';
-        setTimeout(() => {
-            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save) ឬចុច Edit ដើម្បីកែក្នុងផ្ទាំងលម្អិត';
-        }, 3000);
+        // Mirror directly to H:\InvoiceAI\Customer_Bank_Account_Number.xlsx (Client-side)
+        if(typeof mirrorCustomerFileToZDrive === 'function') {
+            mirrorCustomerFileToZDrive();
+        }
+
+        // Sync to backend server
+        syncCustomerFileToServer();
+
+        showToast('✓ បានកែប្រែ និងរក្សាទុកព័ត៌មាន ' + esc(code) + ' ដោយជោគជ័យ!', 3000);
+
+        var msg = $('custDirStatusMsg');
+        if(msg) {
+            msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានកែប្រែ និងរក្សាទុកព័ត៌មាន ' + esc(code) + ' ដោយជោគជ័យ!</span>';
+            setTimeout(() => {
+                if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save) ឬចុច Edit ដើម្បីកែក្នុងផ្ទាំងលម្អិត';
+            }, 3000);
+        }
+    } catch(err) {
+        console.error('Error in saveEditCustModal:', err);
+        closeEditCustModal();
+        alert('បញ្ហាក្នុងការរក្សាទុក៖ ' + (err.message || err));
     }
 }
 
@@ -5061,14 +5107,14 @@ document.addEventListener('click', e => {
         return;
     }
 
-    if(t.id === 'btnCloseEditCustModal' || t.id === 'btnCancelEditCustModal') {
+    if(t.id === 'btnCloseEditCustModal' || t.id === 'btnCancelEditCustModal' || (t.closest && t.closest('#btnCloseEditCustModal, #btnCancelEditCustModal'))) {
         e.stopPropagation();
         e.preventDefault();
         closeEditCustModal();
         return;
     }
 
-    if(t.id === 'btnSaveCustModalDetail') {
+    if(t.id === 'btnSaveCustModalDetail' || (t.closest && t.closest('#btnSaveCustModalDetail'))) {
         e.stopPropagation();
         e.preventDefault();
         saveEditCustModal();
@@ -5696,6 +5742,23 @@ function updateZDriveUI(connected, dirName, isServerDirect) {
 }
 
 async function connectZDrive() {
+    try {
+        var savedHandle = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
+        if (savedHandle) {
+            var p = await savedHandle.queryPermission({ mode: 'readwrite' });
+            if (p === 'prompt') {
+                var granted = await savedHandle.requestPermission({ mode: 'readwrite' });
+                if (granted === 'granted') {
+                    zDirHandle = savedHandle;
+                    updateZDriveUI(true, savedHandle.name || 'H:', false);
+                    showToast('✅ បានភ្ជាប់ទៅកាន់ Folder <b>' + esc(savedHandle.name || 'H:\\InvoiceAI') + '</b> រួចរាល់!');
+                    mirrorCustomerFileToZDrive();
+                    return;
+                }
+            }
+        }
+    } catch(e) {}
+
     if (!window.showDirectoryPicker) {
         alert('Browser របស់អ្នកមិនទាន់គាំទ្រ File System Access API ទេ (សូមប្រើ Google Chrome ឬ Microsoft Edge ជំនាន់ថ្មី)');
         return;
@@ -5714,7 +5777,8 @@ async function connectZDrive() {
                 await dbSet('h_drive_name', handle.name);
                 currentDriveLetter = handle.name;
                 updateZDriveUI(true, handle.name, false);
-                showToast('✅ បានភ្ជាប់ទៅកាន់ Folder <b>' + esc(handle.name) + '</b> ដោយជោគជ័យ!<br><small>រាល់ពេល Upload ឯកសារទាំង ៣ ឬ Export AME នឹងចម្លងរក្សាទុកក្នុង ' + esc(handle.name) + ' ដោយស្វ័យប្រវត្តិ</small>');
+                showToast('✅ បានភ្ជាប់ទៅកាន់ Folder <b>' + esc(handle.name) + '</b> ដោយជោគជ័យ!<br><small>រាល់ពេលកែប្រែព័ត៌មានអតិថិជន ឬ Export AME នឹងចម្លងរក្សាទុកក្នុង ' + esc(handle.name) + ' ដោយស្វ័យប្រវត្តិ</small>');
+                mirrorCustomerFileToZDrive();
             }
         }
     } catch (e) {
@@ -5725,17 +5789,175 @@ async function connectZDrive() {
     }
 }
 
-async function mirrorFileToZDrive(fileType, file) {
-    if (!zDirHandle) {
+async function ensureZDriveHandle(allowRequest = false) {
+    if (zDirHandle) {
         try {
-            var saved = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
-            if (saved) {
-                var p = await saved.queryPermission({ mode: 'readwrite' });
-                if (p === 'granted') zDirHandle = saved;
+            var p = await zDirHandle.queryPermission({ mode: 'readwrite' });
+            if (p === 'granted') return zDirHandle;
+            if (allowRequest && p === 'prompt') {
+                var req = await zDirHandle.requestPermission({ mode: 'readwrite' });
+                if (req === 'granted') return zDirHandle;
             }
         } catch(e) {}
     }
-    if (!zDirHandle) return;
+    try {
+        var saved = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
+        if (saved) {
+            var p = await saved.queryPermission({ mode: 'readwrite' });
+            if (p === 'granted') {
+                zDirHandle = saved;
+                return zDirHandle;
+            }
+            if (allowRequest && p === 'prompt') {
+                var req = await saved.requestPermission({ mode: 'readwrite' });
+                if (req === 'granted') {
+                    zDirHandle = saved;
+                    return zDirHandle;
+                }
+            }
+        }
+    } catch(e) {}
+    return null;
+}
+
+async function mirrorCustomerFileToZDrive(showUserNotice = false) {
+    var handle = await ensureZDriveHandle(true);
+    if (!handle) {
+        console.warn('H:\\ Drive handle not connected yet for mirrorCustomerFileToZDrive');
+        if (showUserNotice) {
+            alert('សូមចុចលើប៊ូតុង "🟢 H:\\ បានភ្ជាប់អូតូរួចរាល់" ឬ "🔗 ភ្ជាប់ Folder" នៅខាងលើបង្អស់ ដើម្បីអនុញ្ញាតឱ្យប្រព័ន្ធសរសេរទិន្នន័យចូល Folder H:\\InvoiceAI ដោយផ្ទាល់!');
+        }
+        return false;
+    }
+
+    try {
+        var list = Object.values(CUSTOMER_PROFILES || {});
+        if (!list.length) return false;
+
+        list.sort((a, b) => {
+            var aId = String(a.code || '');
+            var bId = String(b.code || '');
+            var aNum = aId.match(/\d+/);
+            var bNum = bId.match(/\d+/);
+            if (aNum && bNum && aId.charAt(0) === bId.charAt(0)) {
+                return parseInt(aNum[0]) - parseInt(bNum[0]);
+            }
+            return aId.localeCompare(bId);
+        });
+
+        var aoa = [
+            [
+                'Clinic ID',
+                'Clinic Name',
+                'Clinic Name (2nd Lang)',
+                'Account Number',
+                'Name',
+                'Telegram',
+                'Telephone',
+                'Address',
+                'Currency'
+            ]
+        ];
+
+        list.forEach(item => {
+            var rawBank = item.bankAccounts || item.abaAcc || '';
+            var rawTg = item.telegram || '';
+            var cUp = String(item.code || '').trim().toUpperCase();
+            if (!rawTg && cUp) {
+                var tgF = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.id && String(x.id).trim().toUpperCase() === cUp);
+                if (tgF && tgF.tg) rawTg = tgF.tg;
+                else if (TG_MAP && TG_MAP[cUp]) rawTg = TG_MAP[cUp];
+            }
+
+            aoa.push([
+                item.code || '',
+                item.nameEn || '',
+                item.nameKh || '',
+                rawBank,
+                item.accountHolder || item.contact || '',
+                rawTg,
+                item.phone || '',
+                item.address || '',
+                item.currency || 'USD'
+            ]);
+        });
+
+        var wb = XLSX.utils.book_new();
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [
+            { wch: 14 },
+            { wch: 35 },
+            { wch: 30 },
+            { wch: 30 },
+            { wch: 30 },
+            { wch: 22 },
+            { wch: 22 },
+            { wch: 45 },
+            { wch: 10 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Combined Data');
+
+        var u8 = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        var wrotePrimary = false;
+
+        try {
+            var targetFileHandle = await handle.getFileHandle('Customer_Bank_Account_Number.xlsx', { create: true });
+            var writable = await targetFileHandle.createWritable();
+            await writable.write(u8);
+            await writable.close();
+            wrotePrimary = true;
+            console.log('✓ Successfully wrote Customer_Bank_Account_Number.xlsx directly from browser to H:\\InvoiceAI');
+            showToast('💾 បាន Update ហ្វាល់ <b>H:\\InvoiceAI\\Customer_Bank_Account_Number.xlsx</b> រួចរាល់!', 3500);
+        } catch (writeErr) {
+            console.warn('Could not overwrite primary Customer_Bank_Account_Number.xlsx (file might be opened in Excel):', writeErr);
+            try {
+                var fbHandle = await handle.getFileHandle('Customer_Bank_Account_Number_Latest.xlsx', { create: true });
+                var writableFb = await fbHandle.createWritable();
+                await writableFb.write(u8);
+                await writableFb.close();
+                showToast('⚠️ ហ្វាល់ Customer_Bank_Account_Number.xlsx កំពុងបើកក្នុង Excel នៅលើកុំព្យូទ័រ!<br><small>សូមបិទ (Close) Excel ដើម្បីឱ្យប្រព័ន្ធ Update ហ្វាល់ដើម (បាន Backup ក្នុង Customer_Bank_Account_Number_Latest.xlsx រួចរាល់)</small>', 6000);
+            } catch (fbErr) {
+                showToast('⚠️ ហ្វាល់ Customer_Bank_Account_Number.xlsx កំពុងត្រូវបានបើកក្នុង Excel! សូមបិទ (Close) Excel ជាមុនសិន។', 5000);
+            }
+        }
+
+        // Also sync accounts_map.json
+        try {
+            var accList = [];
+            list.forEach(c => {
+                var raw = String(c.bankAccounts || c.abaAcc || '').trim();
+                if (raw) {
+                    var rawParts = raw.split('/').map(p => p.trim()).filter(Boolean);
+                    var cleanParts = rawParts.map(p => p.replace(/\D/g, '')).filter(Boolean);
+                    accList.push({
+                        entry: c.code,
+                        customerId: c.code,
+                        name: c.nameKh || c.nameEn || c.code,
+                        rawAcct: raw,
+                        acct: cleanParts[0] || '',
+                        accounts: cleanParts,
+                        rawAccounts: rawParts,
+                        accountHolder: c.accountHolder || '',
+                        telegram: c.telegram || ''
+                    });
+                }
+            });
+            var mapJsonHandle = await handle.getFileHandle('accounts_map.json', { create: true });
+            var mapWritable = await mapJsonHandle.createWritable();
+            await mapWritable.write(JSON.stringify(accList, null, 2));
+            await mapWritable.close();
+        } catch(e) {}
+
+        return wrotePrimary;
+    } catch(err) {
+        console.error('Error in mirrorCustomerFileToZDrive:', err);
+        return false;
+    }
+}
+
+async function mirrorFileToZDrive(fileType, file) {
+    var handle = await ensureZDriveHandle(false);
+    if (!handle) return;
 
     try {
         var ext = file.name.substring(file.name.lastIndexOf('.')) || '.xlsx';
@@ -5745,7 +5967,7 @@ async function mirrorFileToZDrive(fileType, file) {
         else if (fileType === 'acc') standardName = 'accounts' + ext;
 
         // Save in clean Subfolder: H:\InvoiceAI\uploads\
-        var uploadsDirHandle = await zDirHandle.getDirectoryHandle('uploads', { create: true });
+        var uploadsDirHandle = await handle.getDirectoryHandle('uploads', { create: true });
         if (standardName) {
             var activeFileHandle = await uploadsDirHandle.getFileHandle(standardName, { create: true });
             var writableActive = await activeFileHandle.createWritable();
@@ -5761,20 +5983,12 @@ async function mirrorFileToZDrive(fileType, file) {
 }
 
 async function mirrorExportToZDrive(fileName, wb) {
-    if (!zDirHandle) {
-        try {
-            var saved = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
-            if (saved) {
-                var p = await saved.queryPermission({ mode: 'readwrite' });
-                if (p === 'granted') zDirHandle = saved;
-            }
-        } catch(e) {}
-    }
-    if (!zDirHandle) return;
+    var handle = await ensureZDriveHandle(false);
+    if (!handle) return;
     try {
         var safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
         // Save in clean Subfolder: H:\InvoiceAI\ame_exports\
-        var ameDirHandle = await zDirHandle.getDirectoryHandle('ame_exports', { create: true });
+        var ameDirHandle = await handle.getDirectoryHandle('ame_exports', { create: true });
         var exportFileHandle = await ameDirHandle.getFileHandle(safeName, { create: true });
         var u8 = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         var writable = await exportFileHandle.createWritable();
