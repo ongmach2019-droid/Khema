@@ -1937,7 +1937,7 @@ var SEED_CUSTOMER_PROFILES = {
     'C00019': { code: 'C00019', nameEn: 'Angkor Chom Dental Clinic', nameKh: 'ពេត្យធ្មេញ អង្គរជុំ', contact: '', phone: '097 33 85 777', address: 'S.  ,K. , Kratie Province', currency: 'USD' },
     'C00020': { code: 'C00020', nameEn: 'Angkor Dental Association', nameKh: 'សមាគមពេទ្យធ្មេញ អង្គរ', contact: '', phone: '063 63 09 099 , 070 24 24 24', address: 'Siem Reap City, Siem Reap', currency: 'USD' },
     'C00045': { code: 'C00045', nameEn: 'Beauty Smile Dental Clinic', nameKh: 'គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍', contact: '', phone: '012 647 758', address: 'Touk Kok , Camko', currency: 'USD', bankAccounts: '000 614 343' },
-    'C00168': { code: 'C00168', nameEn: 'Chheung Eng Hong Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ ឈឿង អេងហុង', contact: '', phone: '012 858 531', address: 'ភ្នំពេញ', currency: 'USD', bankAccounts: '002 085 113', telegram: '@ongmach' },
+    'C00168': { code: 'C00168', nameEn: 'Chheung Eng Hong Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ឈឿង អេងហុង', contact: '', phone: '093 65 32 06 , 016 666 187', address: 'Kampong Spue Province', currency: 'USD', bankAccounts: '002 085 113', telegram: '' },
     'C00254': { code: 'C00254', nameEn: 'Doctor Care Dental Clinic', nameKh: 'គ្លីនិកធ្មេញ ដុកទ័រ ឃែរ', contact: 'Dr. EUNG KIMCHHAY', phone: '086 232 483 , 089 515 176', address: 'ផ្ទះលេខ 612​, ផ្លូវ1019 ភូមិ រោងចក្រ១ សង្កាត់គោកឃ្លោក ខណ្ឌសែនសុខ', currency: 'USD', bankAccounts: '001 779 000 / 001 779 008' },
     'C02029': { code: 'C02029', nameEn: 'Zirconia Dental laboratory', nameKh: 'ឡាបូផលិតគ្រាប់ធ្មេញ ហ្សឺកូនៀម', contact: '', phone: '096 602 4972', address: 'St108, Wat Phnom', currency: 'USD', bankAccounts: '105 469 341 / 018 397 509' }
 };
@@ -1947,9 +1947,32 @@ try {
     var savedProfiles = localStorage.getItem('khema_customer_profiles');
     if(savedProfiles) {
         var parsedProf = JSON.parse(savedProfiles);
-        if(parsedProf && typeof parsedProf === 'object') CUSTOMER_PROFILES = Object.assign(CUSTOMER_PROFILES, parsedProf);
+        if(parsedProf && typeof parsedProf === 'object') {
+            CUSTOMER_PROFILES = Object.assign(CUSTOMER_PROFILES, parsedProf);
+        }
     }
 } catch(e) {}
+
+// Sanitize profiles: completely purge stale test name "Ong Mach"
+if(CUSTOMER_PROFILES['C00168']) {
+    CUSTOMER_PROFILES['C00168'].nameEn = 'Chheung Eng Hong Dental Clinic';
+    CUSTOMER_PROFILES['C00168'].nameKh = 'ពេទ្យធ្មេញ ឈឿង អេងហុង';
+    CUSTOMER_PROFILES['C00168'].phone = '093 65 32 06 , 016 666 187';
+    CUSTOMER_PROFILES['C00168'].address = 'Kampong Spue Province';
+    CUSTOMER_PROFILES['C00168'].telegram = '';
+}
+for(var pk in CUSTOMER_PROFILES) {
+    var profItem = CUSTOMER_PROFILES[pk];
+    if(profItem && (profItem.nameEn === 'Ong Mach' || profItem.nameKh === 'Ong Mach')) {
+        if(pk === 'C00168') {
+            profItem.nameEn = 'Chheung Eng Hong Dental Clinic';
+            profItem.nameKh = 'ពេទ្យធ្មេញ ឈឿង អេងហុង';
+        } else {
+            delete CUSTOMER_PROFILES[pk];
+        }
+    }
+}
+try { localStorage.setItem('khema_customer_profiles', JSON.stringify(CUSTOMER_PROFILES)); } catch(e) {}
 
 var DISCOUNT_MAP = {};
 try {
@@ -2079,6 +2102,12 @@ function loadDefaultCustomerProfiles() {
                         added++;
                     } else {
                         var cur = CUSTOMER_PROFILES[code];
+                        if(code === 'C00168' || cur.nameKh === 'Ong Mach' || cur.nameEn === 'Ong Mach') {
+                            cur.nameKh = src.nameKh;
+                            cur.nameEn = src.nameEn;
+                            cur.phone = src.phone || cur.phone;
+                            cur.telegram = '';
+                        }
                         if(!cur.nameKh && src.nameKh) cur.nameKh = src.nameKh;
                         if(!cur.nameEn && src.nameEn) cur.nameEn = src.nameEn;
                         if(!cur.phone && src.phone) cur.phone = src.phone;
@@ -4072,16 +4101,31 @@ $('fAcc').onchange = e => {
 // Reset All Data & Box Handlers
 if($('btnResetServer')) {
     $('btnResetServer').onclick = () => {
-        if(!confirm('តើអ្នកប្រាកដជាចង់សម្អាតទិន្នន័យទាំងអស់លើ Server និងក្នុង Browser ដើម្បីផ្ទុកឯកសារថ្មីឡើងវិញមែនទេ? (វានឹងសម្អាតទិន្នន័យក្នុង Drive H:\\ ផងដែរ)')) return;
+        if(!confirm('តើអ្នកប្រាកដជាចង់សម្អាតទិន្នន័យលើ Server និងក្នុង Browser ដើម្បីផ្ទុកឯកសារថ្មីឡើងវិញមែនទេ? (ឯកសារទិន្នន័យក្នុង Drive H: ត្រូវបានរក្សាទុក មិនលុបឡើយ)')) return;
         showServerLoading('កំពុងសម្អាតទិន្នន័យទាំងអស់...');
         fetch('/api/aba/reset', { method: 'POST' })
             .then(r => r.json())
             .then(data => {
                 hideServerLoading();
+                BANK_SLOTS = {
+                    khema_aba: { name: '', count: 0 },
+                    khema_acleda: { name: '', count: 0 },
+                    rms_aba: { name: '', count: 0 },
+                    rms_acleda: { name: '', count: 0 }
+                };
+                DEBT_SLOTS = {
+                    khema: { name: '', count: 0, files: [], hdr: {} },
+                    rms: { name: '', count: 0, files: [], hdr: {} },
+                    newsmile: { name: '', count: 0, files: [], hdr: {} }
+                };
+                localStorage.removeItem('aba_bank_slots_meta');
+                localStorage.removeItem('aba_debt_slots_meta');
                 localStorage.removeItem('aba_file_name');
                 localStorage.removeItem('debt_file_name');
                 localStorage.removeItem('acc_file_name');
                 FILE_NAMES = { aba: '', debt: '', acc: '' };
+                dbDel('bank_slots_state');
+                dbDel('debt_slots_state');
                 dbDel('aba_state');
                 dbDel('debt_state');
                 dbDel('acc_state');
@@ -4091,14 +4135,13 @@ if($('btnResetServer')) {
                 $('fAba').value = '';
                 $('fDebt').value = '';
                 $('fAcc').value = '';
+                res = { docs: {}, names: [], unmatched: [], tot: { owed:0, paid:0, rem:0 }, from: null };
                 if(data && data.state) {
                     applyServerState(data.state);
-                } else {
-                    res = { docs: {}, names: [], unmatched: [], tot: { owed:0, paid:0, rem:0 }, from: null };
-                    render();
                 }
                 updateBoxUI();
-                alert('បានសម្អាតទិន្នន័យជោគជ័យ! អ្នកអាចផ្ទុកឯកសារថ្មីបាន។');
+                render();
+                alert('បានសម្អាតទិន្នន័យលើ Server និង Browser រួចរាល់! (ឯកសារក្នុង Drive H: ត្រូវបានរក្សាទុក)');
             })
             .catch(err => {
                 hideServerLoading();
@@ -4560,8 +4603,12 @@ function run() {
             (a.name && (a.name === pName || pName.indexOf(a.name) > -1 || a.name.indexOf(pName) > -1))
         );
 
-        if(accMatch && accMatch.name) {
+        if(accMatch && accMatch.name && !accMatch.name.toLowerCase().includes('ong mach')) {
             pName = cIdRaw ? (cIdRaw + ' - ' + accMatch.name) : accMatch.name;
+            d.party = pName;
+        }
+        if(cIdRaw === 'C00168' || pName.toLowerCase().includes('ong mach')) {
+            pName = 'C00168 - Chheung Eng Hong Dental Clinic';
             d.party = pName;
         }
 
@@ -4765,8 +4812,7 @@ function run() {
                 }
 
                 if(hitDoc) {
-                    // Update customer name to "Ong Mach" (or "C00168 - Ong Mach") as requested
-                    if(targetName) {
+                    if(targetName && !targetName.toLowerCase().includes('ong mach')) {
                         var cleanOldName = hitDoc.name.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
                         if(cleanOldName !== targetName) {
                             var newName = targetId ? (targetId + ' - ' + targetName) : targetName;

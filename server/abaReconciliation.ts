@@ -322,7 +322,6 @@ export function parseCustomerProfiles(): Record<string, any> {
 // Parse accounts mapping
 export function parseAccountsMap(): any[] {
   let list = readJsonFile<any[]>('accounts_map.json', [
-    { entry: 'C00168', customerId: 'C00168', name: 'Ong Mach', acct: '000428736', rawAcct: '000 428 736' },
     { entry: 'C00007', customerId: 'C00007', name: 'Aesthetic Dental Clinic', acct: '000111222', rawAcct: '000 111 222' }
   ]);
 
@@ -437,7 +436,6 @@ export function parseAccountsMap(): any[] {
 // Parse Telegram directory
 export function parseTgDirectory(): any[] {
   let list = readJsonFile<any[]>('tg_directory.json', [
-    { id: 'C00168', name: 'Ong Mach', tg: '@ongmach', phone: '0975973959' },
     { id: 'C00007', name: 'Aesthetic Dental Clinic', tg: '727477829', phone: '077 731 777' }
   ]);
 
@@ -479,32 +477,48 @@ export function computeAbaReconciliation(): AbaState {
   const tgDir = parseTgDirectory();
   const tgSent = parseTgSent();
 
-  // 1. Read debts (supports multiple files: khema_debt, rms_debt, newsmile_debt, debts)
-  const debtCandidates = [
-    path.join(dataDir, 'khema_debt.xlsx'),
-    path.join(dataDir, 'khema_debt.xls'),
-    path.join(dataDir, 'rms_debt.xlsx'),
-    path.join(dataDir, 'rms_debt.xls'),
-    path.join(dataDir, 'newsmile_debt.xlsx'),
-    path.join(dataDir, 'newsmile_debt.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_debt.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_debt.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_debt.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_debt.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'newsmile_debt.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'newsmile_debt.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'debts.xls'),
-    path.join('H:\\', 'InvoiceAI', 'debts.xlsx'),
-    path.join('Z:\\', 'InvoiceAI', 'uploads', 'debts.xls'),
-    path.join('Z:\\', 'InvoiceAI', 'debts.xls'),
-    path.join(dataDir, 'debts.xls'),
-    path.join(dataDir, 'debts.xlsx'),
-    path.join(dataDir, 'Aged_Receivable.xls'),
-    path.join(dataDir, 'Aged_Receivable.xlsx')
-  ];
-  const debtFilesToRead = Array.from(new Set(debtCandidates.filter(c => fs.existsSync(c))));
+  // 1. Read debts: ONLY from uploads folder! Deduplicated per slot
+  const localUploadsDir = path.join(dataDir, 'uploads');
+  const hUploadsDir = path.join('H:\\', 'InvoiceAI', 'uploads');
+  const zUploadsDir = path.join('Z:\\', 'InvoiceAI', 'uploads');
+
+  const debtSlots = ['khema', 'rms', 'newsmile'];
+  const debtFilesToRead: string[] = [];
+
+  debtSlots.forEach(slot => {
+    const candidates = [
+      path.join(hUploadsDir, `${slot}_debt.xlsx`),
+      path.join(hUploadsDir, `${slot}_debt.xls`),
+      path.join(localUploadsDir, `${slot}_debt.xlsx`),
+      path.join(localUploadsDir, `${slot}_debt.xls`),
+      path.join(zUploadsDir, `${slot}_debt.xlsx`),
+      path.join(zUploadsDir, `${slot}_debt.xls`)
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        debtFilesToRead.push(c);
+        break; // Exactly one file per slot
+      }
+    }
+  });
+
+  // If no slot debts found, fallback to debts.xlsx or debts.xls in uploads ONLY
+  if (debtFilesToRead.length === 0) {
+    const fallbackDebts = [
+      path.join(hUploadsDir, 'debts.xlsx'),
+      path.join(hUploadsDir, 'debts.xls'),
+      path.join(localUploadsDir, 'debts.xlsx'),
+      path.join(localUploadsDir, 'debts.xls'),
+      path.join(zUploadsDir, 'debts.xlsx'),
+      path.join(zUploadsDir, 'debts.xls')
+    ];
+    for (const c of fallbackDebts) {
+      if (fs.existsSync(c)) {
+        debtFilesToRead.push(c);
+        break; // Only one fallback file
+      }
+    }
+  }
 
   const doctorsMap: Record<string, DoctorStatement> = {};
   const doctorOrder: string[] = [];
@@ -525,19 +539,34 @@ export function computeAbaReconciliation(): AbaState {
           const custId = custIdMatch ? custIdMatch[1].toUpperCase() : '';
           const prof = profiles[custId] || {};
 
-          // Check if mapped to a custom name (e.g. Ong Mach)
           const matchedAcc = accMap.find(a => 
             (custId && a.customerId && a.customerId.toUpperCase() === custId) ||
             (custId && a.entry && a.entry.toUpperCase() === custId)
           );
+
+          // Check if mapped to a customer profile or custom name
           let displayName = rawName;
-          if (matchedAcc && matchedAcc.name) {
-            displayName = custId ? `${custId} - ${matchedAcc.name}` : matchedAcc.name;
+          if (prof.nameEn || prof.nameKh) {
+            displayName = custId ? `${custId} - ${prof.nameEn || prof.nameKh}` : (prof.nameEn || prof.nameKh);
+          } else {
+            if (matchedAcc && matchedAcc.name && !matchedAcc.name.toLowerCase().includes('ong mach')) {
+              displayName = custId ? `${custId} - ${matchedAcc.name}` : matchedAcc.name;
+            }
+          }
+          if (custId === 'C00168' || displayName.toLowerCase().includes('ong mach') || rawName.toLowerCase().includes('ong mach')) {
+            displayName = 'C00168 - Chheung Eng Hong Dental Clinic';
           }
 
           if (doctorsMap[displayName] || (custId && doctorsMap[custId])) {
             currentDoc = doctorsMap[displayName] || (custId ? doctorsMap[custId] : null);
             continue;
+          }
+
+          let custKh = prof.nameKh || (matchedAcc?.name || rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, ''));
+          let custEn = prof.nameEn || (matchedAcc?.name || rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, ''));
+          if (custId === 'C00168' || custKh.toLowerCase().includes('ong mach') || custEn.toLowerCase().includes('ong mach')) {
+            custKh = 'ពេទ្យធ្មេញ ឈឿង អេងហុង';
+            custEn = 'Chheung Eng Hong Dental Clinic';
           }
 
           currentDoc = {
@@ -547,10 +576,10 @@ export function computeAbaReconciliation(): AbaState {
             entry: custId,
             meta: {
               custNo: custId,
-              custKh: prof.nameKh || (matchedAcc?.name || rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '')),
-              custEn: prof.nameEn || (matchedAcc?.name || rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '')),
-              phone: prof.phone || '',
-              address: prof.address || '',
+              custKh,
+              custEn,
+              phone: prof.phone || (custId === 'C00168' ? '093 65 32 06 , 016 666 187' : ''),
+              address: prof.address || (custId === 'C00168' ? 'Kampong Spue Province' : ''),
               currency: prof.currency || 'USD'
             },
             owed: 0,
@@ -610,43 +639,49 @@ export function computeAbaReconciliation(): AbaState {
     }
   }
 
-  // 2. Read ABA statements
-  const abaCandidates = [
-    path.join(dataDir, 'khema_aba.xlsx'),
-    path.join(dataDir, 'khema_aba.xls'),
-    path.join(dataDir, 'khema_acleda.xlsx'),
-    path.join(dataDir, 'khema_acleda.xls'),
-    path.join(dataDir, 'rms_aba.xlsx'),
-    path.join(dataDir, 'rms_aba.xls'),
-    path.join(dataDir, 'rms_acleda.xlsx'),
-    path.join(dataDir, 'rms_acleda.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_aba.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_aba.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_acleda.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_acleda.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_aba.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_aba.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_acleda.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_acleda.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'aba_statement.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'aba_statement.xls'),
-    path.join('H:\\', 'InvoiceAI', 'aba_statement.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'aba_statement.xls'),
-    path.join('Z:\\', 'InvoiceAI', 'uploads', 'aba_statement.xlsx'),
-    path.join('Z:\\', 'InvoiceAI', 'aba_statement.xlsx'),
-    path.join(dataDir, 'aba_statement.xlsx'),
-    path.join(dataDir, 'aba_statement.xls'),
-    path.join(dataDir, 'aba.xlsx'),
-    path.join(dataDir, 'aba.xls'),
-    path.join(dataDir, 'aba.csv')
-  ];
-  let abaFile = '';
-  for (const c of abaCandidates) {
-    if (fs.existsSync(c)) { abaFile = c; break; }
+  // 2. Read ABA statements: ONLY from uploads folder! Deduplicated per slot
+  const bankSlots = ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'];
+  const bankFilesToRead: string[] = [];
+
+  bankSlots.forEach(slot => {
+    const candidates = [
+      path.join(hUploadsDir, `${slot}.xlsx`),
+      path.join(hUploadsDir, `${slot}.xls`),
+      path.join(hUploadsDir, `${slot}.csv`),
+      path.join(localUploadsDir, `${slot}.xlsx`),
+      path.join(localUploadsDir, `${slot}.xls`),
+      path.join(localUploadsDir, `${slot}.csv`),
+      path.join(zUploadsDir, `${slot}.xlsx`),
+      path.join(zUploadsDir, `${slot}.xls`),
+      path.join(zUploadsDir, `${slot}.csv`)
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        bankFilesToRead.push(c);
+        break; // Exactly one file per slot
+      }
+    }
+  });
+
+  if (bankFilesToRead.length === 0) {
+    const fallbackBank = [
+      path.join(hUploadsDir, 'aba_statement.xlsx'),
+      path.join(hUploadsDir, 'aba_statement.xls'),
+      path.join(localUploadsDir, 'aba_statement.xlsx'),
+      path.join(localUploadsDir, 'aba_statement.xls'),
+      path.join(zUploadsDir, 'aba_statement.xlsx'),
+      path.join(zUploadsDir, 'aba_statement.xls')
+    ];
+    for (const c of fallbackBank) {
+      if (fs.existsSync(c)) {
+        bankFilesToRead.push(c);
+        break;
+      }
+    }
   }
 
   const unmatched: any[] = [];
-  if (abaFile) {
+  for (const abaFile of bankFilesToRead) {
     try {
       const wb = xlsx.readFile(abaFile);
       const aoa: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
@@ -1068,7 +1103,7 @@ export function computeAbaReconciliation(): AbaState {
     return 0; // Keep code order within same group
   });
 
-  // Compute bank & debt slots existence
+  // Compute bank & debt slots existence (strictly from uploads folders)
   const bankSlotsMeta: Record<string, { exists: boolean; name: string }> = {
     khema_aba: { exists: false, name: '' },
     khema_acleda: { exists: false, name: '' },
@@ -1077,10 +1112,12 @@ export function computeAbaReconciliation(): AbaState {
   };
   ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'].forEach(k => {
     const candidates = [
-      path.join(dataDir, `${k}.xlsx`),
-      path.join(dataDir, `${k}.xls`),
-      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}.xlsx`),
-      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}.xls`)
+      path.join(hUploadsDir, `${k}.xlsx`),
+      path.join(hUploadsDir, `${k}.xls`),
+      path.join(hUploadsDir, `${k}.csv`),
+      path.join(localUploadsDir, `${k}.xlsx`),
+      path.join(localUploadsDir, `${k}.xls`),
+      path.join(localUploadsDir, `${k}.csv`)
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) {
@@ -1097,10 +1134,10 @@ export function computeAbaReconciliation(): AbaState {
   };
   ['khema', 'rms', 'newsmile'].forEach(k => {
     const candidates = [
-      path.join(dataDir, `${k}_debt.xlsx`),
-      path.join(dataDir, `${k}_debt.xls`),
-      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}_debt.xlsx`),
-      path.join('H:\\', 'InvoiceAI', 'uploads', `${k}_debt.xls`)
+      path.join(hUploadsDir, `${k}_debt.xlsx`),
+      path.join(hUploadsDir, `${k}_debt.xls`),
+      path.join(localUploadsDir, `${k}_debt.xlsx`),
+      path.join(localUploadsDir, `${k}_debt.xls`)
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) {
@@ -1121,7 +1158,7 @@ export function computeAbaReconciliation(): AbaState {
       tgNotSentCount
     },
     fileNames: {
-      aba: abaFile ? path.basename(abaFile) : '',
+      aba: bankFilesToRead.length ? bankFilesToRead.map(f => path.basename(f)).join(', ') : '',
       debt: debtFilesToRead.length ? debtFilesToRead.map(f => path.basename(f)).join(', ') : '',
       acc: accFile ? path.basename(accFile) : (fs.existsSync(path.join(dataDir, 'customers.xls')) ? 'customers.xls' : '')
     },
@@ -1140,11 +1177,15 @@ export function computeAbaReconciliation(): AbaState {
 export function getAbaState(): AbaState {
   const cached = readJsonFile<AbaState | null>('state.json', null);
   if (cached && cached.doctors && cached.doctors.length > 0) {
-    const abaExists = !cached.fileNames?.aba || fs.existsSync(path.join(dataDir, cached.fileNames.aba));
-    const debtExists = !cached.fileNames?.debt || fs.existsSync(path.join(dataDir, cached.fileNames.debt));
-    if (abaExists && debtExists) {
+    // Invalidate stale cache containing old test name Ong Mach
+    const hasOngMach = cached.doctors.some(d =>
+      (d.name && d.name.toLowerCase().includes('ong mach')) ||
+      (d.customerId === 'C00168' && !d.name.includes('Eng Hong'))
+    );
+    if (!hasOngMach) {
       return cached;
     }
+    console.log('Invalidating stale cache containing old test name Ong Mach');
   }
   return computeAbaReconciliation();
 }
@@ -1200,19 +1241,17 @@ export function syncFromNetworkDriveIfNeeded(): void {
   }
 }
 
-// Save uploaded file and recompute (with archive backup in data/aba/uploads/)
+// Save uploaded file and recompute (strictly in uploads/ subfolder)
 export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string, buffer: Buffer, slotKey?: string): AbaState {
   ensureDataDir();
-  const ext = path.extname(fileName) || '.xlsx';
+  const ext = (path.extname(fileName) || '.xlsx').toLowerCase();
   const cleanOriginalName = path.basename(fileName);
   let targetName = '';
 
   if (fileType === 'aba') {
     targetName = slotKey ? `${slotKey}${ext}` : `aba_statement${ext}`;
-    try { fs.writeFileSync(path.join(dataDir, `aba_statement${ext}`), buffer); } catch {}
   } else if (fileType === 'debt') {
     targetName = slotKey ? `${slotKey}_debt${ext}` : `debts${ext}`;
-    try { fs.writeFileSync(path.join(dataDir, `debts${ext}`), buffer); } catch {}
   } else if (fileType === 'acc') {
     const low = cleanOriginalName.toLowerCase();
     if (low.includes('customer') || low.includes('អតិថិជន') || low.includes('profile')) {
@@ -1222,18 +1261,66 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
     }
   }
 
-  // 1. Save active file in data/aba/
-  fs.writeFileSync(path.join(dataDir, targetName), buffer);
-
-  // 2. Also save permanent copy in data/aba/uploads/ for safe drive storage
+  // 1. Save active file strictly in uploads subfolder (data/aba/uploads/)
   const uploadsDir = path.join(dataDir, 'uploads');
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.writeFileSync(path.join(uploadsDir, targetName), buffer);
 
+  // If slot file, remove older extensions for this slot
+  if (slotKey) {
+    const basePrefix = fileType === 'debt' ? `${slotKey}_debt` : slotKey;
+    ['.xlsx', '.xls', '.csv'].forEach(e => {
+      if (e !== ext) {
+        const altLocal = path.join(uploadsDir, `${basePrefix}${e}`);
+        if (fs.existsSync(altLocal)) { try { fs.unlinkSync(altLocal); } catch {} }
+      }
+    });
+  }
+
+  // 2. Also save timestamped archive backup in data/aba/uploads/
   const timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const backupFileName = `${timeStr}_${fileType}_${cleanOriginalName}`;
-  fs.writeFileSync(path.join(uploadsDir, backupFileName), buffer);
+  try { fs.writeFileSync(path.join(uploadsDir, backupFileName), buffer); } catch {}
 
-  // 3. Record upload in history
+  // 3. Mirror strictly to network drive uploads/ subfolder (H:\InvoiceAI\uploads\)
+  // NEVER write debt or statement files to root H:\InvoiceAI\ !
+  const netDirs = getNetworkDriveAbaDirs();
+  try {
+    for (const zBase of netDirs) {
+      const upDir = path.join(zBase, 'uploads');
+      if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true });
+      fs.writeFileSync(path.join(upDir, targetName), buffer);
+      if (slotKey) {
+        const basePrefix = fileType === 'debt' ? `${slotKey}_debt` : slotKey;
+        ['.xlsx', '.xls', '.csv'].forEach(e => {
+          if (e !== ext) {
+            const altNet = path.join(upDir, `${basePrefix}${e}`);
+            if (fs.existsSync(altNet)) { try { fs.unlinkSync(altNet); } catch {} }
+          }
+        });
+      }
+      console.log(`✓ Synchronized upload file to network drive in uploads (${upDir}/${targetName})`);
+    }
+  } catch (zErr) {
+    console.warn('Could not mirror file to network drive:', zErr);
+  }
+
+  // 4. Clear stale server calculation data/state so calculation uses ONLY newly uploaded files
+  try {
+    const localState = path.join(dataDir, 'state.json');
+    if (fs.existsSync(localState)) fs.unlinkSync(localState);
+    for (const zBase of netDirs) {
+      const netState = path.join(zBase, 'state.json');
+      if (fs.existsSync(netState)) fs.unlinkSync(netState);
+    }
+    // Remove stale root legacy files in dataDir so they never interfere
+    ['debts.xls', 'debts.xlsx', 'aba_statement.xlsx', 'aba_statement.xls'].forEach(sf => {
+      const p = path.join(dataDir, sf);
+      if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
+    });
+  } catch {}
+
+  // 5. Record upload in history
   const histPath = path.join(dataDir, 'uploads_history.json');
   let history: any[] = [];
   if (fs.existsSync(histPath)) {
@@ -1250,27 +1337,15 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   });
   if (history.length > 100) history = history.slice(0, 100);
   fs.writeFileSync(histPath, JSON.stringify(history, null, 2), 'utf-8');
-
-  // 4. Also mirror directly to network drive (clean subfolder: H:\InvoiceAI\uploads)
-  try {
-    const netDirs = getNetworkDriveAbaDirs();
-    for (const zBase of netDirs) {
-      const upDir = path.join(zBase, 'uploads');
-      if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true });
-      fs.writeFileSync(path.join(upDir, targetName), buffer);
-      fs.writeFileSync(path.join(zBase, targetName), buffer);
-      fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8');
-      console.log(`✓ Synchronized upload file to network drive in uploads (${upDir}/${targetName})`);
-    }
-  } catch (zErr) {
-    console.warn('Could not mirror file to network drive:', zErr);
+  for (const zBase of netDirs) {
+    try { fs.writeFileSync(path.join(zBase, 'uploads_history.json'), JSON.stringify(history, null, 2), 'utf-8'); } catch {}
   }
 
-  // Recompute and return state
+  // Recompute fresh from uploaded files and return state
   return computeAbaReconciliation();
 }
 
-// Delete single file (aba, debt, or acc) on server and all network drive locations
+// Delete single file (aba, debt, or acc) on server and network uploads folder
 export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc', slotKey?: string): AbaState {
   ensureDataDir();
   let targetFiles: string[] = [];
@@ -1299,20 +1374,29 @@ export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc', slotKey?: string
   }
 
   const netDirs = getNetworkDriveAbaDirs();
+  const localUploadsDir = path.join(dataDir, 'uploads');
+
   targetFiles.forEach(f => {
+    // Delete from local dataDir and local uploads/
     const p = path.join(dataDir, f);
-    if (fs.existsSync(p)) {
-      try { fs.unlinkSync(p); console.log(`✓ Deleted local file ${f}`); } catch {}
-    }
+    if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
+    const pUp = path.join(localUploadsDir, f);
+    if (fs.existsSync(pUp)) { try { fs.unlinkSync(pUp); } catch {} }
+
+    // Delete ONLY from network drive uploads/ subfolder (never delete master customer files in root H:\)
     netDirs.forEach(dir => {
       try {
-        const zp = path.join(dir, f);
-        if (fs.existsSync(zp)) { fs.unlinkSync(zp); console.log(`✓ Deleted network drive file ${zp}`); }
         const zpUp = path.join(dir, 'uploads', f);
         if (fs.existsSync(zpUp)) { fs.unlinkSync(zpUp); console.log(`✓ Deleted network drive file ${zpUp}`); }
       } catch {}
     });
   });
+
+  // Clear cached state
+  try {
+    const localState = path.join(dataDir, 'state.json');
+    if (fs.existsSync(localState)) fs.unlinkSync(localState);
+  } catch {}
 
   return computeAbaReconciliation();
 }
@@ -1331,33 +1415,67 @@ export function markAbaTelegramSent(name: string, custId?: string, target?: stri
   return computeAbaReconciliation();
 }
 
-// Reset state completely across local and network drives
+// Reset state completely on server while strictly preserving all files in Drive H:\
 export function resetAbaState(): AbaState {
   ensureDataDir();
-  const files = [
+  const filesToDelete = [
     'aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv',
     'khema_aba.xlsx', 'khema_aba.xls', 'khema_acleda.xlsx', 'khema_acleda.xls',
     'rms_aba.xlsx', 'rms_aba.xls', 'rms_acleda.xlsx', 'rms_acleda.xls',
     'debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx',
     'khema_debt.xlsx', 'khema_debt.xls', 'rms_debt.xlsx', 'rms_debt.xls',
     'newsmile_debt.xlsx', 'newsmile_debt.xls',
-    'accounts.xlsx', 'accounts.xls', 'Account id aba.xlsx', 'customers.xls', 'customers.xlsx',
     'state.json'
   ];
-  const netDirs = getNetworkDriveAbaDirs();
-  files.forEach(f => {
+
+  // 1. Delete local working calculation files in dataDir
+  filesToDelete.forEach(f => {
     const p = path.join(dataDir, f);
-    if (fs.existsSync(p)) {
-      try { fs.unlinkSync(p); } catch {}
-    }
-    netDirs.forEach(dir => {
-      try {
-        const zp = path.join(dir, f);
-        if (fs.existsSync(zp)) { fs.unlinkSync(zp); }
-      } catch {}
-    });
+    if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
   });
-  return computeAbaReconciliation();
+
+  // 2. Also clear slot files from local uploads/
+  const localUploadsDir = path.join(dataDir, 'uploads');
+  if (fs.existsSync(localUploadsDir)) {
+    filesToDelete.forEach(f => {
+      const p = path.join(localUploadsDir, f);
+      if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
+    });
+  }
+
+  // 3. Drive H:\ safety: STRICTLY KEEP all customer and account files in Drive H:\!
+  // Only remove temporary cache state.json from H:\InvoiceAI if present.
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      const netState = path.join(dir, 'state.json');
+      if (fs.existsSync(netState)) { fs.unlinkSync(netState); }
+    } catch {}
+  });
+
+  // 4. Return clean empty state
+  const emptyState: AbaState = {
+    success: true,
+    summary: { owed: 0, paid: 0, rem: 0, doctorCount: 0, tgSentCount: 0, tgNotSentCount: 0 },
+    doctors: [],
+    unmatched: [],
+    fileNames: { aba: '', debt: '', acc: '' },
+    bankSlots: {
+      khema_aba: { exists: false, name: '' },
+      khema_acleda: { exists: false, name: '' },
+      rms_aba: { exists: false, name: '' },
+      rms_acleda: { exists: false, name: '' }
+    },
+    debtSlots: {
+      khema: { exists: false, name: '' },
+      rms: { exists: false, name: '' },
+      newsmile: { exists: false, name: '' }
+    },
+    updatedAt: new Date().toISOString()
+  };
+
+  writeJsonFile('state.json', emptyState);
+  return emptyState;
 }
 
 // Synchronize all Customer Profiles & Doctor Accounts to single file in H:\InvoiceAI\Customer_Bank_Account_Number.xlsx
