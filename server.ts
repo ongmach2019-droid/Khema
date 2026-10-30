@@ -13,7 +13,8 @@ import {
   markAbaTelegramSent,
   resetAbaState,
   syncFromNetworkDriveIfNeeded,
-  getNetworkDriveAbaDirs
+  getNetworkDriveAbaDirs,
+  syncCustomerProfilesToFile
 } from './server/abaReconciliation.ts';
 
 // Load .env.local first (local development / secrets), then .env
@@ -138,6 +139,18 @@ app.post('/api/aba/delete-file', (req, res) => {
     res.json({ success: true, state });
   } catch (err: any) {
     console.error('Error in /api/aba/delete-file:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Synchronize all Customer Profiles and Bank Accounts into single file in H:\InvoiceAI\Customer_Bank_Account_Number.xlsx
+app.post('/api/aba/sync-customer-file', (req, res) => {
+  try {
+    const profiles = req.body.profiles;
+    const result = syncCustomerProfilesToFile(profiles);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Error in /api/aba/sync-customer-file:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -128,14 +128,20 @@ summary:hover{background:var(--bg)}
 .btn-tg-pending{padding:2px 8px;font-size:.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer;font-weight:600}
 .btn-tgf{padding:3px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
 .btn-tgf.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
+.btn-doc-payf{padding:3px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
+.btn-doc-payf.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
 .btn-tg-tab{padding:4px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
 .btn-tg-tab.on{background:var(--pr);border-color:var(--pr);color:#fff !important}
 .tg-dir-input{width:100%;height:28px;font-size:.82rem;padding:3px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#0284c7;font-weight:600}
 .tg-dir-input:focus{border-color:#0284c7;outline:none;background:#f0f9ff}
 .btn-cust-tab{padding:4px 10px;font-size:.75rem;border-radius:4px;border:1px solid var(--bd);background:var(--card);cursor:pointer;transition:all .15s}
 .btn-cust-tab.on{background:#059669;border-color:#059669;color:#fff !important}
+.btn-edit-cust{padding:2px 6px;font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:2px}
+.btn-edit-cust:hover{background:#dbeafe}
 .cust-dir-input{width:100%;height:28px;font-size:.82rem;padding:3px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#1e293b}
 .cust-dir-input:focus{border-color:#059669;outline:none;background:#f0fdf4}
+.inv-discount-input{width:75px;padding:2px 4px;font-size:0.75rem;text-align:right;border:1px solid #cbd5e1;border-radius:4px;color:#dc2626;font-weight:600}
+.inv-discount-input:focus{border-color:#dc2626;outline:none;background:#fef2f2}
 @media print {
   #btnToggleEditCust, #custInfoEditPanel, .no-print { display: none !important; }
 }
@@ -529,9 +535,11 @@ summary:hover{background:var(--bg)}
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
           <button type="button" class="btn-cust-tab on" data-custtab="all">ទាំងអស់ (<span id="custTotalCnt">0</span>)</button>
           <button type="button" class="btn-cust-tab" data-custtab="hasAcc" style="color:#0369a1;font-weight:600">✓ មានកុង ABA (<span id="custHasAccCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="missingAcc" style="color:#b45309;font-weight:600">⚠️ ខ្វះលេខកុងធនាគារ (<span id="custMissAccCnt">0</span>)</button>
           <button type="button" class="btn-cust-tab" data-custtab="hasTg" style="color:#0284c7;font-weight:600">✓ មាន Telegram (<span id="custHasTgCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="missingTg" style="color:#7c3aed;font-weight:600">⚠️ ខ្វះតេលេក្រាម (<span id="custMissTgCnt">0</span>)</button>
           <button type="button" class="btn-cust-tab" data-custtab="has" style="color:#047857">✓ មានទូរស័ព្ទ (<span id="custHasCnt">0</span>)</button>
-          <button type="button" class="btn-cust-tab" data-custtab="missing" style="color:#b45309">⚠️ ខ្វះទូរស័ព្ទ (<span id="custMissCnt">0</span>)</button>
+          <button type="button" class="btn-cust-tab" data-custtab="missing" style="color:#64748b">⚠️ ខ្វះទូរស័ព្ទ (<span id="custMissCnt">0</span>)</button>
         </div>
 
         <div style="display:flex;gap:6px;align-items:center">
@@ -558,7 +566,7 @@ summary:hover{background:var(--bg)}
               <th style="width:130px;padding:8px 6px;color:#0284c7">Telegram</th>
               <th style="width:125px;padding:8px 6px">ទូរស័ព្ទ / Tel</th>
               <th style="padding:8px 6px">អាសយដ្ឋាន / Address</th>
-              <th style="width:50px;text-align:center;padding:8px 4px">សកម្មភាព</th>
+              <th style="width:85px;text-align:center;padding:8px 4px">សកម្មភាព</th>
             </tr>
           </thead>
           <tbody id="custDirTableBody">
@@ -569,12 +577,79 @@ summary:hover{background:var(--bg)}
 
       <!-- 4. Footer -->
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid #e2e8f0;font-size:0.8rem">
-        <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save)</span>
+        <span class="mu" id="custDirStatusMsg">💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save) ឬចុច Edit ដើម្បីកែក្នុងផ្ទាំងលម្អិត</span>
         <button type="button" id="btnCloseCustManagerModal2" style="background:#e2e8f0;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600">
           ✕ បិទ
         </button>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- Modal សម្រាប់ Edit ព័ត៌មានអតិថិជន និងគណនីគ្រូពេទ្យលម្អិត -->
+<div id="editCustModal" class="modal-overlay" style="z-index:10005">
+  <div class="modal-card" style="max-width:640px;width:95vw;border-radius:8px;overflow:hidden;box-shadow:0 20px 25px -5px rgba(0,0,0,0.25)">
+    <div class="modal-header" style="background:#1d4ed8;color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center">
+      <h3 style="color:#fff;margin:0;font-size:1.05rem;display:flex;align-items:center;gap:6px">
+        ✏️ កែប្រែព័ត៌មានអតិថិជន & គណនីគ្រូពេទ្យ (<span id="editCustTitleCode"></span>)
+      </h3>
+      <button type="button" id="btnCloseEditCustModal" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+    
+    <div class="modal-body" style="padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8fafc">
+      <input type="hidden" id="editCustCode">
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:10px">
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">Code (Clinic ID):</label>
+          <input type="text" id="editCustCodeDisplay" disabled style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;background:#e2e8f0;font-weight:700;color:#1e293b">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">រូបិយប័ណ្ណ (Currency):</label>
+          <select id="editCustCurrency" style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;background:#fff">
+            <option value="USD">USD ($)</option>
+            <option value="KHR">KHR (៛)</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">ឈ្មោះក្រុមហ៊ុន (ខ្មែរ / 2nd Lang):</label>
+        <input type="text" id="editCustNameKh" placeholder="ឈ្មោះគ្លីនិកជាភាសាខ្មែរ..." style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">Company Name (EN):</label>
+        <input type="text" id="editCustNameEn" placeholder="Company Name in English..." style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#0369a1;display:block;margin-bottom:3px">
+          🏦 លេខកុងធនាគារ (ABA / Bank Acc - ប្រើ <code>/</code> ដើម្បីបំបែកកុងច្រើន)៖
+        </label>
+        <input type="text" id="editCustBankAcc" placeholder="ឧ. 000 566 234 / 001 779 000" style="width:100%;height:34px;padding:4px 8px;border:1.5px solid #38bdf8;border-radius:4px;font-weight:600;color:#0369a1">
+        <span style="font-size:0.72rem;color:#0284c7">💡 ប្រសិនបើមានច្រើនកុង សូមវាយសញ្ញា <code>/</code> ចន្លោះកុងនីមួយៗ (ប្រព័ន្ធស្គាល់ទាំងអស់)</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#0284c7;display:block;margin-bottom:3px">Telegram (@username ឬ ID):</label>
+          <input type="text" id="editCustTelegram" placeholder="@OngMach2026 ឬ Chat ID" style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#0369a1">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">ទូរស័ព្ទ / Telephone:</label>
+          <input type="text" id="editCustPhone" placeholder="077 731 777" style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">ឈ្មោះម្ចាស់គណនី (Account Holder):</label>
+        <input type="text" id="editCustAccountHolder" placeholder="ឈ្មោះម្ចាស់កុងធនាគារ..." style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">អាសយដ្ឋាន / Address:</label>
+        <textarea id="editCustAddress" rows="2" placeholder="អាសយដ្ឋានគ្លីនិក..." style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;font-family:inherit;font-size:0.82rem"></textarea>
+      </div>
+    </div>
+    
+    <div style="background:#f1f5f9;padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e2e8f0">
+      <button type="button" id="btnCancelEditCustModal" style="padding:6px 16px;border:1px solid #cbd5e1;background:#fff;border-radius:4px;cursor:pointer;font-weight:600">✕ បោះបង់</button>
+      <button type="button" id="btnSaveCustModalDetail" style="padding:6px 20px;border:none;background:#1d4ed8;color:#fff;border-radius:4px;cursor:pointer;font-weight:700">💾 រក្សាទុក (Save)</button>
     </div>
   </div>
 </div>
@@ -1069,10 +1144,39 @@ try {
     }
 } catch(e) {}
 
+var DISCOUNT_MAP = {};
+try {
+    var savedDisc = localStorage.getItem('aba_inv_discounts');
+    if(savedDisc) DISCOUNT_MAP = JSON.parse(savedDisc);
+} catch(e) {}
+
+var doctorPayFilter = 'all'; // 'all' | 'paid' | 'partial' | 'unpaid'
+
+var syncCustomerTimeout = null;
+function syncCustomerFileToServer() {
+    if(syncCustomerTimeout) clearTimeout(syncCustomerTimeout);
+    syncCustomerTimeout = setTimeout(() => {
+        if(!CUSTOMER_PROFILES || Object.keys(CUSTOMER_PROFILES).length === 0) return;
+        fetch('/api/aba/sync-customer-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profiles: CUSTOMER_PROFILES })
+        })
+        .then(r => r.json())
+        .then(res => {
+            console.log('✓ Auto-synced customer profiles to H:\\InvoiceAI file:', res);
+        })
+        .catch(err => {
+            console.warn('Sync customer profiles warning:', err);
+        });
+    }, 300);
+}
+
 function saveCustomerProfiles() {
     localStorage.setItem('khema_customer_profiles', JSON.stringify(CUSTOMER_PROFILES));
     if(typeof dbSet === 'function') dbSet('khema_customer_profiles', CUSTOMER_PROFILES);
     updateCustomerCountBadge();
+    syncCustomerFileToServer();
 }
 
 function updateCustomerCountBadge() {
@@ -1393,11 +1497,15 @@ function renderCustManagerTable() {
     var hasPhoneCount = list.filter(x => x.phone && String(x.phone).trim()).length;
     var missPhoneCount = list.length - hasPhoneCount;
     var hasAccCount = list.filter(x => (x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim())).length;
+    var missAccCount = list.length - hasAccCount;
     var hasTgCount = list.filter(x => (x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()])).length;
+    var missTgCount = list.length - hasTgCount;
 
     if($('custTotalCnt')) $('custTotalCnt').textContent = list.length.toLocaleString();
     if($('custHasAccCnt')) $('custHasAccCnt').textContent = hasAccCount.toLocaleString();
+    if($('custMissAccCnt')) $('custMissAccCnt').textContent = missAccCount.toLocaleString();
     if($('custHasTgCnt')) $('custHasTgCnt').textContent = hasTgCount.toLocaleString();
+    if($('custMissTgCnt')) $('custMissTgCnt').textContent = missTgCount.toLocaleString();
     if($('custHasCnt')) $('custHasCnt').textContent = hasPhoneCount.toLocaleString();
     if($('custMissCnt')) $('custMissCnt').textContent = missPhoneCount.toLocaleString();
     updateCustomerCountBadge();
@@ -1408,8 +1516,12 @@ function renderCustManagerTable() {
         list = list.filter(x => !x.phone || !String(x.phone).trim());
     } else if(currentCustManagerTab === 'hasAcc') {
         list = list.filter(x => (x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim()));
+    } else if(currentCustManagerTab === 'missingAcc') {
+        list = list.filter(x => !((x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim())));
     } else if(currentCustManagerTab === 'hasTg') {
         list = list.filter(x => (x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()]));
+    } else if(currentCustManagerTab === 'missingTg') {
+        list = list.filter(x => !((x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()])));
     }
 
     if(search) {
@@ -1452,7 +1564,8 @@ function renderCustManagerTable() {
             '<td><input type="text" class="cust-dir-input" data-field="telegram" data-code="' + esc(item.code) + '" value="' + esc(rawTg) + '" placeholder="@username ឬ Chat ID..." style="color:#0284c7" title="Telegram username ឬ ID សម្រាប់ផ្ញើវិក័យបត្រ"></td>' +
             '<td><input type="text" class="cust-dir-input" data-field="phone" data-code="' + esc(item.code) + '" value="' + esc(item.phone || '') + '" placeholder="ទូរស័ព្ទ..."></td>' +
             '<td><input type="text" class="cust-dir-input" data-field="address" data-code="' + esc(item.code) + '" value="' + esc(item.address || '') + '" placeholder="អាសយដ្ឋាន..."></td>' +
-            '<td style="text-align:center">' +
+            '<td style="text-align:center;white-space:nowrap">' +
+                '<button type="button" class="btn-edit-cust" data-edit-cust="' + esc(item.code) + '" title="កែប្រែព័ត៌មានលម្អិត">✏️ Edit</button> ' +
                 '<button type="button" class="btn-del-cust" data-del-cust="' + esc(item.code) + '" title="លុបអតិថិជននេះ" style="padding:2px 6px;font-size:0.72rem;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:4px;cursor:pointer">🗑️</button>' +
             '</td>' +
         '</tr>';
@@ -1463,6 +1576,71 @@ function renderCustManagerTable() {
     }
 
     tbody.innerHTML = html;
+}
+
+function openEditCustModal(code) {
+    if(!code) return;
+    var cUpper = String(code).trim().toUpperCase();
+    var p = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
+
+    var titleEl = $('editCustTitleCode');
+    if(titleEl) titleEl.textContent = cUpper;
+
+    if($('editCustCode')) $('editCustCode').value = cUpper;
+    if($('editCustCodeDisplay')) $('editCustCodeDisplay').value = cUpper;
+    if($('editCustCurrency')) $('editCustCurrency').value = p.currency || 'USD';
+    if($('editCustNameKh')) $('editCustNameKh').value = p.nameKh || '';
+    if($('editCustNameEn')) $('editCustNameEn').value = p.nameEn || '';
+
+    var bankVal = p.bankAccounts || p.abaAcc || '';
+    if($('editCustBankAcc')) $('editCustBankAcc').value = bankVal;
+
+    var tgVal = p.telegram || '';
+    if(!tgVal && TG_MAP[cUpper]) tgVal = TG_MAP[cUpper];
+    if($('editCustTelegram')) $('editCustTelegram').value = tgVal;
+
+    if($('editCustPhone')) $('editCustPhone').value = p.phone || '';
+    if($('editCustAccountHolder')) $('editCustAccountHolder').value = p.accountHolder || '';
+    if($('editCustAddress')) $('editCustAddress').value = p.address || '';
+
+    var modal = $('editCustModal');
+    if(modal) modal.classList.add('active');
+}
+
+function closeEditCustModal() {
+    var modal = $('editCustModal');
+    if(modal) modal.classList.remove('active');
+}
+
+function saveEditCustModal() {
+    var code = ($('editCustCode') ? $('editCustCode').value : '').trim().toUpperCase();
+    if(!code) return;
+
+    var cur = CUSTOMER_PROFILES[code] || { code: code };
+    var updated = Object.assign({}, cur, {
+        code: code,
+        currency: ($('editCustCurrency') ? $('editCustCurrency').value : 'USD') || 'USD',
+        nameKh: ($('editCustNameKh') ? $('editCustNameKh').value : '').trim(),
+        nameEn: ($('editCustNameEn') ? $('editCustNameEn').value : '').trim(),
+        bankAccounts: ($('editCustBankAcc') ? $('editCustBankAcc').value : '').trim(),
+        telegram: ($('editCustTelegram') ? $('editCustTelegram').value : '').trim(),
+        phone: ($('editCustPhone') ? $('editCustPhone').value : '').trim(),
+        accountHolder: ($('editCustAccountHolder') ? $('editCustAccountHolder').value : '').trim(),
+        address: ($('editCustAddress') ? $('editCustAddress').value : '').trim()
+    });
+
+    saveCustomerProfile(code, updated);
+    syncCustomerFileToServer();
+    closeEditCustModal();
+    renderCustManagerTable();
+
+    var msg = $('custDirStatusMsg');
+    if(msg) {
+        msg.innerHTML = '<span style="color:#16a34a;font-weight:600">✓ បានកែប្រែ និងរក្សាទុកព័ត៌មាន ' + esc(code) + ' ដោយជោគជ័យ!</span>';
+        setTimeout(() => {
+            if(msg) msg.innerHTML = '💡 ចុចលើប្រអប់លេខកុងធនាគារ, Telegram, ទូរស័ព្ទ ឬអាសយដ្ឋាន ដើម្បីកែប្រែភ្លាមៗ (Auto-save) ឬចុច Edit ដើម្បីកែក្នុងផ្ទាំងលម្អិត';
+        }, 3000);
+    }
 }
 
 function addCustomerProfileFromForm() {
@@ -3270,6 +3448,9 @@ function build() {
             }
             var custIdVal = x['Customer ID'] || (p.match(/^([A-Z]\d{4,})/i) ? p.match(/^([A-Z]\d{4,})/i)[1] : '');
 
+            var discKey = (p ? (p + '_' + (inv || (fi*100000+i))) : ('INV_' + (inv || (fi*100000+i))));
+            var savedDiscount = (typeof DISCOUNT_MAP !== 'undefined' && DISCOUNT_MAP[discKey] != null) ? DISCOUNT_MAP[discKey] : (paidBeforeVal || 0);
+
             debts.push({
                 id: fi*100000+i,
                 no: x['No'] || (i+1),
@@ -3283,6 +3464,7 @@ function build() {
                 origAmt: origVal,
                 bal: balVal,
                 paidBefore: paidBeforeVal,
+                discount: savedDiscount,
                 payStatus: payStatusVal,
                 runBal: x['Running Balance'] != null ? x['Running Balance'] : null,
                 entry: en,
@@ -3363,23 +3545,27 @@ function allocateDoctorPayments(D, forceAuto) {
     var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (Math.round(per * 100) / 100);
     D.totalAbaPay = totalAbaPay;
 
-    // Total debt owed
-    D.owed = D.inv.reduce((s, v) => s + ((v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0)), 0);
+    // Total debt owed (after subtracting any discounts on the invoices)
+    D.owed = D.inv.reduce((s, v) => {
+        var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+        return s + Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
+    }, 0);
 
     // If forceAuto is true or no manual adjustments have been made for this doctor yet:
     if(forceAuto || !D.hasManualAlloc) {
         // Reset all invoices for auto matching
         D.inv.forEach(v => {
             var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+            var netAmt = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
             var initPaid = (v.paidBefore != null && !isNaN(v.paidBefore)) ? v.paidBefore : 0;
             v.pb = initPaid;
             v.pp = 0;
             v.paidNow = 0;
-            v.rem = bAmt;
-            v.remaining = bAmt;
-            v.status = 'Unpaid';
-            v.statusKh = 'មិនទាន់សង';
-            sel[v.id] = false;
+            v.rem = netAmt;
+            v.remaining = netAmt;
+            v.status = netAmt <= 0.005 ? 'Fully Paid' : 'Unpaid';
+            v.statusKh = netAmt <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
+            sel[v.id] = (netAmt <= 0.005);
         });
 
         var availablePay = totalAbaPay;
@@ -3419,7 +3605,8 @@ function allocateDoctorPayments(D, forceAuto) {
                         v.pp = Math.round((v.pp + alloc) * 100) / 100;
                         v.paidNow = v.pp;
                         var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
-                        v.rem = Math.max(0, Math.round((bAmt - v.pp) * 100) / 100);
+                        var netAmt = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
+                        v.rem = Math.max(0, Math.round((netAmt - v.pp) * 100) / 100);
                         v.remaining = v.rem;
                         var isFull = v.rem <= 0.005;
                         v.status = isFull ? 'Fully Paid' : 'Partially Paid';
@@ -3442,6 +3629,7 @@ function allocateDoctorPayments(D, forceAuto) {
     // Recalculate totals
     D.paidCurrent = D.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
     D.paidBeforeTotal = D.inv.reduce((s, v) => s + (v.pb || 0), 0);
+    D.discountTotal = D.inv.reduce((s, v) => s + (v.discount || 0), 0);
     D.origTotal = D.inv.reduce((s, v) => s + (v.origAmt || v.amt || 0), 0);
     D.paidTotal = Math.round(D.paidCurrent * 100) / 100;
     D.extra = Math.max(0, Math.round((totalAbaPay - D.paidTotal) * 100) / 100);
@@ -3820,12 +4008,25 @@ function render() {
 
     var sentCount = 0;
     var notSentCount = 0;
+    var fullyPaidCount = 0;
+    var partiallyPaidCount = 0;
+    var unpaidCount = 0;
+
     R.names.forEach(name => {
         var dItem = R.docs[name];
-        if(dItem.inv && dItem.inv.length > 0) {
+        if(!dItem) return;
+        var hasInv = dItem.inv && dItem.inv.length > 0;
+        var hasPay = dItem.pay && dItem.pay.length > 0;
+        if(hasInv) {
             var cId = (dItem.meta && dItem.meta.custNo) || dItem.customerId || (name.match(/^([A-Z]\d+)/i) ? name.match(/^([A-Z]\d+)/i)[1] : '');
             if(isTelegramSent(name, cId)) sentCount++;
             else notSentCount++;
+        }
+        if(hasInv || hasPay) {
+            var isFull = dItem.rem <= 0.005;
+            if(isFull) fullyPaidCount++;
+            else if(dItem.paidTotal > 0.005) partiallyPaidCount++;
+            else unpaidCount++;
         }
     });
 
@@ -3838,12 +4039,19 @@ function render() {
             '<div class="kpi" style="border-left:2px solid #e2e8f0;cursor:pointer" data-set-tgf="sent" title="ចុចដើម្បីមើលតែគ្រូពេទ្យដែលបានផ្ញើ Telegram រួច"><span>✓ ផ្ញើ TG រួច</span><strong class="ok">' + sentCount + '</strong></div>' +
             '<div class="kpi" style="cursor:pointer" data-set-tgf="notsent" title="ចុចដើម្បីមើលតែគ្រូពេទ្យដែលមិនទាន់បានផ្ញើ TG"><span>⏳ មិនទាន់ផ្ញើ TG</span><strong style="color:#dc2626">' + notSentCount + '</strong></div>' +
             '</div>' +
-            '<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;gap:8px;align-items:center">' +
+            '<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;gap:8px;align-items:center;flex-wrap:wrap">' +
             '<span class="mu" style="font-size:0.8rem;font-weight:600">ចម្រាញ់ Telegram៖</span>' +
             '<button type="button" class="btn-tgf' + (tgFilter === 'all' ? ' on' : '') + '" data-tgf="all">ទាំងអស់ (' + (sentCount + notSentCount) + ')</button>' +
             '<button type="button" class="btn-tgf' + (tgFilter === 'notsent' ? ' on' : '') + '" data-tgf="notsent" style="color:#dc2626;border-color:#fca5a5;background:' + (tgFilter === 'notsent' ? '#fee2e2' : '#fff') + '">⏳ មិនទាន់ផ្ញើ (' + notSentCount + ')</button>' +
             '<button type="button" class="btn-tgf' + (tgFilter === 'sent' ? ' on' : '') + '" data-tgf="sent" style="color:#047857;border-color:#86efac;background:' + (tgFilter === 'sent' ? '#dcfce7' : '#fff') + '">✓ ផ្ញើរួច (' + sentCount + ')</button>' +
             (sentCount > 0 ? '<button type="button" id="btnClearAllTgSent" style="margin-left:auto;background:none;border:none;color:#94a3b8;font-size:0.75rem;cursor:pointer;text-decoration:underline">កំណត់ឡើងវិញ (Reset Sent)</button>' : '') +
+            '</div>' +
+            '<div class="row" style="margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0;gap:8px;align-items:center;flex-wrap:wrap">' +
+            '<span class="mu" style="font-size:0.8rem;font-weight:600">ស្ថានភាពទូទាត់៖</span>' +
+            '<button type="button" class="btn-doc-payf' + (doctorPayFilter === 'all' ? ' on' : '') + '" data-payf="all">ទាំងអស់ (' + (fullyPaidCount + partiallyPaidCount + unpaidCount) + ')</button>' +
+            '<button type="button" class="btn-doc-payf' + (doctorPayFilter === 'paid' ? ' on' : '') + '" data-payf="paid" style="color:#047857;border-color:#86efac;background:' + (doctorPayFilter === 'paid' ? '#dcfce7' : '#fff') + '">✓ បានសង (' + fullyPaidCount + ')</button>' +
+            '<button type="button" class="btn-doc-payf' + (doctorPayFilter === 'partial' ? ' on' : '') + '" data-payf="partial" style="color:#b45309;border-color:#fde047;background:' + (doctorPayFilter === 'partial' ? '#fef9c3' : '#fff') + '">⚡ បានសងមួយផ្នែក (' + partiallyPaidCount + ')</button>' +
+            '<button type="button" class="btn-doc-payf' + (doctorPayFilter === 'unpaid' ? ' on' : '') + '" data-payf="unpaid" style="color:#dc2626;border-color:#fca5a5;background:' + (doctorPayFilter === 'unpaid' ? '#fee2e2' : '#fff') + '">⚠️ មិនទាន់សង (' + unpaidCount + ')</button>' +
             '</div>' +
             '</div>';
 
@@ -3860,6 +4068,14 @@ function render() {
 
         if(tgFilter === 'sent' && !sentInfo) return;
         if(tgFilter === 'notsent' && sentInfo) return;
+
+        var isDocFull = D.rem <= 0.005;
+        var isDocPartial = !isDocFull && D.paidTotal > 0.005;
+        var isDocUnpaid = !isDocFull && (!D.paidTotal || D.paidTotal <= 0.005);
+
+        if(doctorPayFilter === 'paid' && !isDocFull) return;
+        if(doctorPayFilter === 'partial' && !isDocPartial) return;
+        if(doctorPayFilter === 'unpaid' && !isDocUnpaid) return;
 
         if(filterTxt && n.toLowerCase().indexOf(filterTxt) === -1) {
             var hasMatchInInvoices = hasInv && D.inv.some(v => 
@@ -3897,7 +4113,7 @@ function render() {
         h += '<details data-doc="' + esc(n) + '"' + ((openDocs.has(n) || filterTxt) ? ' open' : '') + '><summary>' +
              '<div><b>' + esc(n) + '</b></div>' +
              '<div class="row" style="gap:8px;align-items:center">' +
-             '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + (D.paidBeforeTotal > 0.005 ? ' (សងមុន ' + fmt(D.paidBeforeTotal) + ')' : '') + ' · នៅសល់ ' + remHtml + '</span> ' +
+             '<span class="mu">ជំពាក់ ' + fmt(D.owed) + ' · សង ' + fmt(D.paidTotal) + (D.discountTotal > 0.005 ? ' (Discount ' + fmt(D.discountTotal) + ')' : (D.paidBeforeTotal > 0.005 ? ' (សងមុន ' + fmt(D.paidBeforeTotal) + ')' : '')) + ' · នៅសល់ ' + remHtml + '</span> ' +
              st + ' ' +
              tgBadge + ' ' +
              (hasInv ? '<button type="button" class="btn-print-mini" data-print="' + esc(n) + '" title="បោះពុម្ពឯកសារយោង (Print Reference Statement)" style="padding:2px 8px;font-size:0.72rem;border-radius:4px;border:1px solid #0284c7;background:#0284c7;color:#fff;cursor:pointer">🖨️ Print</button>' : '') +
@@ -3953,7 +4169,7 @@ function render() {
 
             h += allocBanner;
             h += '<p class="mu" style="margin-top:0">' +
-                 (D.paidBeforeTotal > 0.005 ? '<span style="color:#b45309;font-weight:600">សងមុនសរុប៖ ' + fmt(D.paidBeforeTotal) + '</span> · ' : '') +
+                 (D.discountTotal > 0.005 ? '<span style="color:#dc2626;font-weight:600">Discount សរុប៖ ' + fmt(D.discountTotal) + '</span> · ' : (D.paidBeforeTotal > 0.005 ? '<span style="color:#b45309;font-weight:600">សងមុនសរុប៖ ' + fmt(D.paidBeforeTotal) + '</span> · ' : '')) +
                  'ប្រាក់ចូលសរុប៖ ' + fmt(totalAbaPay) + ' · ប្រាក់សងវិក័យបត្រពេលនេះ៖ ' + fmt(D.paidTotal) + (remToAlloc > 0.005 ? ' · ប្រាក់លើស ' + fmt(remToAlloc) : '') +
                  ' · <b style="color:var(--tx)">បំណុលនៅសល់ជាក់ស្ដែង៖ ' + fmt(D.rem) + '</b></p>' +
                  '<div class="row" style="margin-bottom:8px">' +
@@ -3977,7 +4193,7 @@ function render() {
                  '<th>បរិយាយ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Description</span></th>' +
                  '<th class="n">ចំនួនទឹកប្រាក់<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Amount</span></th>' +
                  '<th class="n">សមតុល្យ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Running Bal</span></th>' +
-                 '<th class="n">សងមុន</th>' +
+                 '<th class="n" style="color:#dc2626;min-width:85px">Discount<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">បញ្ចុះតម្លៃ</span></th>' +
                  '<th class="n">សងពេលនេះ</th>' +
                  '<th class="n">នៅសល់</th>' +
                  '<th>ស្ថានភាព</th>' +
@@ -4020,7 +4236,9 @@ function render() {
                      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(v.desc) + '">' + esc(v.desc) + '</td>' +
                      '<td class="n">' + fmt(v.amt) + '</td>' +
                      '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : (v.bal != null ? v.bal : v.amt)) + '</td>' +
-                     '<td class="n" style="' + (v.pb > 0 ? 'color:#b45309;font-weight:600' : '') + '">' + fmt(v.pb) + '</td>' +
+                     '<td class="n">' +
+                         '<input type="number" step="any" min="0" class="inv-discount-input" data-doc="' + esc(n) + '" data-inv-id="' + v.id + '" data-inv="' + esc(v.inv || '') + '" value="' + ((v.discount != null && v.discount > 0) ? v.discount : '') + '" placeholder="0.00" title="បញ្ចូលចំនួន Discount បញ្ចុះតម្លៃលើវិក័យបត្រនេះ (ដកភ្លាមៗ)">' +
+                     '</td>' +
                      '<td class="n" style="font-weight:bold;color:' + (v.pp > 0 ? 'var(--ok)' : 'inherit') + '">' + fmt(v.pp) + '</td>' +
                      '<td class="n" style="font-weight:600">' + fmt(v.rem) + '</td>' +
                      '<td>' + s + '</td>' +
@@ -4595,7 +4813,8 @@ function handleInvoiceCheckboxToggle(chk) {
     D.totalAbaPay = totalAbaPay;
     D.hasManualAlloc = true;
 
-    var invBal = (inv.bal != null && !isNaN(inv.bal)) ? inv.bal : (inv.amt || 0);
+    var bAmt = (inv.bal != null && !isNaN(inv.bal)) ? inv.bal : (inv.amt || 0);
+    var invBal = Math.max(0, Math.round((bAmt - (inv.discount || 0)) * 100) / 100);
 
     if(!chk.checked) {
         // UNCHECKING: free up payment
@@ -4654,9 +4873,47 @@ function handleInvoiceCheckboxToggle(chk) {
     render();
 }
 
+function handleDiscountInput(inp) {
+    var docName = inp.dataset.doc;
+    var invId = inp.dataset.invId;
+    var invNum = inp.dataset.inv;
+    if(!res || !res.docs || !res.docs[docName]) return;
+    var D = res.docs[docName];
+    var v = (D.inv || []).find(x => String(x.id) === String(invId) || (invNum && x.inv === invNum));
+    if(!v) return;
+
+    var val = parseFloat(inp.value);
+    if(isNaN(val) || val < 0) val = 0;
+    val = Math.round(val * 100) / 100;
+    v.discount = val;
+
+    var discKey = docName + '_' + (v.inv || v.id);
+    DISCOUNT_MAP[discKey] = val;
+    try {
+        localStorage.setItem('aba_inv_discounts', JSON.stringify(DISCOUNT_MAP));
+    } catch(e) {}
+
+    // Recalculate doctor allocation
+    allocateDoctorPayments(D, true);
+
+    // Update global totals
+    if(res && res.tot && res.names) {
+        res.tot.owed = res.names.reduce((s, n) => s + (res.docs[n] ? res.docs[n].owed : 0), 0);
+        res.tot.paid = res.names.reduce((s, n) => s + (res.docs[n] ? res.docs[n].paidTotal : 0), 0);
+        res.tot.rem = res.names.reduce((s, n) => s + (res.docs[n] ? res.docs[n].rem : 0), 0);
+    }
+
+    render();
+}
+
 document.addEventListener('change', e => {
 
     var t = e.target;
+
+    if(t.classList && t.classList.contains('inv-discount-input')) {
+        handleDiscountInput(t);
+        return;
+    }
 
     if(t.classList && t.classList.contains('tg-dir-input')) {
         saveDoctorTg(t.dataset.id, t.value.trim());
@@ -4788,6 +5045,36 @@ document.addEventListener('click', e => {
         return;
     }
 
+    if(t.dataset.payf) {
+        e.stopPropagation();
+        e.preventDefault();
+        doctorPayFilter = t.dataset.payf;
+        render();
+        return;
+    }
+
+    if(t.dataset.editCust || (t.closest && t.closest('[data-edit-cust]'))) {
+        var btnEdit = t.dataset.editCust ? t : t.closest('[data-edit-cust]');
+        e.stopPropagation();
+        e.preventDefault();
+        openEditCustModal(btnEdit.dataset.editCust);
+        return;
+    }
+
+    if(t.id === 'btnCloseEditCustModal' || t.id === 'btnCancelEditCustModal') {
+        e.stopPropagation();
+        e.preventDefault();
+        closeEditCustModal();
+        return;
+    }
+
+    if(t.id === 'btnSaveCustModalDetail') {
+        e.stopPropagation();
+        e.preventDefault();
+        saveEditCustModal();
+        return;
+    }
+
     if(t.dataset.setTgf || (t.closest && t.closest('[data-set-tgf]'))) {
         var elTgf = t.dataset.setTgf ? t : t.closest('[data-set-tgf]');
         e.stopPropagation();
@@ -4855,6 +5142,7 @@ document.addEventListener('click', e => {
         if(confirm('តើអ្នកចង់លុបព័ត៌មានអតិថិជន ' + n + ' មែនទេ?')) {
             delete CUSTOMER_PROFILES[n.toUpperCase()];
             saveCustomerProfiles();
+            syncCustomerFileToServer();
             renderCustManagerTable();
         }
         return;
@@ -4916,11 +5204,12 @@ document.addEventListener('click', e => {
             D.inv.forEach(v => {
                 sel[v.id] = false;
                 v.pp = 0;
-                v.paidNow = 0;
-                v.rem = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+                var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+                v.rem = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
                 v.remaining = v.rem;
-                v.status = 'Unpaid';
-                v.statusKh = 'មិនទាន់សង';
+                v.status = v.rem <= 0.005 ? 'Fully Paid' : 'Unpaid';
+                v.statusKh = v.rem <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
+                sel[v.id] = (v.rem <= 0.005);
             });
             var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (D.pay || []).reduce((s, p) => s + (p.amt || 0), 0);
             D.paidTotal = 0;
@@ -4984,6 +5273,11 @@ if($('btnExportCustExcel')) $('btnExportCustExcel').onclick = () => exportCustom
 if($('btnImportCustExcel')) $('btnImportCustExcel').onclick = () => { if($('fImportCust')) $('fImportCust').click(); };
 if($('fImportCust')) $('fImportCust').onchange = e => { if(e.target.files && e.target.files[0]) { importCustomerProfilesExcel(e.target.files[0]); e.target.value = ''; } };
 
+if($('btnCloseEditCustModal')) $('btnCloseEditCustModal').onclick = () => closeEditCustModal();
+if($('btnCancelEditCustModal')) $('btnCancelEditCustModal').onclick = () => closeEditCustModal();
+if($('btnSaveCustModalDetail')) $('btnSaveCustModalDetail').onclick = () => saveEditCustModal();
+if($('editCustModal')) $('editCustModal').onclick = e => { if(e.target === $('editCustModal')) closeEditCustModal(); };
+
 ['newCustCode', 'newCustNameKh', 'newCustNameEn', 'newCustPhone', 'newCustAddress'].forEach(id => {
     var el = $(id);
     if(el) {
@@ -4991,6 +5285,18 @@ if($('fImportCust')) $('fImportCust').onchange = e => { if(e.target.files && e.t
             if(e.key === 'Enter') {
                 e.preventDefault();
                 addCustomerProfileFromForm();
+            }
+        });
+    }
+});
+
+['editCustNameKh', 'editCustNameEn', 'editCustBankAcc', 'editCustTelegram', 'editCustPhone', 'editCustAccountHolder', 'editCustAddress'].forEach(id => {
+    var el = $(id);
+    if(el) {
+        el.addEventListener('keydown', e => {
+            if(e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                saveEditCustModal();
             }
         });
     }
@@ -5009,8 +5315,10 @@ document.addEventListener('blur', e => {
 }, true);
 
 document.addEventListener('keydown', e => {
-    if(e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('cust-dir-input')) {
-        e.target.blur();
+    if(e.key === 'Enter' && e.target && e.target.classList) {
+        if(e.target.classList.contains('cust-dir-input') || e.target.classList.contains('inv-discount-input')) {
+            e.target.blur();
+        }
     }
 });
 

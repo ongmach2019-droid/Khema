@@ -1259,3 +1259,123 @@ export function resetAbaState(): AbaState {
   });
   return computeAbaReconciliation();
 }
+
+// Synchronize all Customer Profiles & Doctor Accounts to single file in H:\InvoiceAI\Customer_Bank_Account_Number.xlsx
+export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>): { success: boolean; count: number } {
+  ensureDataDir();
+  let profiles: Record<string, any> = customProfiles || parseCustomerProfiles();
+  if (!profiles || Object.keys(profiles).length === 0) {
+    profiles = parseCustomerProfiles();
+  }
+
+  const list = Object.values(profiles);
+  list.sort((a: any, b: any) => {
+    const aId = a.code || '';
+    const bId = b.code || '';
+    const aNum = aId.match(/\d+/);
+    const bNum = bId.match(/\d+/);
+    if (aNum && bNum && aId.charAt(0) === bId.charAt(0)) {
+      return parseInt(aNum[0]) - parseInt(bNum[0]);
+    }
+    return aId.localeCompare(bId);
+  });
+
+  const aoa: any[][] = [
+    [
+      'Clinic ID',
+      'Clinic Name',
+      'Clinic Name (2nd Lang)',
+      'Account Number',
+      'Name',
+      'Telegram',
+      'Telephone',
+      'Address',
+      'Currency'
+    ]
+  ];
+
+  list.forEach((item: any) => {
+    aoa.push([
+      item.code || '',
+      item.nameEn || '',
+      item.nameKh || '',
+      item.bankAccounts || item.abaAcc || '',
+      item.accountHolder || item.contact || '',
+      item.telegram || '',
+      item.phone || '',
+      item.address || '',
+      item.currency || 'USD'
+    ]);
+  });
+
+  const wb = xlsx.utils.book_new();
+  const ws = xlsx.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    { wch: 14 },
+    { wch: 35 },
+    { wch: 30 },
+    { wch: 30 },
+    { wch: 30 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 45 },
+    { wch: 10 }
+  ];
+  xlsx.utils.book_append_sheet(wb, ws, 'Combined Data');
+
+  // 1. Write to local data/aba/Customer_Bank_Account_Number.xlsx
+  const localTarget = path.join(dataDir, 'Customer_Bank_Account_Number.xlsx');
+  try {
+    xlsx.writeFile(wb, localTarget);
+    console.log(`✓ Saved ${localTarget}`);
+  } catch (err) {
+    console.warn('Could not write local Customer_Bank_Account_Number.xlsx:', err);
+  }
+
+  // 2. Write to public/khema_customers.json
+  const custJsonPath = path.join(process.cwd(), 'public', 'khema_customers.json');
+  try {
+    fs.writeFileSync(custJsonPath, JSON.stringify({ map: profiles, list }, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('Could not write public/khema_customers.json:', err);
+  }
+
+  // 3. Write to accounts_map.json
+  const accList: any[] = [];
+  list.forEach((c: any) => {
+    const raw = String(c.bankAccounts || c.abaAcc || '').trim();
+    if (raw) {
+      const rawParts = raw.split('/').map((p: string) => p.trim()).filter(Boolean);
+      const cleanParts = rawParts.map((p: string) => p.replace(/\D/g, '')).filter(Boolean);
+      accList.push({
+        entry: c.code,
+        customerId: c.code,
+        name: c.nameKh || c.nameEn || c.code,
+        rawAcct: raw,
+        acct: cleanParts[0] || '',
+        accounts: cleanParts,
+        rawAccounts: rawParts,
+        accountHolder: c.accountHolder || '',
+        telegram: c.telegram || ''
+      });
+    }
+  });
+  writeJsonFile('accounts_map.json', accList);
+
+  // 4. Write directly to network drive H:\InvoiceAI\Customer_Bank_Account_Number.xlsx
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      const targetPath = path.join(dir, 'Customer_Bank_Account_Number.xlsx');
+      xlsx.writeFile(wb, targetPath);
+      console.log(`✓ Synced single customer file to network drive: ${targetPath}`);
+      const targetAccMap = path.join(dir, 'accounts_map.json');
+      fs.writeFileSync(targetAccMap, JSON.stringify(accList, null, 2), 'utf8');
+    } catch (err) {
+      console.warn(`Could not sync customer file to network drive ${dir}:`, err);
+    }
+  });
+
+  return { success: true, count: list.length };
+}
+
