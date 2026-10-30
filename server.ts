@@ -96,8 +96,9 @@ app.post('/api/aba/upload', (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing fileType, fileName, or fileBase64/fileData' });
     }
     const cleanB64 = rawB64.replace(/^data:[^;]+;base64,/, '');
+    const slotKey = req.body.slotKey;
     const buffer = Buffer.from(cleanB64, 'base64');
-    const state = uploadAbaFile(fileType, fileName, buffer);
+    const state = uploadAbaFile(fileType, fileName, buffer, slotKey);
     res.json({ success: true, state });
   } catch (err: any) {
     console.error('Error in /api/aba/upload:', err);

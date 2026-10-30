@@ -142,6 +142,16 @@ summary:hover{background:var(--bg)}
 .cust-dir-input:focus{border-color:#059669;outline:none;background:#f0fdf4}
 .inv-discount-input{width:75px;padding:2px 4px;font-size:0.75rem;text-align:right;border:1px solid #cbd5e1;border-radius:4px;color:#dc2626;font-weight:600}
 .inv-discount-input:focus{border-color:#dc2626;outline:none;background:#fef2f2}
+.bank-slot-row,.debt-slot-row{transition:all .15s ease;border:1px solid var(--bd);background:var(--bg);border-radius:6px;padding:6px 8px;cursor:pointer}
+.bank-slot-row:hover,.debt-slot-row:hover{border-color:#0284c7}
+.bank-slot-row.active-slot{border-color:#0284c7 !important;background:rgba(2,132,199,0.08) !important;box-shadow:0 0 0 1.5px #0284c7}
+.debt-slot-row.active-slot{border-color:#059669 !important;background:rgba(5,150,105,0.08) !important;box-shadow:0 0 0 1.5px #059669}
+.debt-filter-btn{background:var(--card);border:1px solid var(--bd);border-radius:4px;cursor:pointer;transition:all .15s}
+.debt-filter-btn.on{background:#0284c7 !important;color:#fff !important;border-color:#0284c7 !important}
+.btn-slot-upload{cursor:pointer;padding:1px 6px;font-size:0.68rem;background:var(--card);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-weight:600;display:inline-flex;align-items:center;gap:3px;transition:all .15s}
+.btn-slot-upload:hover{background:var(--bd)}
+.btn-slot-del{padding:0 5px;font-size:0.7rem;color:#ef4444;border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer;transition:all .15s}
+.btn-slot-del:hover{background:#fee2e2}
 @media print {
   #btnToggleEditCust, #custInfoEditPanel, .no-print { display: none !important; }
 }
@@ -199,33 +209,233 @@ summary:hover{background:var(--bg)}
 
 <div class="row">
 
-<div class="up" style="position:relative">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-    <b id="lblBox1Title">១. តារាងធនាគារ (ABA / ACLEDA)</b>
-    <button type="button" id="delAba" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
+<div class="up" style="position:relative;flex:1.1 1 330px;min-width:310px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <b id="lblBox1Title" style="font-size:0.86rem;color:var(--tx)">១. តារាងធនាគារ (ABA / ACLEDA)</b>
+      <span id="badgeBankCount" class="tag" style="background:#e0f2fe;color:#0369a1;font-weight:700;font-size:0.68rem">0/4 ឯកសារ</span>
+    </div>
+    <button type="button" id="delAbaAll" style="display:none;padding:2px 7px;font-size:0.72rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer" title="លុបឯកសារធនាគារទាំងអស់">🗑️ លុបទាំងអស់</button>
   </div>
-  <div style="margin:4px 0 6px 0">
-    <label style="font-size:0.75rem;font-weight:700;color:#0369a1;display:block;margin-bottom:2px">🏦 ប្រភពគណនីធនាគារ (ជ្រើសរើស ១ ក្នុងចំណោម ៤)៖</label>
-    <select id="selBankSource" style="width:100%;font-size:0.78rem;padding:5px 6px;border:1.5px solid #0284c7;border-radius:6px;background:#f0f9ff;font-weight:700;color:#0369a1;cursor:pointer" title="ជ្រើសរើសគណនីធនាគារដើម្បីកំណត់ Account ID និង Class ID សម្រាប់ AME">
-      <option value="khema_aba">1. Khema (ABA Bank 000 193 633) ➔ ID: 110140 | Class: KHEMA88888</option>
-      <option value="khema_acleda">2. Khema (Acleda Bank 220001747582-31) ➔ ID: 110110 | Class: KHEMA88888</option>
-      <option value="rms_aba">3. RMS (ABA Bank 088 928 555) ➔ ID: 110168 | Class: RMS05022015</option>
-      <option value="rms_acleda">4. RMS (Acleda Bank 220001747582-20) ➔ ID: 110130 | Class: RMS05022015</option>
-    </select>
+
+  <!-- Batch upload button for Box 1 -->
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+    <label class="btn-batch-upload" style="cursor:pointer;flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 10px;font-size:0.75rem;font-weight:700;background:#0284c7;color:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(2,132,199,0.25);transition:all .15s" title="ជ្រើសរើសឯកសារធនាគារម្ដងបានរហូតដល់ ៤ Files (ABA & ACLEDA សម្រាប់ Khema និង RMS)">
+      📂 ផ្ទុកឯកសារធនាគារម្ដងទាំងអស់ (រហូតដល់ ៤)
+      <input type="file" id="fBatchAba" accept=".xlsx,.xls,.csv" multiple style="display:none">
+    </label>
   </div>
-  <span class="mu">Credit, ពិពណ៌នា (ABA ឬ ACLEDA)</span>
-  <input type="file" id="fAba" accept=".xlsx,.xls,.csv">
-  <div class="mu" id="sAba" style="margin-top:4px"></div>
+
+  <!-- Hidden elements for backward compatibility -->
+  <select id="selBankSource" style="display:none">
+    <option value="khema_aba">1. Khema (ABA Bank 000 193 633) ➔ ID: 110140 | Class: KHEMA88888</option>
+    <option value="khema_acleda">2. Khema (Acleda Bank 220001747582-31) ➔ ID: 110110 | Class: KHEMA88888</option>
+    <option value="rms_aba">3. RMS (ABA Bank 088 928 555) ➔ ID: 110168 | Class: RMS05022015</option>
+    <option value="rms_acleda">4. RMS (Acleda Bank 220001747582-20) ➔ ID: 110130 | Class: RMS05022015</option>
+  </select>
+  <input type="file" id="fAba" accept=".xlsx,.xls,.csv" style="display:none">
+  <button type="button" id="delAba" style="display:none"></button>
+
+  <!-- 4 Bank Slots List -->
+  <div style="display:flex;flex-direction:column;gap:5px" id="bankSlotsContainer">
+
+    <!-- Slot 1: khema_aba -->
+    <div class="bank-slot-row active-slot" id="slotCard_khema_aba" data-slot="khema_aba">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radBankSlot" value="khema_aba" checked style="cursor:pointer;margin:0">
+          <span>1. Khema (ABA 000 193 633)</span>
+        </label>
+        <div style="display:flex;gap:3px;align-items:center">
+          <span class="tag" style="background:#e0f2fe;color:#0369a1;font-size:0.62rem;padding:1px 4px">ID: 110140</span>
+          <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">KHEMA88888</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatus_khema_aba" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារសម្រាប់ Khema ABA">
+            📁 ជ្រើស File
+            <input type="file" class="f-bank-slot" data-slot="khema_aba" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="khema_aba" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot 2: khema_acleda -->
+    <div class="bank-slot-row" id="slotCard_khema_acleda" data-slot="khema_acleda">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radBankSlot" value="khema_acleda" style="cursor:pointer;margin:0">
+          <span>2. Khema (Acleda 220001747582-31)</span>
+        </label>
+        <div style="display:flex;gap:3px;align-items:center">
+          <span class="tag" style="background:#e0f2fe;color:#0369a1;font-size:0.62rem;padding:1px 4px">ID: 110110</span>
+          <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">KHEMA88888</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatus_khema_acleda" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារសម្រាប់ Khema Acleda">
+            📁 ជ្រើស File
+            <input type="file" class="f-bank-slot" data-slot="khema_acleda" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="khema_acleda" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot 3: rms_aba -->
+    <div class="bank-slot-row" id="slotCard_rms_aba" data-slot="rms_aba">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radBankSlot" value="rms_aba" style="cursor:pointer;margin:0">
+          <span>3. RMS (ABA 088 928 555)</span>
+        </label>
+        <div style="display:flex;gap:3px;align-items:center">
+          <span class="tag" style="background:#e0f2fe;color:#0369a1;font-size:0.62rem;padding:1px 4px">ID: 110168</span>
+          <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">RMS05022015</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatus_rms_aba" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារសម្រាប់ RMS ABA">
+            📁 ជ្រើស File
+            <input type="file" class="f-bank-slot" data-slot="rms_aba" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="rms_aba" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot 4: rms_acleda -->
+    <div class="bank-slot-row" id="slotCard_rms_acleda" data-slot="rms_acleda">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radBankSlot" value="rms_acleda" style="cursor:pointer;margin:0">
+          <span>4. RMS (Acleda 220001747582-20)</span>
+        </label>
+        <div style="display:flex;gap:3px;align-items:center">
+          <span class="tag" style="background:#e0f2fe;color:#0369a1;font-size:0.62rem;padding:1px 4px">ID: 110130</span>
+          <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">RMS05022015</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatus_rms_acleda" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារសម្រាប់ RMS Acleda">
+            📁 ជ្រើស File
+            <input type="file" class="f-bank-slot" data-slot="rms_acleda" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="rms_acleda" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="mu" id="sAba" style="margin-top:6px;font-size:0.72rem"></div>
 </div>
 
-<div class="up" style="position:relative">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-    <b>២. តារាងវិក័យបត្រ</b>
-    <button type="button" id="delDebt" style="display:none;padding:1px 8px;font-size:0.75rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer">🗑️ លុប</button>
+<div class="up" style="position:relative;flex:1.1 1 330px;min-width:310px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <b style="font-size:0.86rem;color:var(--tx)">២. តារាងវិក័យបត្រ</b>
+      <span id="badgeDebtCount" class="tag" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:0.68rem">0/3 ឯកសារ</span>
+    </div>
+    <button type="button" id="delDebtAll" style="display:none;padding:2px 7px;font-size:0.72rem;color:var(--er);border:1px solid #fca5a5;background:#fef2f2;border-radius:4px;cursor:pointer" title="លុបឯកសារវិក័យបត្រទាំងអស់">🗑️ លុបទាំងអស់</button>
   </div>
-  <span class="mu">ជ្រើសបានច្រើនឯកសារ</span>
-  <input type="file" id="fDebt" accept=".xlsx,.xls,.csv" multiple>
-  <div class="mu" id="sDebt" style="margin-top:4px"></div>
+
+  <!-- Filter tabs for 3 files / classes -->
+  <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+    <button type="button" class="debt-filter-btn pb on" data-filter="all" style="padding:2px 7px;font-size:0.7rem;font-weight:700">✓ ទាំងអស់ (All)</button>
+    <button type="button" class="debt-filter-btn pb" data-filter="khema" style="padding:2px 7px;font-size:0.7rem;font-weight:700">Khema file</button>
+    <button type="button" class="debt-filter-btn pb" data-filter="rms" style="padding:2px 7px;font-size:0.7rem;font-weight:700">RMS file</button>
+    <button type="button" class="debt-filter-btn pb" data-filter="newsmile" style="padding:2px 7px;font-size:0.7rem;font-weight:700">New Smile file</button>
+  </div>
+
+  <!-- Batch upload button for Box 2 -->
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+    <label class="btn-batch-upload" style="cursor:pointer;flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 10px;font-size:0.75rem;font-weight:700;background:#059669;color:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(5,150,105,0.25);transition:all .15s" title="ជ្រើសរើសឯកសារវិក័យបត្រម្ដងបានរហូតដល់ ៣ Files (Khema, RMS, New Smile)">
+      📂 ផ្ទុកវិក័យបត្រម្ដងទាំងអស់ (រហូតដល់ ៣)
+      <input type="file" id="fBatchDebt" accept=".xlsx,.xls,.csv" multiple style="display:none">
+    </label>
+  </div>
+
+  <!-- Hidden elements for backward compatibility -->
+  <input type="file" id="fDebt" accept=".xlsx,.xls,.csv" multiple style="display:none">
+  <button type="button" id="delDebt" style="display:none"></button>
+
+  <!-- 3 Debt Slots List -->
+  <div style="display:flex;flex-direction:column;gap:5px" id="debtSlotsContainer">
+
+    <!-- Slot 1: khema -->
+    <div class="debt-slot-row active-slot" id="slotCardDebt_khema" data-slot="khema">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radDebtSlot" value="khema" checked style="cursor:pointer;margin:0">
+          <span>1. Khema file</span>
+        </label>
+        <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">Class: KHEMA88888</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatusDebt_khema" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារវិក័យបត្រ Khema">
+            📁 ជ្រើស File
+            <input type="file" class="f-debt-slot" data-slot="khema" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="khema" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot 2: rms -->
+    <div class="debt-slot-row" id="slotCardDebt_rms" data-slot="rms">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radDebtSlot" value="rms" style="cursor:pointer;margin:0">
+          <span>2. RMS file</span>
+        </label>
+        <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">Class: RMS05022015</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatusDebt_rms" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារវិក័យបត្រ RMS">
+            📁 ជ្រើស File
+            <input type="file" class="f-debt-slot" data-slot="rms" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="rms" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot 3: newsmile -->
+    <div class="debt-slot-row" id="slotCardDebt_newsmile" data-slot="newsmile">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:0.76rem;margin:0">
+          <input type="radio" name="radDebtSlot" value="newsmile" style="cursor:pointer;margin:0">
+          <span>3. New Smile file</span>
+        </label>
+        <span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.62rem;padding:1px 4px">Class: NEWSMILE</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;padding-left:18px">
+        <span id="slotStatusDebt_newsmile" style="font-size:0.7rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">⚪ មិនទាន់មាន File</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <label class="btn-slot-upload" title="ផ្ទុកឯកសារវិក័យបត្រ New Smile">
+            📁 ជ្រើស File
+            <input type="file" class="f-debt-slot" data-slot="newsmile" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+          <button type="button" class="btn-slot-del" data-slot="newsmile" style="display:none" title="លុប File នេះ">✕</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="mu" id="sDebt" style="margin-top:6px;font-size:0.72rem"></div>
 </div>
 
 <div class="up" style="position:relative">
@@ -772,6 +982,424 @@ function applyBankProfile(key) {
     localStorage.setItem(ST_KEYS.classId, p.classId);
 }
 
+// ============================================================================
+// MULTI-SLOT SYSTEM (4 Bank Slots + 3 Debt Slots with Two-Way Auto Linkage)
+// ============================================================================
+
+var BANK_SLOTS = {
+    'khema_aba': { name: '', raw: null, m: {}, count: 0 },
+    'khema_acleda': { name: '', raw: null, m: {}, count: 0 },
+    'rms_aba': { name: '', raw: null, m: {}, count: 0 },
+    'rms_acleda': { name: '', raw: null, m: {}, count: 0 }
+};
+
+var DEBT_SLOTS = {
+    'khema': { name: '', files: [], hdr: {}, count: 0 },
+    'rms': { name: '', files: [], hdr: {}, count: 0 },
+    'newsmile': { name: '', files: [], hdr: {}, count: 0 }
+};
+
+var activeBankKey = localStorage.getItem('aba_bank_source_key') || 'khema_aba';
+var activeDebtKey = localStorage.getItem('aba_debt_filter_key') || 'all';
+
+function saveBankSlotsToStorage() {
+    try { dbSet('bank_slots_state', BANK_SLOTS); } catch(e){}
+}
+
+function saveDebtSlotsToStorage() {
+    try { dbSet('debt_slots_state', DEBT_SLOTS); } catch(e){}
+}
+
+function rebuildDebtFiles() {
+    FILES = [];
+    HDR = {};
+    if (activeDebtKey === 'all') {
+        ['khema', 'rms', 'newsmile'].forEach(k => {
+            var slot = DEBT_SLOTS[k];
+            if (slot && slot.files && slot.files.length) {
+                slot.files.forEach(f => FILES.push(f));
+                if (slot.hdr) Object.assign(HDR, slot.hdr);
+            }
+        });
+        var allNames = ['khema', 'rms', 'newsmile']
+            .map(k => DEBT_SLOTS[k]?.name)
+            .filter(Boolean)
+            .join(', ');
+        FILE_NAMES.debt = allNames;
+        localStorage.setItem('debt_file_name', allNames);
+    } else {
+        var slot = DEBT_SLOTS[activeDebtKey];
+        if (slot && slot.files && slot.files.length) {
+            FILES = slot.files.slice();
+            HDR = Object.assign({}, slot.hdr || {});
+            FILE_NAMES.debt = slot.name || '';
+            localStorage.setItem('debt_file_name', slot.name || '');
+        } else {
+            FILES = [];
+            HDR = {};
+            FILE_NAMES.debt = '';
+        }
+    }
+}
+
+function setActiveBankSlot(slotKey, syncDebt) {
+    if (!BANK_PROFILES[slotKey]) slotKey = 'khema_aba';
+    activeBankKey = slotKey;
+    localStorage.setItem('aba_bank_source_key', slotKey);
+
+    // Apply Bank Profile (Account ID and Class ID)
+    applyBankProfile(slotKey);
+
+    // Set Active Bank Statement for Reconciliation
+    var slot = BANK_SLOTS[slotKey];
+    if (slot && slot.raw) {
+        RAW.aba = slot.raw;
+        M.aba = slot.m || (RAW.aba && RAW.aba.m) || {};
+        FILE_NAMES.aba = slot.name || '';
+        localStorage.setItem('aba_file_name', slot.name || '');
+    } else {
+        RAW.aba = null;
+        M.aba = {};
+        aba = [];
+        FILE_NAMES.aba = '';
+        localStorage.removeItem('aba_file_name');
+    }
+
+    // Auto-link to Table 2 (Debts / Invoices)
+    if (syncDebt !== false) {
+        if (slotKey === 'khema_aba' || slotKey === 'khema_acleda') {
+            if (activeDebtKey === 'rms' || activeDebtKey === 'newsmile') {
+                setActiveDebtFilter('khema', false);
+                return;
+            }
+        } else if (slotKey === 'rms_aba' || slotKey === 'rms_acleda') {
+            if (activeDebtKey === 'khema' || activeDebtKey === 'newsmile') {
+                setActiveDebtFilter('rms', false);
+                return;
+            }
+        }
+    }
+
+    rebuildDebtFiles();
+    if (typeof run === 'function') run();
+    if (typeof updateBoxUI === 'function') updateBoxUI();
+}
+
+function setActiveDebtFilter(filterKey, syncBank) {
+    if (!['all', 'khema', 'rms', 'newsmile'].includes(filterKey)) filterKey = 'all';
+    activeDebtKey = filterKey;
+    localStorage.setItem('aba_debt_filter_key', filterKey);
+
+    // Auto-link to Table 1 (Bank Accounts & Class ID)
+    if (syncBank !== false) {
+        if (filterKey === 'khema') {
+            if (activeBankKey === 'rms_aba' || activeBankKey === 'rms_acleda') {
+                var targetBank = (BANK_SLOTS['khema_aba']?.name) ? 'khema_aba' : ((BANK_SLOTS['khema_acleda']?.name) ? 'khema_acleda' : 'khema_aba');
+                setActiveBankSlot(targetBank, false);
+                return;
+            } else {
+                applyBankProfile(activeBankKey);
+            }
+        } else if (filterKey === 'rms') {
+            if (activeBankKey === 'khema_aba' || activeBankKey === 'khema_acleda') {
+                var targetBank = (BANK_SLOTS['rms_aba']?.name) ? 'rms_aba' : ((BANK_SLOTS['rms_acleda']?.name) ? 'rms_acleda' : 'rms_aba');
+                setActiveBankSlot(targetBank, false);
+                return;
+            } else {
+                applyBankProfile(activeBankKey);
+            }
+        } else if (filterKey === 'newsmile') {
+            if ($('classId')) $('classId').value = 'NEWSMILE';
+            localStorage.setItem(ST_KEYS.classId, 'NEWSMILE');
+        }
+    }
+
+    rebuildDebtFiles();
+    if (typeof run === 'function') run();
+    if (typeof updateBoxUI === 'function') updateBoxUI();
+}
+
+function processBankSlotFile(slotKey, file) {
+    if (!file) return;
+    if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('aba', file);
+    readWB(file, wb => {
+        var allSheets = sheetsOf(wb);
+        allSheets.forEach(s => {
+            if (typeof ingestCustomerList === 'function') ingestCustomerList(s);
+            if (typeof ingestTelegramMap === 'function') ingestTelegramMap(s);
+        });
+        var t = allSheets.sort((a,b) => b.rows.length - a.rows.length)[0];
+        if (t) {
+            t.m = smart('aba', t);
+            BANK_SLOTS[slotKey] = {
+                name: file.name,
+                raw: t,
+                m: t.m,
+                count: (t.rows ? t.rows.length : 0)
+            };
+            saveBankSlotsToStorage();
+            if (activeBankKey === slotKey || !BANK_SLOTS[activeBankKey]?.raw) {
+                setActiveBankSlot(slotKey, true);
+            } else {
+                updateBoxUI();
+            }
+        }
+    });
+}
+
+function processDebtSlotFile(slotKey, file) {
+    if (!file) return;
+    if (typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive('debt', file);
+    readWB(file, wb => {
+        var ts = sheetsOf(wb), dt = null;
+        var slotHdr = {};
+        ts.forEach(t => {
+            if (typeof ingestCustomerList === 'function') ingestCustomerList(t);
+            if (typeof ingestTelegramMap === 'function') ingestTelegramMap(t);
+            if (hasH(t, /acc|aba/i) && hasH(t, /^name$|ឈ្មោះ/i) && !hasH(t, /invoice|inv|វិក័យ/i)) {
+                if (typeof ingestAcc === 'function') ingestAcc(t);
+            } else if (hasH(t, /entry/i) && (hasH(t, /customer/i) || hasH(t, /type/i) || hasH(t, /cash|bank/i) || hasH(t, /prefix/i)) && !hasH(t, /invoice|inv|វិក័យ|វិក្កយ/i)) {
+                var enKey = t.h.find(h => /entry/i.test(h)) || 'Entry No';
+                t.rows.forEach(x => { var en = String(x[enKey]||'').trim(); if(en) { HDR[en] = x; slotHdr[en] = x; } });
+                if (typeof ingestAcc === 'function') ingestAcc(t);
+            } else if (!dt && hasH(t, /invoice|inv|វិក័យ|វិក្កយ|bill|doc/i)) {
+                dt = t;
+            }
+        });
+        ts.forEach(t => {
+            if (t !== dt && (hasH(t, /acc|aba/i) || hasH(t, /^name$|ឈ្មោះ/i))) {
+                if (typeof ingestAcc === 'function') ingestAcc(t);
+            }
+        });
+        if (!dt) dt = ts.slice().sort((a,b) => b.rows.length - a.rows.length)[0];
+        if (dt) {
+            dt.name = file.name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, '');
+            dt.m = smart('debt', dt);
+            DEBT_SLOTS[slotKey] = {
+                name: file.name,
+                files: [dt],
+                hdr: slotHdr,
+                count: (dt.rows ? dt.rows.length : 0)
+            };
+            saveDebtSlotsToStorage();
+            if (activeDebtKey === slotKey || activeDebtKey === 'all') {
+                rebuildDebtFiles();
+                if (typeof run === 'function') run();
+                if (typeof updateBoxUI === 'function') updateBoxUI();
+            } else {
+                setActiveDebtFilter(slotKey, true);
+            }
+        }
+    });
+}
+
+function handleBatchBankUpload(files) {
+    if (!files || !files.length) return;
+    var fileArr = [].slice.call(files).slice(0, 4);
+    var assignedSlots = {};
+    fileArr.forEach(f => {
+        var low = f.name.toLowerCase();
+        var targetSlot = '';
+        if (low.includes('acleda') && (low.includes('rms') || low.includes('20'))) {
+            targetSlot = 'rms_acleda';
+        } else if (low.includes('acleda') || low.includes('31')) {
+            targetSlot = 'khema_acleda';
+        } else if (low.includes('rms') || low.includes('555')) {
+            targetSlot = 'rms_aba';
+        } else if (low.includes('khema') || low.includes('633')) {
+            targetSlot = 'khema_aba';
+        }
+
+        var allKeys = ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'];
+        if (!targetSlot || assignedSlots[targetSlot]) {
+            targetSlot = allKeys.find(k => !assignedSlots[k]) || allKeys[0];
+        }
+        assignedSlots[targetSlot] = f;
+        processBankSlotFile(targetSlot, f);
+    });
+}
+
+function handleBatchDebtUpload(files) {
+    if (!files || !files.length) return;
+    var fileArr = [].slice.call(files).slice(0, 3);
+    var assignedSlots = {};
+    fileArr.forEach(f => {
+        var low = f.name.toLowerCase();
+        var targetSlot = '';
+        if (low.includes('rms')) {
+            targetSlot = 'rms';
+        } else if (low.includes('smile') || low.includes('new')) {
+            targetSlot = 'newsmile';
+        } else if (low.includes('khema') || low.includes('aged') || low.includes('receivable')) {
+            targetSlot = 'khema';
+        }
+
+        var allKeys = ['khema', 'rms', 'newsmile'];
+        if (!targetSlot || assignedSlots[targetSlot]) {
+            targetSlot = allKeys.find(k => !assignedSlots[k]) || allKeys[0];
+        }
+        assignedSlots[targetSlot] = f;
+        processDebtSlotFile(targetSlot, f);
+    });
+}
+
+function clearBankSlot(slotKey) {
+    if (!confirm('តើអ្នកពិតជាចង់លុបឯកសារធនាគារក្នុង Slot នេះមែនទេ?')) return;
+    BANK_SLOTS[slotKey] = { name: '', raw: null, m: {}, count: 0 };
+    saveBankSlotsToStorage();
+    if (activeBankKey === slotKey) {
+        RAW.aba = null;
+        M.aba = {};
+        aba = [];
+        FILE_NAMES.aba = '';
+        localStorage.removeItem('aba_file_name');
+        if (typeof run === 'function') run();
+    }
+    updateBoxUI();
+}
+
+function clearAllBankSlots() {
+    if (!confirm('តើអ្នកពិតជាចង់លុបឯកសារធនាគារទាំង ៤ slots មែនទេ?')) return;
+    ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'].forEach(k => {
+        BANK_SLOTS[k] = { name: '', raw: null, m: {}, count: 0 };
+    });
+    saveBankSlotsToStorage();
+    RAW.aba = null;
+    M.aba = {};
+    aba = [];
+    FILE_NAMES.aba = '';
+    localStorage.removeItem('aba_file_name');
+    if (typeof run === 'function') run();
+    updateBoxUI();
+}
+
+function clearDebtSlot(slotKey) {
+    if (!confirm('តើអ្នកពិតជាចង់លុបឯកសារវិក័យបត្រក្នុង Slot នេះមែនទេ?')) return;
+    DEBT_SLOTS[slotKey] = { name: '', files: [], hdr: {}, count: 0 };
+    saveDebtSlotsToStorage();
+    rebuildDebtFiles();
+    if (typeof run === 'function') run();
+    updateBoxUI();
+}
+
+function clearAllDebtSlots() {
+    if (!confirm('តើអ្នកពិតជាចង់លុបឯកសារវិក័យបត្រទាំង ៣ slots មែនទេ?')) return;
+    ['khema', 'rms', 'newsmile'].forEach(k => {
+        DEBT_SLOTS[k] = { name: '', files: [], hdr: {}, count: 0 };
+    });
+    saveDebtSlotsToStorage();
+    FILES = [];
+    debts = [];
+    FILE_NAMES.debt = '';
+    localStorage.removeItem('debt_file_name');
+    if (typeof run === 'function') run();
+    updateBoxUI();
+}
+
+function initMultiFileSlots() {
+    document.querySelectorAll('.bank-slot-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-slot-upload') || e.target.closest('.btn-slot-del') || e.target.closest('input[type="file"]')) return;
+            var slot = this.getAttribute('data-slot');
+            if (slot) setActiveBankSlot(slot, true);
+        });
+    });
+
+    document.querySelectorAll('input[name="radBankSlot"]').forEach(rad => {
+        rad.addEventListener('change', function() {
+            if (this.checked) setActiveBankSlot(this.value, true);
+        });
+    });
+
+    document.querySelectorAll('.f-bank-slot').forEach(input => {
+        input.addEventListener('change', function(e) {
+            var slot = this.getAttribute('data-slot');
+            if (slot && e.target.files && e.target.files[0]) {
+                processBankSlotFile(slot, e.target.files[0]);
+                this.value = '';
+            }
+        });
+    });
+
+    document.querySelectorAll('.bank-slot-row .btn-slot-del').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var slot = this.getAttribute('data-slot');
+            if (slot) clearBankSlot(slot);
+        });
+    });
+
+    var fBatchAbaEl = $('fBatchAba');
+    if (fBatchAbaEl) {
+        fBatchAbaEl.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files.length) {
+                handleBatchBankUpload(e.target.files);
+                this.value = '';
+            }
+        });
+    }
+
+    var delAbaAllEl = $('delAbaAll');
+    if (delAbaAllEl) {
+        delAbaAllEl.addEventListener('click', clearAllBankSlots);
+    }
+
+    document.querySelectorAll('.debt-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            var filter = this.getAttribute('data-filter');
+            if (filter) setActiveDebtFilter(filter, true);
+        });
+    });
+
+    document.querySelectorAll('.debt-slot-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-slot-upload') || e.target.closest('.btn-slot-del') || e.target.closest('input[type="file"]')) return;
+            var slot = this.getAttribute('data-slot');
+            if (slot) setActiveDebtFilter(slot, true);
+        });
+    });
+
+    document.querySelectorAll('input[name="radDebtSlot"]').forEach(rad => {
+        rad.addEventListener('change', function() {
+            if (this.checked) setActiveDebtFilter(this.value, true);
+        });
+    });
+
+    document.querySelectorAll('.f-debt-slot').forEach(input => {
+        input.addEventListener('change', function(e) {
+            var slot = this.getAttribute('data-slot');
+            if (slot && e.target.files && e.target.files[0]) {
+                processDebtSlotFile(slot, e.target.files[0]);
+                this.value = '';
+            }
+        });
+    });
+
+    document.querySelectorAll('.debt-slot-row .btn-slot-del').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var slot = this.getAttribute('data-slot');
+            if (slot) clearDebtSlot(slot);
+        });
+    });
+
+    var fBatchDebtEl = $('fBatchDebt');
+    if (fBatchDebtEl) {
+        fBatchDebtEl.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files.length) {
+                handleBatchDebtUpload(e.target.files);
+                this.value = '';
+            }
+        });
+    }
+
+    var delDebtAllEl = $('delDebtAll');
+    if (delDebtAllEl) {
+        delDebtAllEl.addEventListener('click', clearAllDebtSlots);
+    }
+}
+window.initMultiFileSlots = initMultiFileSlots;
+
 var ST_KEYS = {
     bank: 'aba_bank',
     cur: 'aba_cur',
@@ -936,29 +1564,105 @@ function hideServerLoading() {
 }
 
 function updateBoxUI() {
-    // 1. ABA Box
-    var nmAba = FILE_NAMES.aba || localStorage.getItem('aba_file_name') || '';
-    var hasAba = !!nmAba || !!(RAW.aba && RAW.aba.rows && RAW.aba.rows.length);
-    if(hasAba) {
-        if($('delAba')) $('delAba').style.display = 'inline-block';
-        var cntAba = (aba && aba.length) ? (aba.length + ' ប្រតិបត្តិការ') : (res && res.unmatched ? 'បានផ្ទៀងផ្ទាត់' : 'រក្សាទុកលើ Server');
-        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmAba || 'ឯកសារ ABA') + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntAba;
+    // 1. Bank Slots UI (4 slots)
+    var bankKeys = ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'];
+    var loadedBankCount = 0;
+    bankKeys.forEach(k => {
+        var card = $('slotCard_' + k);
+        var statusEl = $('slotStatus_' + k);
+        var rad = document.querySelector('input[name="radBankSlot"][value="' + k + '"]');
+        var delBtn = document.querySelector('.bank-slot-row .btn-slot-del[data-slot="' + k + '"]');
+        var slotData = BANK_SLOTS[k];
+        var isLoaded = !!(slotData && slotData.name && slotData.raw);
+        if (isLoaded) loadedBankCount++;
+
+        if (card) {
+            if (k === activeBankKey) card.classList.add('active-slot');
+            else card.classList.remove('active-slot');
+        }
+        if (rad) rad.checked = (k === activeBankKey);
+
+        if (statusEl) {
+            if (isLoaded) {
+                var cntStr = slotData.count ? (slotData.count + ' ជួរ') : 'បានផ្ទុក';
+                statusEl.innerHTML = '<span style="color:#059669;font-weight:600">🟢 ' + esc(slotData.name) + ' (' + cntStr + ')</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--mu)">⚪ មិនទាន់មាន File</span>';
+            }
+        }
+        if (delBtn) delBtn.style.display = isLoaded ? 'inline-block' : 'none';
+    });
+
+    if ($('badgeBankCount')) {
+        $('badgeBankCount').textContent = loadedBankCount + '/4 ឯកសារ';
+        $('badgeBankCount').style.background = loadedBankCount > 0 ? '#dcfce7' : '#e0f2fe';
+        $('badgeBankCount').style.color = loadedBankCount > 0 ? '#15803d' : '#0369a1';
+    }
+    if ($('delAbaAll')) $('delAbaAll').style.display = loadedBankCount > 0 ? 'inline-block' : 'none';
+
+    var curBankSlot = BANK_SLOTS[activeBankKey];
+    if (curBankSlot && curBankSlot.name) {
+        var cntAba = (aba && aba.length) ? (aba.length + ' ប្រតិបត្តិការ') : 'បានជ្រើស';
+        $('sAba').innerHTML = '<span style="color:var(--tx);font-weight:700">សកម្ម៖ ' + esc(curBankSlot.name) + '</span> <span class="tag ok" style="font-size:0.65rem">Active</span><br><span style="font-size:0.75rem;color:var(--mu)">' + cntAba + '</span>';
     } else {
-        if($('delAba')) $('delAba').style.display = 'none';
-        $('sAba').innerHTML = '';
+        $('sAba').innerHTML = '<span style="color:var(--mu);font-size:0.75rem">សូមជ្រើស ឬផ្ទុក File សម្រាប់ Slot សកម្ម</span>';
     }
 
-    // 2. Debts Box
-    var nmDebt = FILE_NAMES.debt || localStorage.getItem('debt_file_name') || '';
-    var hasDebt = !!nmDebt || !!(FILES && FILES.length);
-    if(hasDebt) {
-        if($('delDebt')) $('delDebt').style.display = 'inline-block';
-        var cntInv = (res && res.names && res.names.length) ? (res.names.length + ' គ្រូពេទ្យ') : (FILES && FILES.length ? (FILES.length + ' ឯកសារ') : 'រក្សាទុកលើ Server');
-        $('sDebt').innerHTML = '<span style="color:var(--tx);font-weight:600">' + esc(nmDebt || 'ឯកសារវិក័យបត្រ') + '</span> <span class="tag ok" style="font-size:0.65rem">Server Ready</span><br>' + cntInv;
-    } else {
-        if($('delDebt')) $('delDebt').style.display = 'none';
-        $('sDebt').innerHTML = '';
+    // 2. Debt Slots UI (3 slots + Filter Tabs)
+    var debtKeys = ['khema', 'rms', 'newsmile'];
+    var loadedDebtCount = 0;
+    debtKeys.forEach(k => {
+        var card = $('slotCardDebt_' + k);
+        var statusEl = $('slotStatusDebt_' + k);
+        var rad = document.querySelector('input[name="radDebtSlot"][value="' + k + '"]');
+        var delBtn = document.querySelector('.debt-slot-row .btn-slot-del[data-slot="' + k + '"]');
+        var slotData = DEBT_SLOTS[k];
+        var isLoaded = !!(slotData && slotData.name && slotData.files && slotData.files.length);
+        if (isLoaded) loadedDebtCount++;
+
+        if (card) {
+            if (activeDebtKey === k || activeDebtKey === 'all') card.classList.add('active-slot');
+            else card.classList.remove('active-slot');
+        }
+        if (rad) rad.checked = (k === activeDebtKey);
+
+        if (statusEl) {
+            if (isLoaded) {
+                var cntStr = slotData.count ? (slotData.count + ' វិក័យបត្រ') : 'បានផ្ទុក';
+                statusEl.innerHTML = '<span style="color:#059669;font-weight:600">🟢 ' + esc(slotData.name) + ' (' + cntStr + ')</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--mu)">⚪ មិនទាន់មាន File</span>';
+            }
+        }
+        if (delBtn) delBtn.style.display = isLoaded ? 'inline-block' : 'none';
+    });
+
+    // Update filter tab buttons
+    document.querySelectorAll('.debt-filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-filter') === activeDebtKey) btn.classList.add('on');
+        else btn.classList.remove('on');
+    });
+
+    if ($('badgeDebtCount')) {
+        $('badgeDebtCount').textContent = loadedDebtCount + '/3 ឯកសារ';
+        $('badgeDebtCount').style.background = loadedDebtCount > 0 ? '#dcfce7' : '#f1f5f9';
+        $('badgeDebtCount').style.color = loadedDebtCount > 0 ? '#15803d' : 'var(--mu)';
     }
+    if ($('delDebtAll')) $('delDebtAll').style.display = loadedDebtCount > 0 ? 'inline-block' : 'none';
+
+    var debtSummaryText = '';
+    if (activeDebtKey === 'all') {
+        var totalLoadedInv = (res && res.names && res.names.length) ? (res.names.length + ' គ្រូពេទ្យ') : (FILES && FILES.length ? (FILES.length + ' ឯកសារ') : 'ទាំងអស់');
+        debtSummaryText = '<span style="color:var(--tx);font-weight:700">តារាងវិក័យបត្រ៖ ទាំងអស់ (All)</span> <span class="tag ok" style="font-size:0.65rem">' + totalLoadedInv + '</span>';
+    } else {
+        var curDebt = DEBT_SLOTS[activeDebtKey];
+        if (curDebt && curDebt.name) {
+            debtSummaryText = '<span style="color:var(--tx);font-weight:700">សកម្ម៖ ' + esc(curDebt.name) + '</span> <span class="tag ok" style="font-size:0.65rem">' + (curDebt.count || 0) + ' វិក័យបត្រ</span>';
+        } else {
+            debtSummaryText = '<span style="color:var(--mu);font-size:0.75rem">មិនទាន់មាន File ក្នុង Slot ' + activeDebtKey + '</span>';
+        }
+    }
+    if ($('sDebt')) $('sDebt').innerHTML = debtSummaryText;
 
     // 3. Accounts Box
     var nmAcc = FILE_NAMES.acc || localStorage.getItem('acc_file_name') || '';
@@ -971,7 +1675,7 @@ function updateBoxUI() {
         } else {
             if($('delAcc')) $('delAcc').style.display = 'none';
             var cntAccAuto = (ACC && ACC.length) ? ACC.length : 0;
-            $('sAcc').innerHTML = '<span style="color:#059669;font-weight:700">🟢 ស្គាល់អូតូមកពីបញ្ជីអតិថិជន</span> <span class="tag ok" style="font-size:0.65rem">Auto Linked</span><br><span style="color:#475569;font-size:0.75rem">' + cntAccAuto.toLocaleString() + ' គណនីគ្រូពេទ្យ</span>';
+            $('sAcc').innerHTML = '<span style="color:#059669;font-weight:700">🟢 ស្គាល់អូតូមកពីបញ្ជីអតិថិជន</span> <span class="tag ok" style="font-size:0.65rem">Auto Linked</span><br><span style="color:var(--mu);font-size:0.75rem">' + cntAccAuto.toLocaleString() + ' គណនីគ្រូពេទ្យ</span>';
         }
     } else {
         if($('delAcc')) $('delAcc').style.display = 'none';
@@ -2944,7 +3648,7 @@ function applyServerState(state) {
     return true;
 }
 
-function uploadAbaFileToServer(fileType, file) {
+function uploadAbaFileToServer(fileType, file, slotKey) {
     if(typeof mirrorFileToZDrive === 'function') mirrorFileToZDrive(fileType, file);
     showServerLoading('កំពុងផ្ទុកឯកសារ ' + file.name + ' និងគណនាលើ Server (កុំបារម្ភ មិនគាំងទេ)...');
     var reader = new FileReader();
@@ -2956,6 +3660,7 @@ function uploadAbaFileToServer(fileType, file) {
             body: JSON.stringify({
                 fileType: fileType,
                 fileName: file.name,
+                slotKey: slotKey || '',
                 fileBase64: base64Data
             })
         })
@@ -6666,7 +7371,9 @@ function restoreFromLocalIndexedDB() {
         dbGet('aba_tg_sent'),
         dbGet('aba_tg_directory'),
         dbGet('aba_tg_map'),
-        dbGet('khema_customer_profiles')
+        dbGet('khema_customer_profiles'),
+        dbGet('bank_slots_state'),
+        dbGet('debt_slots_state')
     ]).then(results => {
         var accData = results[0];
         var debtData = results[1];
@@ -6675,6 +7382,8 @@ function restoreFromLocalIndexedDB() {
         var tgDirData = results[4];
         var tgMapData = results[5];
         var custProfData = results[6];
+        var bankSlotsData = results[7];
+        var debtSlotsData = results[8];
         var shouldRun = false;
 
         if(sentData && typeof sentData === 'object') {
@@ -6714,20 +7423,43 @@ function restoreFromLocalIndexedDB() {
             shouldRun = true;
         }
 
-        if(debtData && debtData.files && debtData.files.length) {
+        // Restore Multi-Slot Bank & Debt data
+        if(bankSlotsData && typeof bankSlotsData === 'object') {
+            Object.assign(BANK_SLOTS, bankSlotsData);
+            if(BANK_SLOTS[activeBankKey] && BANK_SLOTS[activeBankKey].raw) {
+                RAW.aba = BANK_SLOTS[activeBankKey].raw;
+                M.aba = BANK_SLOTS[activeBankKey].m || (RAW.aba && RAW.aba.m) || {};
+                FILE_NAMES.aba = BANK_SLOTS[activeBankKey].name || '';
+                shouldRun = true;
+            }
+        } else if(abaData && abaData.raw) {
+            RAW.aba = abaData.raw;
+            M.aba = abaData.m || (RAW.aba && RAW.aba.m) || {};
+            FILE_NAMES.aba = abaData.name || localStorage.getItem('aba_file_name') || 'ឯកសារ ABA';
+            BANK_SLOTS[activeBankKey] = {
+                name: FILE_NAMES.aba,
+                raw: RAW.aba,
+                m: M.aba,
+                count: (abaData.count || (RAW.aba.rows ? RAW.aba.rows.length : 0))
+            };
+            shouldRun = true;
+        }
+
+        if(debtSlotsData && typeof debtSlotsData === 'object') {
+            Object.assign(DEBT_SLOTS, debtSlotsData);
+            rebuildDebtFiles();
+            if(FILES.length > 0) shouldRun = true;
+        } else if(debtData && debtData.files && debtData.files.length) {
             FILES = debtData.files;
             HDR = debtData.hdr || {};
             var nStr = (debtData.names && debtData.names.join(', ')) || FILES.map(x => x.name).join(', ');
             FILE_NAMES.debt = nStr || localStorage.getItem('debt_file_name') || 'ឯកសារវិក័យបត្រ';
-            localStorage.setItem('debt_file_name', FILE_NAMES.debt);
-            shouldRun = true;
-        }
-
-        if(abaData && abaData.raw) {
-            RAW.aba = abaData.raw;
-            M.aba = abaData.m || (RAW.aba && RAW.aba.m) || {};
-            FILE_NAMES.aba = abaData.name || localStorage.getItem('aba_file_name') || 'ឯកសារ ABA';
-            localStorage.setItem('aba_file_name', FILE_NAMES.aba);
+            DEBT_SLOTS['khema'] = {
+                name: FILE_NAMES.debt,
+                files: FILES,
+                hdr: HDR,
+                count: (debtData.count || (FILES[0] && FILES[0].rows ? FILES[0].rows.length : 0))
+            };
             shouldRun = true;
         }
 
@@ -6743,6 +7475,7 @@ function restoreFromLocalIndexedDB() {
 }
 
 function restoreSavedData() {
+    if(typeof initMultiFileSlots === 'function') initMultiFileSlots();
     initBoxPlaceholders();
     initZDrive();
     showServerLoading('កំពុងផ្ទុកទិន្នន័យពី Server (កុំបារម្ភ មិនគាំងទេ)...');

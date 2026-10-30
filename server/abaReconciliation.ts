@@ -477,8 +477,14 @@ export function computeAbaReconciliation(): AbaState {
   const tgDir = parseTgDirectory();
   const tgSent = parseTgSent();
 
-  // 1. Read debts
+  // 1. Read debts (supports multiple files: khema_debt, rms_debt, newsmile_debt, debts)
   const debtCandidates = [
+    path.join(dataDir, 'khema_debt.xlsx'),
+    path.join(dataDir, 'rms_debt.xlsx'),
+    path.join(dataDir, 'newsmile_debt.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'khema_debt.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'rms_debt.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'newsmile_debt.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xls'),
     path.join('H:\\', 'InvoiceAI', 'uploads', 'debts.xlsx'),
     path.join('H:\\', 'InvoiceAI', 'debts.xls'),
@@ -490,15 +496,13 @@ export function computeAbaReconciliation(): AbaState {
     path.join(dataDir, 'Aged_Receivable.xls'),
     path.join(dataDir, 'Aged_Receivable.xlsx')
   ];
-  let debtFile = '';
-  for (const c of debtCandidates) {
-    if (fs.existsSync(c)) { debtFile = c; break; }
-  }
+  const debtFilesToRead = Array.from(new Set(debtCandidates.filter(c => fs.existsSync(c))));
 
   const doctorsMap: Record<string, DoctorStatement> = {};
   const doctorOrder: string[] = [];
 
-  if (debtFile) {
+  for (const debtFile of (debtFilesToRead.length ? debtFilesToRead : [''])) {
+    if (!debtFile) continue;
     try {
       const wb = xlsx.readFile(debtFile);
       const aoa: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
@@ -521,6 +525,11 @@ export function computeAbaReconciliation(): AbaState {
           let displayName = rawName;
           if (matchedAcc && matchedAcc.name) {
             displayName = custId ? `${custId} - ${matchedAcc.name}` : matchedAcc.name;
+          }
+
+          if (doctorsMap[displayName] || (custId && doctorsMap[custId])) {
+            currentDoc = doctorsMap[displayName] || (custId ? doctorsMap[custId] : null);
+            continue;
           }
 
           currentDoc = {
@@ -560,6 +569,7 @@ export function computeAbaReconciliation(): AbaState {
         if (currentDoc && r.length >= 20) {
           const invNo = String(r[4] || '').trim();
           if (/^INV/i.test(invNo)) {
+            if (currentDoc.invoices.some(v => v.inv === invNo)) continue;
             const origAmt = parseFloat(r[21]) || 0;
             const bal = parseFloat(r[27] != null ? r[27] : r[21]) || 0;
             const isPartial = bal < origAmt || (r[13] && /partial/i.test(String(r[13])));
@@ -1046,7 +1056,7 @@ export function computeAbaReconciliation(): AbaState {
     },
     fileNames: {
       aba: abaFile ? path.basename(abaFile) : '',
-      debt: debtFile ? path.basename(debtFile) : '',
+      debt: debtFilesToRead.length ? debtFilesToRead.map(f => path.basename(f)).join(', ') : '',
       acc: accFile ? path.basename(accFile) : (fs.existsSync(path.join(dataDir, 'customers.xls')) ? 'customers.xls' : '')
     },
     doctors: resultDoctors,
@@ -1123,16 +1133,18 @@ export function syncFromNetworkDriveIfNeeded(): void {
 }
 
 // Save uploaded file and recompute (with archive backup in data/aba/uploads/)
-export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string, buffer: Buffer): AbaState {
+export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string, buffer: Buffer, slotKey?: string): AbaState {
   ensureDataDir();
   const ext = path.extname(fileName) || '.xlsx';
   const cleanOriginalName = path.basename(fileName);
   let targetName = '';
 
   if (fileType === 'aba') {
-    targetName = `aba_statement${ext}`;
+    targetName = slotKey ? `${slotKey}${ext}` : `aba_statement${ext}`;
+    try { fs.writeFileSync(path.join(dataDir, `aba_statement${ext}`), buffer); } catch {}
   } else if (fileType === 'debt') {
-    targetName = `debts${ext}`;
+    targetName = slotKey ? `${slotKey}_debt${ext}` : `debts${ext}`;
+    try { fs.writeFileSync(path.join(dataDir, `debts${ext}`), buffer); } catch {}
   } else if (fileType === 'acc') {
     const low = cleanOriginalName.toLowerCase();
     if (low.includes('customer') || low.includes('អតិថិជន') || low.includes('profile')) {
@@ -1261,7 +1273,7 @@ export function resetAbaState(): AbaState {
 }
 
 // Synchronize all Customer Profiles & Doctor Accounts to single file in H:\InvoiceAI\Customer_Bank_Account_Number.xlsx
-export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>): { success: boolean; count: number } {
+export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>): { success: boolean; count: number; fileLocked?: boolean } {
   ensureDataDir();
   let profiles: Record<string, any> = customProfiles || parseCustomerProfiles();
   if (!profiles || Object.keys(profiles).length === 0) {
