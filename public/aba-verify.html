@@ -1144,7 +1144,10 @@ function rebuildDebtFiles() {
         ['khema', 'rms', 'newsmile'].forEach(k => {
             var slot = DEBT_SLOTS[k];
             if (slot && slot.files && slot.files.length) {
-                slot.files.forEach(f => FILES.push(f));
+                slot.files.forEach(f => {
+                    f.slotKey = k;
+                    FILES.push(f);
+                });
                 if (slot.hdr) Object.assign(HDR, slot.hdr);
             }
         });
@@ -1161,6 +1164,7 @@ function rebuildDebtFiles() {
         }
         if (slot && slot.files && slot.files.length) {
             FILES = slot.files.slice();
+            FILES.forEach(f => { f.slotKey = activeDebtKey; });
             HDR = Object.assign({}, slot.hdr || {});
             FILE_NAMES.debt = slot.name || '';
             localStorage.setItem('debt_file_name', slot.name || '');
@@ -1972,6 +1976,77 @@ fetch('/khema-logo.jpg')
     fr.onload = () => { KHEMA_LOGO_URL = fr.result; };
     fr.readAsDataURL(b);
   }).catch(() => {});
+
+var QR_RMS_URL = '/qr-rms.png';
+var QR_KHEMA_URL = '/qr-khema.png';
+var CURRENT_STATEMENT_QR = null;
+
+fetch('/qr-rms.png')
+  .then(r => r.blob())
+  .then(b => {
+    var fr = new FileReader();
+    fr.onload = () => { QR_RMS_URL = fr.result; };
+    fr.readAsDataURL(b);
+  }).catch(() => {});
+
+fetch('/qr-khema.png')
+  .then(r => r.blob())
+  .then(b => {
+    var fr = new FileReader();
+    fr.onload = () => { QR_KHEMA_URL = fr.result; };
+    fr.readAsDataURL(b);
+  }).catch(() => {});
+
+function getStatementQrCode(custName) {
+    if (CURRENT_STATEMENT_QR) {
+        return CURRENT_STATEMENT_QR;
+    }
+
+    var isRms = false;
+    // 1. Check active debt filter or bank slot selection
+    if (typeof activeDebtKey !== 'undefined' && activeDebtKey === 'rms') {
+        isRms = true;
+    } else if (typeof activeDebtKey !== 'undefined' && activeDebtKey === 'khema') {
+        isRms = false;
+    } else if (typeof activeBankKey !== 'undefined' && (activeBankKey === 'rms_aba' || activeBankKey === 'rms_acleda')) {
+        isRms = true;
+    } else if (typeof activeBankKey !== 'undefined' && (activeBankKey === 'khema_aba' || activeBankKey === 'khema_acleda')) {
+        isRms = false;
+    } else {
+        // 2. Check customer document metadata or invoices
+        var D = res && res.docs && res.docs[custName];
+        if (D) {
+            if (D.slotKey === 'rms') isRms = true;
+            else if (D.inv && D.inv.some(v => v.slotKey === 'rms' || /rms/i.test(v.file || '') || (v.classId && /RMS/i.test(v.classId)))) {
+                isRms = true;
+            } else if (typeof DEBT_SLOTS !== 'undefined' && DEBT_SLOTS.rms && DEBT_SLOTS.rms.files && DEBT_SLOTS.rms.files.length) {
+                var rmsFile = DEBT_SLOTS.rms.files[0];
+                if (rmsFile && rmsFile.rows) {
+                    var cId = D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
+                    if (cId && rmsFile.rows.some(r => Object.values(r).some(val => String(val).toUpperCase().includes(cId.toUpperCase())))) {
+                        isRms = true;
+                    }
+                }
+            }
+        }
+    }
+
+    return isRms ? (QR_RMS_URL || '/qr-rms.png') : (QR_KHEMA_URL || '/qr-khema.png');
+}
+
+function toggleStatementQr() {
+    var img = document.getElementById('statementQrImg');
+    if (!img) return;
+    if (img.src.includes('qr-rms') || img.src === QR_RMS_URL) {
+        img.src = QR_KHEMA_URL || '/qr-khema.png';
+        CURRENT_STATEMENT_QR = QR_KHEMA_URL || '/qr-khema.png';
+        if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR Khema (USD: 000 193 633)');
+    } else {
+        img.src = QR_RMS_URL || '/qr-rms.png';
+        CURRENT_STATEMENT_QR = QR_RMS_URL || '/qr-rms.png';
+        if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR RMS (USD: 088 928 555)');
+    }
+}
 
 var DEFAULT_BOT_TOKEN = '8573963689:AAEX3OFDd4IKFqmMKUIOWlhKc8lHTg8v64M';
 if(!localStorage.getItem('aba_tg_bot_token') || !localStorage.getItem('aba_tg_bot_token').includes(':')) {
@@ -4497,7 +4572,8 @@ function build() {
                 runBal: x['Running Balance'] != null ? x['Running Balance'] : null,
                 entry: en,
                 desc: descVal,
-                meta: t.meta || null
+                meta: t.meta || null,
+                slotKey: t.slotKey || (typeof activeDebtKey !== 'undefined' ? activeDebtKey : 'khema')
             });
 
         });
@@ -4759,6 +4835,7 @@ function run() {
                 entry: (accMatch && accMatch.entry) || d.entry || '',
                 customerId: (profMatch && profMatch.code) || (accMatch && accMatch.customerId) || cIdRaw || d.custId || '',
                 bankAcc: (accMatch && (accMatch.rawAcct || accMatch.bankAcc || accMatch.acct)) || '',
+                slotKey: d.slotKey || (d.meta && d.meta.slotKey) || (typeof activeDebtKey !== 'undefined' ? activeDebtKey : 'khema'),
                 inv: [],
                 pay: [],
                 al: aliases(pName)
@@ -5398,6 +5475,8 @@ function openPrintModal(custName) {
     var curDateStr = dmy(new Date());
     var currency = (prof && prof.currency) || meta.currency || ($('cur') && $('cur').value) || 'USD';
     var nowDT = nowDateTimeStr();
+    CURRENT_STATEMENT_QR = null;
+    var qrCodeUrl = getStatementQrCode(custName);
 
     var totalAmt = 0;
     var rowsHtml = '';
@@ -5436,8 +5515,8 @@ function openPrintModal(custName) {
                         '<div style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
                         '<div style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">Telephone : 099 744 497</div>' +
                     '</div>' +
-                    '<div style="flex:0 0 160px;visibility:hidden" aria-hidden="true">' +
-                        '<img src="' + (KHEMA_LOGO_URL || '/khema-logo.jpg') + '" style="max-height:75px;max-width:160px;visibility:hidden">' +
+                    '<div style="flex:0 0 160px;display:flex;justify-content:flex-end;align-items:center">' +
+                        '<img id="statementQrImg" src="' + qrCodeUrl + '" alt="ABA QR Code" onclick="toggleStatementQr()" style="max-height:85px;max-width:130px;object-fit:contain;display:block;border-radius:4px;border:1px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;background:#fff;padding:1px" title="ABA QR Code (ចុចដើម្បីប្ដូររវាង RMS & Khema)">' +
                     '</div>' +
                 '</div>' +
 
