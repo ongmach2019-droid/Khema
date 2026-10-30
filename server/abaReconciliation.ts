@@ -1173,21 +1173,27 @@ export function computeAbaReconciliation(): AbaState {
   return finalState;
 }
 
-// Get current state (cached or recomputed)
 export function getAbaState(): AbaState {
   const cached = readJsonFile<AbaState | null>('state.json', null);
-  if (cached && cached.doctors && cached.doctors.length > 0) {
-    // Invalidate stale cache containing old test name Ong Mach
-    const hasOngMach = cached.doctors.some(d =>
-      (d.name && d.name.toLowerCase().includes('ong mach')) ||
-      (d.customerId === 'C00168' && !d.name.includes('Eng Hong'))
-    );
-    if (!hasOngMach) {
+  if (cached) {
+    if (cached.doctors && cached.doctors.length > 0) {
+      // Invalidate stale cache containing old test name Ong Mach
+      const hasOngMach = cached.doctors.some(d =>
+        (d.name && d.name.toLowerCase().includes('ong mach')) ||
+        (d.customerId === 'C00168' && !d.name.includes('Eng Hong'))
+      );
+      if (!hasOngMach) {
+        return cached;
+      }
+      console.log('Invalidating stale cache containing old test name Ong Mach');
+    } else {
+      // Cached state exists (e.g. clean state after reset). Return it with stable timestamp to prevent continuous client re-sync
       return cached;
     }
-    console.log('Invalidating stale cache containing old test name Ong Mach');
   }
-  return computeAbaReconciliation();
+  const fresh = computeAbaReconciliation();
+  writeJsonFile('state.json', fresh);
+  return fresh;
 }
 
 // Auto-sync files between network drive (H:\InvoiceAI\data\aba) and local dataDir
