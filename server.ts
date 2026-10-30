@@ -11,6 +11,7 @@ import {
   uploadAbaFile,
   deleteAbaFile,
   markAbaTelegramSent,
+  resetAbaTelegramSent,
   resetAbaState,
   syncFromNetworkDriveIfNeeded,
   getNetworkDriveAbaDirs,
@@ -106,14 +107,25 @@ app.post('/api/aba/upload', (req, res) => {
   }
 });
 
-// Mark Telegram sent on server
+// Mark or Unmark Telegram sent on server
 app.post('/api/aba/mark-tg', (req, res) => {
   try {
-    const { name, custId, target } = req.body;
-    const state = markAbaTelegramSent(name, custId, target);
+    const { name, custId, target, action } = req.body;
+    const state = markAbaTelegramSent(name, custId, target, action);
     res.json({ success: true, state });
   } catch (err: any) {
     console.error('Error in /api/aba/mark-tg:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reset all Telegram sent marks on server
+app.post('/api/aba/reset-tg', (_req, res) => {
+  try {
+    const state = resetAbaTelegramSent();
+    res.json({ success: true, state });
+  } catch (err: any) {
+    console.error('Error in /api/aba/reset-tg:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

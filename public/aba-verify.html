@@ -3073,7 +3073,7 @@ function unmarkTelegramSent(custName) {
         fetch('/api/aba/mark-tg', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: custName, custId: '', target: '' })
+            body: JSON.stringify({ name: custName, custId: (m ? m[1] : ''), action: 'unmark' })
         }).catch(() => {});
     } catch(e) {}
     render();
@@ -3731,6 +3731,11 @@ function applyServerState(state) {
     if(!state.doctors || !state.doctors.length) {
         res = { docs: {}, names: [], unmatched: state.unmatched || [], tot: state.summary || { owed:0, paid:0, rem:0 }, from: null };
         sel = {};
+        TG_SENT = {};
+        localStorage.removeItem('aba_tg_sent');
+        if(typeof dbDel === 'function') dbDel('aba_tg_sent');
+        tgFilter = 'all';
+        doctorPayFilter = 'all';
         updateBoxUI();
         render();
         return true;
@@ -4123,12 +4128,17 @@ if($('btnResetServer')) {
                 localStorage.removeItem('aba_file_name');
                 localStorage.removeItem('debt_file_name');
                 localStorage.removeItem('acc_file_name');
+                localStorage.removeItem('aba_tg_sent');
                 FILE_NAMES = { aba: '', debt: '', acc: '' };
+                TG_SENT = {};
+                tgFilter = 'all';
+                doctorPayFilter = 'all';
                 dbDel('bank_slots_state');
                 dbDel('debt_slots_state');
                 dbDel('aba_state');
                 dbDel('debt_state');
                 dbDel('acc_state');
+                dbDel('aba_tg_sent');
                 RAW.aba = null; M.aba = {}; aba = []; assign = {};
                 FILES = []; debts = []; HDR = {}; sel = {};
                 ACC = []; ACC_INVOICES = [];
@@ -6009,10 +6019,12 @@ document.addEventListener('click', e => {
     if(t.id === 'btnClearAllTgSent') {
         e.stopPropagation();
         e.preventDefault();
-        if(confirm('តើអ្នកពិតជាចង់កំណត់សញ្ញាផ្ញើ Telegram ទាំងអស់ឡើងវិញមែនទេ?')) {
+        if(confirm('តើអ្នកពិតជាចង់កំណត់សញ្ញាផ្ញើ Telegram ទាំងអស់ឡើងវិញមែនទេ? (ធ្វើឱ្យត្រឡប់ទៅជា មិនទាន់ផ្ញើ ទាំងអស់)')) {
             TG_SENT = {};
             localStorage.removeItem('aba_tg_sent');
             if(typeof dbDel === 'function') dbDel('aba_tg_sent');
+            tgFilter = 'all';
+            fetch('/api/aba/reset-tg', { method: 'POST' }).catch(() => {});
             render();
         }
         return;

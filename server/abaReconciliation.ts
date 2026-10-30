@@ -1401,17 +1401,46 @@ export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc', slotKey?: string
   return computeAbaReconciliation();
 }
 
-// Mark Telegram sent
-export function markAbaTelegramSent(name: string, custId?: string, target?: string): AbaState {
+// Mark or Unmark Telegram sent
+export function markAbaTelegramSent(name: string, custId?: string, target?: string, action?: string): AbaState {
   ensureDataDir();
   const tgSent = parseTgSent();
-  const record = {
-    sentAt: new Date().toISOString(),
-    target: target || 'Telegram'
-  };
-  if (name) tgSent[name] = record;
-  if (custId) tgSent[custId] = record;
+  if (action === 'unmark') {
+    if (name) delete tgSent[name];
+    if (custId) delete tgSent[custId];
+    const m = String(name || '').match(/^([A-Z]\d+)/i);
+    if (m) {
+      delete tgSent[m[1]];
+      delete tgSent[m[1].toUpperCase()];
+    }
+  } else {
+    const record = {
+      sentAt: new Date().toISOString(),
+      target: target || 'Telegram'
+    };
+    if (name) tgSent[name] = record;
+    if (custId) tgSent[custId] = record;
+    const m = String(name || '').match(/^([A-Z]\d+)/i);
+    if (m) {
+      tgSent[m[1]] = record;
+      tgSent[m[1].toUpperCase()] = record;
+    }
+  }
   writeJsonFile('tg_sent.json', tgSent);
+  return computeAbaReconciliation();
+}
+
+// Reset all Telegram sent marks
+export function resetAbaTelegramSent(): AbaState {
+  ensureDataDir();
+  writeJsonFile('tg_sent.json', {});
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      const netTg = path.join(dir, 'tg_sent.json');
+      if (fs.existsSync(netTg)) { fs.unlinkSync(netTg); }
+    } catch {}
+  });
   return computeAbaReconciliation();
 }
 
@@ -1425,7 +1454,8 @@ export function resetAbaState(): AbaState {
     'debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx',
     'khema_debt.xlsx', 'khema_debt.xls', 'rms_debt.xlsx', 'rms_debt.xls',
     'newsmile_debt.xlsx', 'newsmile_debt.xls',
-    'state.json'
+    'state.json',
+    'tg_sent.json'
   ];
 
   // 1. Delete local working calculation files in dataDir
@@ -1433,6 +1463,9 @@ export function resetAbaState(): AbaState {
     const p = path.join(dataDir, f);
     if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
   });
+
+  // Also ensure empty tg_sent.json
+  writeJsonFile('tg_sent.json', {});
 
   // 2. Also clear slot files from local uploads/
   const localUploadsDir = path.join(dataDir, 'uploads');
@@ -1444,12 +1477,14 @@ export function resetAbaState(): AbaState {
   }
 
   // 3. Drive H:\ safety: STRICTLY KEEP all customer and account files in Drive H:\!
-  // Only remove temporary cache state.json from H:\InvoiceAI if present.
+  // Only remove temporary cache state.json and tg_sent.json from H:\InvoiceAI if present.
   const netDirs = getNetworkDriveAbaDirs();
   netDirs.forEach(dir => {
     try {
       const netState = path.join(dir, 'state.json');
       if (fs.existsSync(netState)) { fs.unlinkSync(netState); }
+      const netTg = path.join(dir, 'tg_sent.json');
+      if (fs.existsSync(netTg)) { fs.unlinkSync(netTg); }
     } catch {}
   });
 
