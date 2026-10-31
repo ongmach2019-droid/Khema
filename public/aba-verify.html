@@ -111,18 +111,24 @@
     box-sizing:border-box !important;
   }
   .a4-content{
-    flex:1 0 auto !important;
-    display:flex !important;
-    flex-direction:column !important;
-    min-height:0 !important;
+    display:block !important;
   }
   .print-paper.single-page, #printDocument.single-page{
+    position:relative !important;
     height:277mm !important;
     min-height:277mm !important;
     max-height:277mm !important;
     overflow:hidden !important;
-    display:flex !important;
-    flex-direction:column !important;
+    display:block !important;
+  }
+  .print-paper.single-page .signature-block,
+  #printDocument.single-page .signature-block{
+    position:absolute !important;
+    bottom:4mm !important;
+    left:0 !important;
+    right:0 !important;
+    width:100% !important;
+    margin-top:0 !important;
   }
   .print-table{
     width:100% !important;
@@ -135,7 +141,6 @@
   .print-table th{background:#f1f5f9 !important;color:#0f172a !important}
   .print-table tfoot td{background:#f8fafc !important}
   .a4-footer-block, .signature-block{
-    margin-top:auto !important;
     display:flex !important;
     align-items:flex-end !important;
     justify-content:space-between !important;
@@ -5909,14 +5914,14 @@ function openPrintModal(custName) {
             descText += ' <span style="color:#b45309;font-size:0.75rem">(ដើម $' + fmt(v.origAmt) + ' - សងមុន $' + fmt(v.paidBefore) + ')</span>';
         }
         rowsHtml += '<tr>' +
-            '<td style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (idx + 1) + '</td>' +
-            '<td style="border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.module || 'AR-IN') + '</td>' +
-            '<td style="border:1px solid #cbd5e1;padding:5px 6px"><b>' + esc(v.inv) + '</b></td>' +
-            '<td style="border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.ref || '') + '</td>' +
-            '<td style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (v.date ? dmy(v.date) : '') + '</td>' +
-            '<td style="max-width:280px;white-space:normal;word-break:break-word;border:1px solid #cbd5e1;padding:5px 6px">' + descText + '</td>' +
-            '<td class="n" style="text-align:right;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(invAmt) + '</td>' +
-            '<td class="n" style="text-align:right;font-weight:600;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(totalAmt) + '</td>' +
+            '<td contenteditable="true" style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (idx + 1) + '</td>' +
+            '<td contenteditable="true" style="border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.module || 'AR-IN') + '</td>' +
+            '<td contenteditable="true" style="border:1px solid #cbd5e1;padding:5px 6px"><b>' + esc(v.inv) + '</b></td>' +
+            '<td contenteditable="true" style="border:1px solid #cbd5e1;padding:5px 6px">' + esc(v.ref || '') + '</td>' +
+            '<td contenteditable="true" style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (v.date ? dmy(v.date) : '') + '</td>' +
+            '<td contenteditable="true" style="max-width:280px;white-space:normal;word-break:break-word;border:1px solid #cbd5e1;padding:5px 6px">' + descText + '</td>' +
+            '<td contenteditable="true" class="n" style="text-align:right;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(invAmt) + '</td>' +
+            '<td contenteditable="true" class="n" style="text-align:right;font-weight:600;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(totalAmt) + '</td>' +
         '</tr>';
     });
 
@@ -6108,15 +6113,24 @@ function adjustMultiPageFooter() {
     var rows = doc.querySelectorAll('.print-table tbody tr');
 
     if(rows.length <= 11) {
-        // Single-page: use flex margin-top:auto to push footer to bottom of fixed-height page
+        // Single-page: absolute-pin footer to bottom of 277mm container
         doc.classList.add('single-page');
-        sig.style.marginTop = 'auto';
-        sig.style.marginBottom = footerOffset + 'mm';
+        sig.style.position = 'absolute';
+        sig.style.bottom = footerOffset + 'mm';
+        sig.style.left = '0';
+        sig.style.right = '0';
+        sig.style.width = '100%';
+        sig.style.marginTop = '0';
         return;
     }
 
-    // Multi-page: remove single-page constraint, let content flow naturally
+    // Multi-page: remove single-page, restore normal flow
     doc.classList.remove('single-page');
+    sig.style.position = '';
+    sig.style.bottom = '';
+    sig.style.left = '';
+    sig.style.right = '';
+    sig.style.width = '';
     sig.style.marginTop = '24px';
     sig.style.marginBottom = footerOffset + 'mm';
 }
