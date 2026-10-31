@@ -74,13 +74,13 @@
 
 @page {
   size: A4 portrait;
-  margin: 6mm 10mm 6mm 10mm;
+  margin: 10mm 12mm 10mm 12mm;
 }
 
 @media print{
   @page {
     size: A4 portrait;
-    margin: 6mm 10mm 6mm 10mm;
+    margin: 10mm 12mm 10mm 12mm;
   }
   html, body{
     width:210mm !important;
@@ -111,7 +111,18 @@
     box-sizing:border-box !important;
   }
   .a4-content{
-    display:block !important;
+    flex:1 0 auto !important;
+    display:flex !important;
+    flex-direction:column !important;
+    min-height:0 !important;
+  }
+  .print-paper.single-page, #printDocument.single-page{
+    height:270mm !important;
+    min-height:270mm !important;
+    max-height:270mm !important;
+    overflow:hidden !important;
+    display:flex !important;
+    flex-direction:column !important;
   }
   .print-table{
     width:100% !important;
@@ -124,12 +135,13 @@
   .print-table th{background:#f1f5f9 !important;color:#0f172a !important}
   .print-table tfoot td{background:#f8fafc !important}
   .a4-footer-block, .signature-block{
+    margin-top:auto !important;
     display:flex !important;
     align-items:flex-end !important;
     justify-content:space-between !important;
     gap:14px !important;
-    padding-top:14px !important;
-    padding-bottom:2px !important;
+    padding-top:24px !important;
+    padding-bottom:6mm !important;
     page-break-inside:avoid !important;
     break-inside:avoid !important;
   }
@@ -6023,7 +6035,7 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
-            '<div class="a4-footer-block signature-block" style="margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:' + ((PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm">' +
+            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
                 '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;text-align:center;font-size:0.85rem;color:#334155;padding-bottom:4px">' +
                     '<div>' +
@@ -6092,53 +6104,20 @@ function adjustMultiPageFooter() {
 
     var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5;
 
-    // Temporarily reset margin-top to 0 to measure natural layout
-    sig.style.marginTop = '0px';
-    sig.style.marginBottom = footerOffset + 'mm';
+    // Count data rows (excluding header and tfoot)
+    var rows = doc.querySelectorAll('.print-table tbody tr');
 
-    var table = doc.querySelector('.print-table');
-    var contentEl = doc.querySelector('.a4-content');
-
-    // Measure the exact height in millimeters of content from top of contentEl to bottom of table
-    var contentHeightMm = 150;
-    if (contentEl && table) {
-        var cRect = contentEl.getBoundingClientRect();
-        var tRect = table.getBoundingClientRect();
-        var hPx = tRect.bottom - cRect.top;
-        if (hPx > 0) {
-            contentHeightMm = hPx * 25.4 / 96;
-        }
-    } else if (contentEl) {
-        contentHeightMm = (contentEl.offsetHeight || 500) * 25.4 / 96;
+    if(rows.length <= 11) {
+        // Single-page: use flex margin-top:auto to push footer to bottom of fixed-height page
+        doc.classList.add('single-page');
+        sig.style.marginTop = 'auto';
+        sig.style.marginBottom = footerOffset + 'mm';
+        return;
     }
 
-    // Measure exact footer height in millimeters
-    var sigHeightMm = ((sig.offsetHeight || 160) * 25.4 / 96);
-
-    // Standard A4 printable height with safe buffer:
-    // With Chrome custom margins (0.5" top & 0.5" bottom = 25.4mm), printable height is 271.6mm.
-    // Use 255mm (safe buffer) to ensure the footer sits cleanly near the bottom
-    // without ever accidentally spilling onto an unwanted second page on 1-page statements!
-    var PRINT_PAGE_H_MM = 255;
-
-    var contentOnLastPageMm = contentHeightMm % PRINT_PAGE_H_MM;
-    if (contentHeightMm > 0 && contentOnLastPageMm === 0) {
-        contentOnLastPageMm = PRINT_PAGE_H_MM;
-    }
-
-    var availableGapMm = 0;
-    if (contentOnLastPageMm + sigHeightMm <= PRINT_PAGE_H_MM) {
-        // Fits on current page: push to bottom of this page
-        availableGapMm = PRINT_PAGE_H_MM - contentOnLastPageMm - sigHeightMm;
-    } else {
-        // Doesn't fit on current page: spills to a new page, push to bottom of that new last page
-        availableGapMm = Math.max(15, PRINT_PAGE_H_MM - sigHeightMm);
-    }
-
-    // Subtract footer offset (default 0.5mm)
-    var gapMm = Math.max(2, Math.floor(availableGapMm - footerOffset));
-
-    sig.style.marginTop = gapMm + 'mm';
+    // Multi-page: remove single-page constraint, let content flow naturally
+    doc.classList.remove('single-page');
+    sig.style.marginTop = '24px';
     sig.style.marginBottom = footerOffset + 'mm';
 }
 
