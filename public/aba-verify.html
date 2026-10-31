@@ -2193,6 +2193,7 @@ function applyPrintPrefs() {
     if (sig) {
         sig.style.marginBottom = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm';
     }
+    var btnQrVis = document.getElementById('btnToggleQrVisibility');
     if (btnQrVis) {
         var isShown = (PRINT_PREFS.showQr !== false);
         btnQrVis.style.background = isShown ? '#eff6ff' : '#f1f5f9';
@@ -5145,6 +5146,14 @@ function allocateDoctorPayments(D, forceAuto) {
             return (a.no || 0) - (b.no || 0);
         });
     }
+
+    // Calculate cumulative Running Balance after discount and pay-now are subtracted
+    var running = 0;
+    D.inv.forEach(v => {
+        var remAmt = (v.rem != null && !isNaN(v.rem)) ? v.rem : ((v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0));
+        running += remAmt;
+        v.runBal = Math.round(running * 100) / 100;
+    });
 }
 window.allocateDoctorPayments = allocateDoctorPayments;
 
@@ -5737,7 +5746,11 @@ function render() {
                  '<th>ស្ថានភាព</th>' +
                  '</tr></thead><tbody>';
 
+            var running = 0;
             D.inv.forEach((v, idx) => {
+                var remAmt = (v.rem != null && !isNaN(v.rem)) ? v.rem : ((v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0));
+                running += remAmt;
+                v.runBal = Math.round(running * 100) / 100;
                 var s = '';
                 if(v.rem <= 0.005) {
                     s = '<span class="ok">សងគ្រប់</span>';
@@ -5879,7 +5892,7 @@ function openPrintModal(custName) {
             '<td style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + (v.date ? dmy(v.date) : '') + '</td>' +
             '<td style="max-width:280px;white-space:normal;word-break:break-word;border:1px solid #cbd5e1;padding:5px 6px">' + descText + '</td>' +
             '<td class="n" style="text-align:right;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(invAmt) + '</td>' +
-            '<td class="n" style="text-align:right;font-weight:600;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(v.runBal != null ? v.runBal : totalAmt) + '</td>' +
+            '<td class="n" style="text-align:right;font-weight:600;border:1px solid #cbd5e1;padding:5px 6px">' + fmt(totalAmt) + '</td>' +
         '</tr>';
     });
 
@@ -6090,10 +6103,10 @@ function adjustMultiPageFooter() {
     // Measure exact footer height in millimeters
     var sigHeightMm = ((sig.offsetHeight || 160) * 25.4 / 96);
 
-    // Standard A4 printable height with @page margins (10mm top & 10mm bottom):
-    // 297mm - 20mm = 277mm.
-    // Use 272mm (5mm safety buffer) to ensure it never accidentally spills onto an unwanted blank page.
-    var PRINT_PAGE_H_MM = 272;
+    // Standard A4 printable height with @page margins:
+    // With Chrome custom margins (0.5" top & 0.5" bottom = 25.4mm), printable height is 297 - 25.4 = 271.6mm.
+    // Use 270mm to guarantee the footer drops right down to the bottom margin without spilling to an unwanted blank page.
+    var PRINT_PAGE_H_MM = 270;
 
     var contentOnLastPageMm = contentHeightMm % PRINT_PAGE_H_MM;
     if (contentHeightMm > 0 && contentOnLastPageMm === 0) {
@@ -6366,7 +6379,7 @@ function exportCustomerStatementExcel(custName) {
         if(v.paidBefore > 0.005) {
             descText += ' (ដើម $' + fmt(v.origAmt) + ' - សងមុន $' + fmt(v.paidBefore) + ')';
         }
-        var runBalVal = v.runBal != null ? v.runBal : Math.round(totalAmt * 100) / 100;
+        var runBalVal = Math.round(totalAmt * 100) / 100;
         s1.push([
             idx + 1,
             v.module || 'AR-IN',
@@ -6510,7 +6523,7 @@ function exportCustomerStatementCSV(custName) {
             q(v.date ? dmy(v.date) : ''),
             q(descText),
             invAmt,
-            v.runBal != null ? v.runBal : Math.round(totalAmt * 100) / 100
+            Math.round(totalAmt * 100) / 100
         ]);
     });
 
