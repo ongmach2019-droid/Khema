@@ -101,10 +101,7 @@
   .print-paper, #printDocument{
     width:100% !important;
     max-width:100% !important;
-    min-height:270mm !important;
-    display:flex !important;
-    flex-direction:column !important;
-    justify-content:space-between !important;
+    display:block !important;
     margin:0 !important;
     padding:0 !important;
     box-shadow:none !important;
@@ -113,14 +110,8 @@
     page-break-after:auto;
     box-sizing:border-box !important;
   }
-  .print-paper.single-page, #printDocument.single-page{
-    height:270mm !important;
-    min-height:270mm !important;
-  }
   .a4-content{
-    flex:1 0 auto !important;
-    display:flex !important;
-    flex-direction:column !important;
+    display:block !important;
   }
   .print-table{
     width:100% !important;
@@ -131,8 +122,11 @@
   .print-table tr{page-break-inside:avoid !important;page-break-after:auto}
   .print-table th,.print-table td{border:1px solid #1e293b !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .a4-footer-block, .signature-block{
-    margin-top:auto !important;
-    padding-top:16px !important;
+    display:flex !important;
+    align-items:flex-end !important;
+    justify-content:space-between !important;
+    gap:14px !important;
+    padding-top:14px !important;
     padding-bottom:2px !important;
     page-break-inside:avoid !important;
     break-inside:avoid !important;
@@ -6059,6 +6053,10 @@ function openPrintModal(custName) {
         applyPrintPrefs();
         adjustMultiPageFooter();
     });
+    setTimeout(() => {
+        applyPrintPrefs();
+        adjustMultiPageFooter();
+    }, 150);
 }
 
 function adjustMultiPageFooter() {
@@ -6069,38 +6067,53 @@ function adjustMultiPageFooter() {
 
     var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5;
 
-    var rows = doc.querySelectorAll('.print-table tbody tr');
-    // If 11 rows or fewer (including Total Balance row), the statement fits on 1 page.
-    // Anchor to the bottom of the A4 page using margin-top: auto (fills the red box area)
-    if(rows.length <= 11) {
-        doc.classList.add('single-page');
-        sig.style.marginTop = 'auto';
-        sig.style.marginBottom = footerOffset + 'mm';
-        return;
-    }
-    doc.classList.remove('single-page');
+    // Temporarily reset margin-top to 0 to measure natural layout
+    sig.style.marginTop = '0px';
     sig.style.marginBottom = footerOffset + 'mm';
 
-    // For multi-page statements (e.g. 14 rows):
-    // Page 1 holds rows 1 to 12.
-    // Page 2 holds rows 13 to end.
-    var rowsOnPage1 = 12;
-    var rowsOnPage2 = Math.max(1, rows.length - rowsOnPage1);
+    var table = doc.querySelector('.print-table');
+    var contentEl = doc.querySelector('.a4-content');
 
-    // Each row on Page 2 takes ~35px. Table header takes ~38px.
-    // Signatures need ~130px.
-    // A4 printable height is ~1000px (~265mm).
-    var tableHOnPage2 = (rowsOnPage2 * 35) + 38;
-    var sigH = 130;
-    var availableGapPx = 960 - tableHOnPage2 - sigH;
+    // Measure the exact height in millimeters of content from top of contentEl to bottom of table
+    var contentHeightMm = 150;
+    if (contentEl && table) {
+        var cRect = contentEl.getBoundingClientRect();
+        var tRect = table.getBoundingClientRect();
+        var hPx = tRect.bottom - cRect.top;
+        if (hPx > 0) {
+            contentHeightMm = hPx * 25.4 / 96;
+        }
+    } else if (contentEl) {
+        contentHeightMm = (contentEl.offsetHeight || 500) * 25.4 / 96;
+    }
 
-    // Leave a safe buffer of 60px so it NEVER overflows to Page 3
-    var safeMarginPx = Math.max(20, availableGapPx - 60);
-    var safeMarginMm = Math.floor(safeMarginPx * 25.4 / 96);
+    // Measure exact footer height in millimeters
+    var sigHeightMm = ((sig.offsetHeight || 160) * 25.4 / 96);
 
-    // Bound safeMarginMm safely between 20mm and 125mm
-    safeMarginMm = Math.min(125, Math.max(20, safeMarginMm));
-    sig.style.marginTop = safeMarginMm + 'mm';
+    // Standard A4 printable height with @page margins (10mm top & 10mm bottom):
+    // 297mm - 20mm = 277mm.
+    // Use 272mm (5mm safety buffer) to ensure it never accidentally spills onto an unwanted blank page.
+    var PRINT_PAGE_H_MM = 272;
+
+    var contentOnLastPageMm = contentHeightMm % PRINT_PAGE_H_MM;
+    if (contentHeightMm > 0 && contentOnLastPageMm === 0) {
+        contentOnLastPageMm = PRINT_PAGE_H_MM;
+    }
+
+    var availableGapMm = 0;
+    if (contentOnLastPageMm + sigHeightMm <= PRINT_PAGE_H_MM) {
+        // Fits on current page: push to bottom of this page
+        availableGapMm = PRINT_PAGE_H_MM - contentOnLastPageMm - sigHeightMm;
+    } else {
+        // Doesn't fit on current page: spills to a new page, push to bottom of that new last page
+        availableGapMm = Math.max(15, PRINT_PAGE_H_MM - sigHeightMm);
+    }
+
+    // Subtract footer offset (default 0.5mm)
+    var gapMm = Math.max(2, Math.floor(availableGapMm - footerOffset));
+
+    sig.style.marginTop = gapMm + 'mm';
+    sig.style.marginBottom = footerOffset + 'mm';
 }
 
 function closePrintModal() {
@@ -6258,8 +6271,8 @@ function exportModalPNG(custName) {
     if(typeof html2canvas === 'function') {
         html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1024 }).then(canvas => {
             var meta = (res && res.docs[custName] && res.docs[custName].meta) || {};
-            var custNo = meta.custNo || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : custName);
-            var fn = 'Customer_Statement_' + (custNo || 'Document').replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.png';
+            var pTitle = (typeof prepareStatementPrintTitle === 'function') ? prepareStatementPrintTitle() : ('Customer Statement-' + custName);
+            var fn = String(pTitle).replace(/[\\/:*?"<>|]/g, '').trim() + '.png';
             
             // Mirror PNG directly into H:\InvoiceAI\ame_exports\
             if(canvas.toBlob) {
@@ -6414,7 +6427,8 @@ function exportCustomerStatementExcel(custName) {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Customer Statement');
-    var exportFileName = 'Customer_Statement_' + (custNo || custName).replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx';
+    var pTitle = (typeof prepareStatementPrintTitle === 'function') ? prepareStatementPrintTitle() : ('Customer Statement-' + (custEn || custKh || custName));
+    var exportFileName = String(pTitle).replace(/[\\/:*?"<>|]/g, '').trim() + '.xlsx';
     saveWB(wb, exportFileName);
 
     // Also mirror saving directly to H:\InvoiceAI\statements
@@ -6509,7 +6523,8 @@ function exportCustomerStatementCSV(custName) {
 
     var csvContent = '\uFEFF' + rows.map(e => e.join(',')).join('\r\n');
     var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    var fn = 'Customer_Statement_' + (custNo || custName).replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.csv';
+    var pTitle = (typeof prepareStatementPrintTitle === 'function') ? prepareStatementPrintTitle() : ('Customer Statement-' + (custEn || custKh || custName));
+    var fn = String(pTitle).replace(/[\\/:*?"<>|]/g, '').trim() + '.csv';
     
     // Also save directly to H:\InvoiceAI\ame_exports\
     if (typeof mirrorExportToZDrive === 'function') {
