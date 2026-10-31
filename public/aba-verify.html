@@ -5730,10 +5730,10 @@ function render() {
                  '<th>កាលបរិច្ឆេទ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Date</span></th>' +
                  '<th>បរិយាយ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Description</span></th>' +
                  '<th class="n">ចំនួនទឹកប្រាក់<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Amount</span></th>' +
-                 '<th class="n">សមតុល្យ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Running Bal</span></th>' +
                  '<th class="n" style="color:#dc2626;min-width:85px">Discount<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">បញ្ចុះតម្លៃ</span></th>' +
-                 '<th class="n">សងពេលនេះ</th>' +
                  '<th class="n">នៅសល់</th>' +
+                 '<th class="n">សងពេលនេះ</th>' +
+                 '<th class="n">សមតុល្យ<br><span style="font-size:0.7em;font-weight:normal;color:var(--mu)">Running Bal</span></th>' +
                  '<th>ស្ថានភាព</th>' +
                  '</tr></thead><tbody>';
 
@@ -5773,12 +5773,12 @@ function render() {
                      '<td>' + (v.date ? dmy(v.date) : '') + '</td>' +
                      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(v.desc) + '">' + esc(v.desc) + '</td>' +
                      '<td class="n">' + fmt(v.amt) + '</td>' +
-                     '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : (v.bal != null ? v.bal : v.amt)) + '</td>' +
                      '<td class="n">' +
                          '<input type="number" step="any" min="0" class="inv-discount-input" data-doc="' + esc(n) + '" data-inv-id="' + v.id + '" data-inv="' + esc(v.inv || '') + '" value="' + ((v.discount != null && v.discount > 0) ? v.discount : '') + '" placeholder="0.00" title="បញ្ចូលចំនួន Discount បញ្ចុះតម្លៃលើវិក័យបត្រនេះ (ដកភ្លាមៗ)">' +
                      '</td>' +
-                     '<td class="n" style="font-weight:bold;color:' + (v.pp > 0 ? 'var(--ok)' : 'inherit') + '">' + fmt(v.pp) + '</td>' +
                      '<td class="n" style="font-weight:600">' + fmt(v.rem) + '</td>' +
+                     '<td class="n" style="font-weight:bold;color:' + (v.pp > 0 ? 'var(--ok)' : 'inherit') + '">' + fmt(v.pp) + '</td>' +
+                     '<td class="n" style="font-weight:600">' + fmt(v.runBal != null ? v.runBal : (v.bal != null ? v.bal : v.amt)) + '</td>' +
                      '<td>' + s + '</td>' +
                      '</tr>';
             });
