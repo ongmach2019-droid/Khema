@@ -679,8 +679,14 @@ summary:hover{background:var(--bg)}
         </div>
       </div>
 
-      <!-- Reset Settings -->
+      <!-- Reset & Excel Template Sync -->
       <div style="display:flex;align-items:center;gap:6px">
+        <button type="button" onclick="fetchExcelStatementTemplate(true)" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:5px 11px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="ចុចដើម្បីទាញយកការកែប្រែថ្មីៗពីហ្វាល់ Excel statement_template.xlsx ក្នុង Drive H មកអនុវត្តលើវិក័យបត្រនេះភ្លាមៗ">
+          🔄 ផ្ទុកគំរូពី Excel (H:)
+        </button>
+        <button type="button" onclick="openExcelTemplateInDriveH()" style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:5px 11px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="ចុចដើម្បីបើកហ្វាល់គំរូ statement_template.xlsx ក្នុង Drive H ដោយផ្ទាល់ក្នុងកម្មវិធី Excel ដើម្បីកែប្រែ">
+          📂 បើកហ្វាល់ Excel (H:)
+        </button>
         <button type="button" onclick="resetPrintCustomizer()" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:600" title="កំណត់ទម្រង់ដើម">↺ ទម្រង់ដើម</button>
       </div>
     </div>
@@ -2208,6 +2214,57 @@ function togglePrintLiveEdit() {
     }
 }
 
+var EXCEL_TEMPLATE_CONFIG = null;
+
+async function fetchExcelStatementTemplate(forceReload = false) {
+    try {
+        var res = await fetch('/api/aba/statement-template');
+        var data = await res.json();
+        if (data && data.success && data.config) {
+            EXCEL_TEMPLATE_CONFIG = data.config;
+            if (data.config.footer_offset_mm) {
+                PRINT_PREFS.footerOffsetMm = data.config.footer_offset_mm;
+            }
+            if (data.config.qr_size_px) {
+                PRINT_PREFS.qrSize = data.config.qr_size_px;
+                PRINT_PREFS.qrCardWidth = Math.max(140, PRINT_PREFS.qrSize + 82);
+            }
+            if (data.config.qr_margin_top_px != null) {
+                PRINT_PREFS.qrMarginTop = data.config.qr_margin_top_px;
+            }
+            applyPrintPrefs();
+            if (forceReload && typeof currentPrintCustomer !== 'undefined' && currentPrintCustomer) {
+                openPrintModal(currentPrintCustomer);
+                if (typeof showToast === 'function') {
+                    showToast('✓ បានផ្ទុកគំរូថ្មីពី Excel (Drive H) ជោគជ័យ!');
+                }
+            }
+        }
+    } catch(e) {
+        console.warn('Could not fetch statement template from server:', e);
+    }
+}
+
+async function openExcelTemplateInDriveH() {
+    try {
+        if (typeof showToast === 'function') showToast('⏳ កំពុងបើកហ្វាល់ Excel ក្នុង Drive H...');
+        var res = await fetch('/api/aba/open-template-file', { method: 'POST' });
+        var data = await res.json();
+        if (data && data.success) {
+            if (typeof showToast === 'function') {
+                showToast('✓ បានបើកហ្វាល់ ' + (data.openedPath || 'statement_template.xlsx') + ' លើកុំព្យូទ័រ!');
+            }
+        } else {
+            alert('មិនអាចបើកហ្វាល់ Excel បានទេ: ' + (data.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('បញ្ហាបើកហ្វាល់: ' + e.message);
+    }
+}
+
+// Fetch template config from Drive H on initial load
+setTimeout(() => { fetchExcelStatementTemplate(); }, 600);
+
 function getStatementQrInfo(custName) {
     var type = CURRENT_STATEMENT_QR_TYPE;
     if (!type) {
@@ -2247,12 +2304,18 @@ function getStatementQrInfo(custName) {
     var defaultUrl = isRmsType ? (QR_SQUARE_RMS_URL || '/qr-square-rms.png') : (QR_SQUARE_KHEMA_URL || '/qr-square-khema.png');
     var chosenUrl = (PRINT_PREFS && PRINT_PREFS.customQrUrl) ? PRINT_PREFS.customQrUrl : defaultUrl;
 
+    var tmplName = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.qr_account_name) || 'SAMNANG MEUNG';
+    var tmplKhr = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.qr_khr_account) || '001 180 129';
+    var tmplUsd = isRmsType
+        ? ((EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.qr_usd_rms) || '088 928 555')
+        : ((EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.qr_usd_khema) || '000 193 633');
+
     return {
         type: type,
         qrUrl: chosenUrl,
-        name: 'SAMNANG MEUNG',
-        khrAcc: '001 180 129',
-        usdAcc: isRmsType ? '088 928 555' : '000 193 633'
+        name: tmplName,
+        khrAcc: tmplKhr,
+        usdAcc: tmplUsd
     };
 }
 
@@ -2279,13 +2342,15 @@ function toggleStatementQr() {
     if (currentType === 'rms') {
         CURRENT_STATEMENT_QR_TYPE = 'khema';
         if (img) img.src = QR_SQUARE_KHEMA_URL || '/qr-square-khema.png';
-        if (usdAccEl) usdAccEl.textContent = '000 193 633';
-        if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR Khema (USD: 000 193 633)');
+        var khemaUsd = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.qr_usd_khema) || '000 193 633';
+        if (usdAccEl) usdAccEl.textContent = khemaUsd;
+        if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR Khema (USD: ' + khemaUsd + ')');
     } else {
         CURRENT_STATEMENT_QR_TYPE = 'rms';
         if (img) img.src = QR_SQUARE_RMS_URL || '/qr-square-rms.png';
-        if (usdAccEl) usdAccEl.textContent = '088 928 555';
-        if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR RMS (USD: 088 928 555)');
+        var rmsUsd = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.qr_usd_rms) || '088 928 555';
+        if (usdAccEl) usdAccEl.textContent = rmsUsd;
+        if (typeof showToast === 'function') showToast('ប្ដូរទៅ QR RMS (USD: ' + rmsUsd + ')');
     }
 }
 
@@ -5741,6 +5806,20 @@ function openPrintModal(custName) {
         '</tr>';
     });
 
+    var companyKh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.company_name_kh) || 'ខេមា ឌីជីថល ដេនថល សូលូសិន';
+    var companyEn = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.company_name_en) || 'Khema Digital Dental Solution';
+    var compAddrKh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.address_kh) || 'អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ';
+    var compAddrEn = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.address_en) || 'Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia';
+    var compPhone = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.telephone) || 'Telephone : 099 744 497';
+    var titleKh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.statement_title_kh) || 'របាយការណ៍អតិថិជន';
+    var titleEn = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.statement_title_en) || 'CUSTOMER STATEMENT';
+    var sig1Kh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_1_kh) || 'រៀបចំដោយ';
+    var sig1En = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_1_en) || 'Prepared By';
+    var sig2Kh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_2_kh) || 'ត្រួតពិនិត្យដោយ';
+    var sig2En = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_2_en) || 'Checked By';
+    var sig3Kh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_3_kh) || 'អតិថិជន';
+    var sig3En = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_3_en) || 'Customer';
+
     var docHtml = 
         '<div id="printDocument" class="print-paper a4-page">' +
             '<div class="a4-content">' +
@@ -5750,11 +5829,11 @@ function openPrintModal(custName) {
                         '<img id="statementCompanyLogo" src="' + ((PRINT_PREFS && PRINT_PREFS.customLogoUrl) || KHEMA_LOGO_URL || '/khema-logo.jpg') + '" alt="Khema Logo" style="max-height:75px;max-width:160px;object-fit:contain;display:block;cursor:pointer" onclick="$(\'inpCompanyLogoUpload\')&&$(\'inpCompanyLogoUpload\').click()" title="ចុចដើម្បីប្ដូររូប Logo">' +
                     '</div>' +
                     '<div style="flex:1;text-align:center">' +
-                        '<div class="khmer-moul" contenteditable="true" style="font-family:\'Noto Sans Khmer\',\'Kantumruy Pro\',system-ui,sans-serif;font-weight:800;font-size:1.35rem;color:#0f172a;line-height:1.45;margin-bottom:3px">ខេមា ឌីជីថល ដេនថល សូលូសិន</div>' +
-                        '<div contenteditable="true" style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:3px">Khema Digital Dental Solution</div>' +
-                        '<div contenteditable="true" style="font-size:0.8rem;color:#475569;line-height:1.4">អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ</div>' +
-                        '<div contenteditable="true" style="font-size:0.8rem;color:#475569;line-height:1.4">Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia</div>' +
-                        '<div contenteditable="true" style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">Telephone : 099 744 497</div>' +
+                        '<div class="khmer-moul" contenteditable="true" style="font-family:\'Noto Sans Khmer\',\'Kantumruy Pro\',system-ui,sans-serif;font-weight:800;font-size:1.35rem;color:#0f172a;line-height:1.45;margin-bottom:3px">' + esc(companyKh) + '</div>' +
+                        '<div contenteditable="true" style="font-size:1.15rem;font-weight:700;color:#0f172a;margin-bottom:3px">' + esc(companyEn) + '</div>' +
+                        '<div contenteditable="true" style="font-size:0.8rem;color:#475569;line-height:1.4">' + esc(compAddrKh) + '</div>' +
+                        '<div contenteditable="true" style="font-size:0.8rem;color:#475569;line-height:1.4">' + esc(compAddrEn) + '</div>' +
+                        '<div contenteditable="true" style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">' + esc(compPhone) + '</div>' +
                     '</div>' +
                     '<div id="statementQrWrapper" style="flex:0 0 ' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth ? PRINT_PREFS.qrCardWidth + 6 : 178)) + 'px;display:flex;justify-content:flex-end;align-items:flex-start">' +
                         '<div id="statementQrCard" style="position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 172) + 'px;margin-top:' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 14) + 'px;padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)">' +
@@ -5783,8 +5862,8 @@ function openPrintModal(custName) {
 
                 '<!-- 2. STATEMENT TITLE (ចំណងជើងរបាយការណ៍) -->' +
                 '<div style="text-align:center;margin-bottom:14px">' +
-                    '<div class="khmer-moul" contenteditable="true" style="font-family:\'Noto Sans Khmer\',\'Kantumruy Pro\',system-ui,sans-serif;font-weight:800;font-size:1.28rem;color:#0f172a;line-height:1.45;margin-bottom:3px">របាយការណ៍អតិថិជន</div>' +
-                    '<div contenteditable="true" style="font-size:1.1rem;font-weight:700;letter-spacing:1px;color:#0f172a">CUSTOMER STATEMENT</div>' +
+                    '<div class="khmer-moul" contenteditable="true" style="font-family:\'Noto Sans Khmer\',\'Kantumruy Pro\',system-ui,sans-serif;font-weight:800;font-size:1.28rem;color:#0f172a;line-height:1.45;margin-bottom:3px">' + esc(titleKh) + '</div>' +
+                    '<div contenteditable="true" style="font-size:1.1rem;font-weight:700;letter-spacing:1px;color:#0f172a">' + esc(titleEn) + '</div>' +
                 '</div>' +
 
                 '<!-- 3. CUSTOMER INFO BOX (ប្រអប់ព័ត៌មានអតិថិជន) -->' +
@@ -5867,18 +5946,18 @@ function openPrintModal(custName) {
             '<div class="a4-footer-block signature-block">' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px;text-align:center;font-size:0.85rem;color:#334155">' +
                     '<div>' +
-                        '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">រៀបចំដោយ</div>' +
-                        '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">Prepared By</div>' +
+                        '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">' + esc(sig1Kh) + '</div>' +
+                        '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">' + esc(sig1En) + '</div>' +
                         '<div style="border-bottom:1px solid #64748b;width:82%;margin:0 auto"></div>' +
                     '</div>' +
                     '<div>' +
-                        '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">ត្រួតពិនិត្យដោយ</div>' +
-                        '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">Checked By</div>' +
+                        '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">' + esc(sig2Kh) + '</div>' +
+                        '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">' + esc(sig2En) + '</div>' +
                         '<div style="border-bottom:1px solid #64748b;width:82%;margin:0 auto"></div>' +
                     '</div>' +
                     '<div>' +
-                        '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">អតិថិជន</div>' +
-                        '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">Customer</div>' +
+                        '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">' + esc(sig3Kh) + '</div>' +
+                        '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">' + esc(sig3En) + '</div>' +
                         '<div style="border-bottom:1px solid #64748b;width:82%;margin:0 auto"></div>' +
                     '</div>' +
                 '</div>' +
@@ -6140,15 +6219,29 @@ function exportCustomerStatementExcel(custName) {
     var curDateStr = dmy(new Date());
     var nowDT = nowDateTimeStr();
 
+    var compKh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.company_name_kh) || 'ខេមា ឌីជីថល ដេនថល សូលូសិន';
+    var compEn = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.company_name_en) || 'Khema Digital Dental Solution';
+    var addrKh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.address_kh) || 'អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ';
+    var addrEn = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.address_en) || 'Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia';
+    var phoneStr = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.telephone) || 'Telephone : 099 744 497';
+    var sTitleKh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.statement_title_kh) || 'របាយការណ៍អតិថិជន';
+    var sTitleEn = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.statement_title_en) || 'CUSTOMER STATEMENT';
+    var s1Kh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_1_kh) || 'រៀបចំដោយ';
+    var s1En = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_1_en) || 'Prepared By';
+    var s2Kh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_2_kh) || 'ត្រួតពិនិត្យដោយ';
+    var s2En = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_2_en) || 'Checked By';
+    var s3Kh = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_3_kh) || 'អតិថិជន';
+    var s3En = (EXCEL_TEMPLATE_CONFIG && EXCEL_TEMPLATE_CONFIG.sig_3_en) || 'Customer';
+
     var s1 = [
-        ['ខេមា ឌីជីថល ដេនថល សូលូសិន'],
-        ['Khema Digital Dental Solution'],
-        ['អាសយដ្ឋាន : ៧៦៩, ស្លែងរលើង, ទឹកថ្លា, សែនសុខ, រាជធានី​ភ្នំពេញ'],
-        ['Address : House 769, Sleng Rolerng, Teuk Thlar, Khan Sen Sok, Phnom Penh Cambodia'],
-        ['Telephone : 099 744 497'],
+        [compKh],
+        [compEn],
+        [addrKh],
+        [addrEn],
+        [phoneStr],
         [],
-        ['របាយការណ៍អតិថិជន'],
-        ['CUSTOMER STATEMENT'],
+        [sTitleKh],
+        [sTitleEn],
         [],
         ['អតិថិជន / Customer :'],
         ['ឈ្មោះក្រុមហ៊ុន ឬអតិថិជន :', custKh, '', '', 'លេខអតិថិជន / Customer No :', custNo],
@@ -6160,6 +6253,7 @@ function exportCustomerStatementExcel(custName) {
     ];
 
     var totalAmt = 0;
+    var invoicesPayload = [];
     D.inv.forEach((v, idx) => {
         var invAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
         totalAmt += invAmt;
@@ -6167,6 +6261,7 @@ function exportCustomerStatementExcel(custName) {
         if(v.paidBefore > 0.005) {
             descText += ' (ដើម $' + fmt(v.origAmt) + ' - សងមុន $' + fmt(v.paidBefore) + ')';
         }
+        var runBalVal = v.runBal != null ? v.runBal : Math.round(totalAmt * 100) / 100;
         s1.push([
             idx + 1,
             v.module || 'AR-IN',
@@ -6175,14 +6270,27 @@ function exportCustomerStatementExcel(custName) {
             v.date ? dmy(v.date) : '',
             descText,
             invAmt,
-            v.runBal != null ? v.runBal : Math.round(totalAmt * 100) / 100
+            runBalVal
         ]);
+        invoicesPayload.push({
+            no: idx + 1,
+            module: v.module || 'AR-IN',
+            inv: v.inv || '',
+            ref: v.ref || '',
+            date: v.date ? dmy(v.date) : '',
+            desc: v.desc || '',
+            amt: invAmt,
+            bal: v.bal,
+            runBal: runBalVal,
+            origAmt: v.origAmt,
+            paidBefore: v.paidBefore
+        });
     });
 
     s1.push([]);
     s1.push(['', '', '', '', '', 'សមតុល្យសរុប (Total Balance):', Math.round(totalAmt * 100) / 100, Math.round(totalAmt * 100) / 100]);
     s1.push([]);
-    s1.push(['រៀបចំដោយ\nPrepared By', '', 'ត្រួតពិនិត្យដោយ\nChecked By', '', '', 'អតិថិជន\nCustomer', '', '']);
+    s1.push([s1Kh + '\n' + s1En, '', s2Kh + '\n' + s2En, '', '', s3Kh + '\n' + s3En, '', '']);
     s1.push([]);
     s1.push([]);
     s1.push(['____________________', '', '____________________', '', '', '____________________', '', '']);
@@ -6214,7 +6322,34 @@ function exportCustomerStatementExcel(custName) {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Customer Statement');
-    saveWB(wb, 'Customer_Statement_' + (custNo || custName).replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx');
+    var exportFileName = 'Customer_Statement_' + (custNo || custName).replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx';
+    saveWB(wb, exportFileName);
+
+    // Also mirror saving directly to H:\InvoiceAI\statements
+    try {
+        fetch('/api/aba/statement-template/export-statement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                custName: custName,
+                custNo: custNo,
+                custKh: custKh,
+                custEn: custEn,
+                phone: phone,
+                address: address,
+                curDateStr: curDateStr,
+                currency: (prof && prof.currency) || meta.currency || 'USD',
+                invoices: invoicesPayload,
+                totalAmt: Math.round(totalAmt * 100) / 100
+            })
+        }).then(r => r.json()).then(data => {
+            if (data && data.success) {
+                if (typeof showToast === 'function') {
+                    showToast('✓ បានរក្សាទុកក្នុង Drive H: ' + data.fileName);
+                }
+            }
+        }).catch(() => {});
+    } catch(e) {}
 }
 
 function exportCustomerStatementCSV(custName) {

@@ -17,6 +17,13 @@ import {
   getNetworkDriveAbaDirs,
   syncCustomerProfilesToFile
 } from './server/abaReconciliation.ts';
+import {
+  readStatementTemplate,
+  updateStatementTemplate,
+  createDefaultStatementTemplate,
+  saveCustomerStatementToDriveH,
+  getTemplateTargetPaths
+} from './server/statementTemplate.ts';
 
 // Load .env.local first (local development / secrets), then .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -429,6 +436,76 @@ app.get('/api/aba/drive-status', (_req, res) => {
     uploadsPath: primary ? primary.uploadsPath : 'H:\\InvoiceAI\\uploads',
     availableDrives: available
   });
+});
+
+// ============================================================================
+// STATEMENT EXCEL TEMPLATE & DRIVE H SYNCHRONIZATION
+// ============================================================================
+app.get('/api/aba/statement-template', (_req, res) => {
+  try {
+    const config = readStatementTemplate();
+    const paths = getTemplateTargetPaths();
+    res.json({
+      success: true,
+      config,
+      paths
+    });
+  } catch (err: any) {
+    console.error('Error reading statement template:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/aba/statement-template/init', (_req, res) => {
+  try {
+    const result = createDefaultStatementTemplate(true);
+    const config = readStatementTemplate();
+    res.json({ success: true, path: result.path, config });
+  } catch (err: any) {
+    console.error('Error re-initializing statement template:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/aba/statement-template/save', (req, res) => {
+  try {
+    const updated = updateStatementTemplate(req.body);
+    res.json({ success: true, config: updated });
+  } catch (err: any) {
+    console.error('Error updating statement template:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/aba/statement-template/export-statement', (req, res) => {
+  try {
+    const result = saveCustomerStatementToDriveH(req.body);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Error exporting statement to Drive H:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/aba/open-template-file', (_req, res) => {
+  try {
+    const { primaryPath, localPath } = getTemplateTargetPaths();
+    const target = fs.existsSync(primaryPath) ? primaryPath : localPath;
+    if (!fs.existsSync(target)) {
+      createDefaultStatementTemplate(true);
+    }
+    const finalTarget = fs.existsSync(primaryPath) ? primaryPath : localPath;
+    const { exec } = require('child_process');
+    exec(`start "" "${finalTarget}"`, (error: any) => {
+      if (error) {
+        console.warn('Could not launch Excel file:', error);
+      }
+    });
+    res.json({ success: true, openedPath: finalTarget });
+  } catch (err: any) {
+    console.error('Error opening template file:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Telegram Send Endpoint
@@ -2536,6 +2613,13 @@ async function startServer() {
     syncFromNetworkDriveIfNeeded();
   } catch (syncErr) {
     console.warn('Network drive startup sync warning:', syncErr);
+  }
+
+  // Ensure statement_template.xlsx exists in H:\InvoiceAI
+  try {
+    createDefaultStatementTemplate();
+  } catch (tmplErr) {
+    console.warn('Statement template init warning:', tmplErr);
   }
 
   app.listen(PORT, '0.0.0.0', () => {
