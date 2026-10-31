@@ -113,6 +113,10 @@
     page-break-after:auto;
     box-sizing:border-box !important;
   }
+  .print-paper.single-page, #printDocument.single-page{
+    height:270mm !important;
+    min-height:270mm !important;
+  }
   .a4-content{
     flex:1 0 auto !important;
     display:flex !important;
@@ -127,9 +131,9 @@
   .print-table tr{page-break-inside:avoid !important;page-break-after:auto}
   .print-table th,.print-table td{border:1px solid #1e293b !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .a4-footer-block, .signature-block{
-    margin-top:auto;
-    padding-top:24px !important;
-    padding-bottom:6mm !important;
+    margin-top:auto !important;
+    padding-top:16px !important;
+    padding-bottom:2px !important;
     page-break-inside:avoid !important;
     break-inside:avoid !important;
   }
@@ -2191,8 +2195,10 @@ function applyPrintPrefs() {
     if ($('dispPrintQrSize')) $('dispPrintQrSize').textContent = (PRINT_PREFS.qrSize || 90) + 'px';
     if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = (PRINT_PREFS.qrMarginTop || 0) + 'px';
     if ($('dispPrintFooterOffset')) $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm';
-
-    var btnQrVis = document.getElementById('btnToggleQrVisibility');
+    var sig = document.querySelector('.signature-block');
+    if (sig) {
+        sig.style.marginBottom = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm';
+    }
     if (btnQrVis) {
         var isShown = (PRINT_PREFS.showQr !== false);
         btnQrVis.style.background = isShown ? '#eff6ff' : '#f1f5f9';
@@ -5850,6 +5856,9 @@ function openPrintModal(custName) {
     var rawEn = (prof && prof.nameEn) || meta.custEn || custName;
     var custKh = cleanCustomerDisplayName(rawKh);
     var custEn = cleanCustomerDisplayName(rawEn);
+    var cleanTitleName = cleanCustomerDisplayName(custEn || custKh || custName);
+    var safeTitleName = String(cleanTitleName).replace(/[\\/:*?"<>|]/g, '').trim();
+    document.title = 'Customer Statement-' + (safeTitleName || 'Document');
     var phone = (prof && prof.phone) || meta.phone || '-';
     var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
@@ -5995,7 +6004,7 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
-            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:' + ((PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm">' +
+            '<div class="a4-footer-block signature-block" style="margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:' + ((PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
                 '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;text-align:center;font-size:0.85rem;color:#334155;padding-bottom:4px">' +
                     '<div>' +
@@ -6062,11 +6071,15 @@ function adjustMultiPageFooter() {
 
     var rows = doc.querySelectorAll('.print-table tbody tr');
     // If 11 rows or fewer (including Total Balance row), the statement fits on 1 page.
-    // Apply user configurable footer offset (default 0.5mm) to shift signature block down
+    // Anchor to the bottom of the A4 page using margin-top: auto (fills the red box area)
     if(rows.length <= 11) {
-        sig.style.marginTop = footerOffset + 'mm';
+        doc.classList.add('single-page');
+        sig.style.marginTop = 'auto';
+        sig.style.marginBottom = footerOffset + 'mm';
         return;
     }
+    doc.classList.remove('single-page');
+    sig.style.marginBottom = footerOffset + 'mm';
 
     // For multi-page statements (e.g. 14 rows):
     // Page 1 holds rows 1 to 12.
@@ -6092,6 +6105,7 @@ function adjustMultiPageFooter() {
 
 function closePrintModal() {
     $('printModal').classList.remove('active');
+    document.title = 'ខេមា Khema Dental - សៀវភៅកត់ត្រា AI';
 }
 
 function showToast(msg) {
@@ -6962,7 +6976,16 @@ document.addEventListener('click', e => {
 });
 
 function prepareStatementPrintTitle() {
-    var rawCust = currentPrintCustomer || '';
+    var domEn = document.getElementById('dispCustEn');
+    var domKh = document.getElementById('dispCustKh');
+    var domName = '';
+    if (domEn && domEn.textContent && domEn.textContent.trim()) {
+        domName = domEn.textContent.trim();
+    } else if (domKh && domKh.textContent && domKh.textContent.trim()) {
+        domName = domKh.textContent.trim();
+    }
+
+    var rawCust = domName || currentPrintCustomer || '';
     if (!rawCust && res && res.docs) {
         var keys = Object.keys(res.docs);
         if (keys.length) rawCust = keys[0];
@@ -6970,25 +6993,19 @@ function prepareStatementPrintTitle() {
     var D = (res && res.docs && res.docs[rawCust]) || {};
     var meta = D.meta || {};
     var prof = (typeof getCustomerProfile === 'function') ? getCustomerProfile(rawCust, meta.custNo) : null;
-    var rawName = (prof && (prof.nameEn || prof.nameKh)) || meta.custEn || meta.custKh || rawCust;
+    var rawName = rawCust || (prof && (prof.nameEn || prof.nameKh)) || meta.custEn || meta.custKh;
     var cName = (typeof cleanCustomerDisplayName === 'function') ? cleanCustomerDisplayName(rawName) : rawName;
     var safeCName = String(cName).replace(/[\\/:*?"<>|]/g, '').trim();
     return 'Customer Statement-' + (safeCName || 'Document');
 }
 
-var origBrowserTitle = document.title;
-
 $('btnPrintNow').onclick = () => {
     adjustMultiPageFooter();
     var pTitle = prepareStatementPrintTitle();
     if (pTitle) {
-        origBrowserTitle = document.title;
         document.title = pTitle;
     }
     window.print();
-    setTimeout(() => {
-        if (origBrowserTitle) document.title = origBrowserTitle;
-    }, 1500);
 };
 
 window.addEventListener('beforeprint', () => {
@@ -6996,15 +7013,8 @@ window.addEventListener('beforeprint', () => {
     if ($('printModal') && $('printModal').classList.contains('active')) {
         var pTitle = prepareStatementPrintTitle();
         if (pTitle) {
-            origBrowserTitle = document.title;
             document.title = pTitle;
         }
-    }
-});
-
-window.addEventListener('afterprint', () => {
-    if (origBrowserTitle) {
-        document.title = origBrowserTitle;
     }
 });
 $('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
