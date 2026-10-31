@@ -674,16 +674,16 @@ summary:hover{background:var(--bg)}
         <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px">
           <span style="color:#475569;font-weight:600">↕️ ទីតាំង QR:</span>
           <button type="button" onclick="adjustPrintQrTop(-4)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិល QR ឡើងលើ">⬆️</button>
-          <span id="dispPrintQrTop" style="font-weight:700;color:#0f172a;min-width:30px;text-align:center">14px</span>
+          <span id="dispPrintQrTop" style="font-weight:700;color:#0f172a;min-width:30px;text-align:center">0px</span>
           <button type="button" onclick="adjustPrintQrTop(4)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិល QR ចុះក្រោម">⬇️</button>
         </div>
 
         <!-- Footer Vertical Offset Control -->
         <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px">
           <span style="color:#475569;font-weight:600">⬇️ ជើងទំព័រ:</span>
-          <button type="button" onclick="adjustPrintFooterOffset(-8)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាឡើងលើ">⬆️</button>
-          <span id="dispPrintFooterOffset" style="font-weight:700;color:#0f172a;min-width:34px;text-align:center">45mm</span>
-          <button type="button" onclick="adjustPrintFooterOffset(8)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាចុះក្រោម">⬇️</button>
+          <button type="button" onclick="adjustPrintFooterOffset(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាឡើងលើ">⬆️</button>
+          <span id="dispPrintFooterOffset" style="font-weight:700;color:#0f172a;min-width:34px;text-align:center">0.5mm</span>
+          <button type="button" onclick="adjustPrintFooterOffset(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាចុះក្រោម">⬇️</button>
         </div>
       </div>
 
@@ -2084,11 +2084,20 @@ fetch('/qr-square-khema.png')
     fr.readAsDataURL(b);
   }).catch(() => {});
 
+function cleanCustomerDisplayName(rawName) {
+    if(!rawName) return '';
+    var s = String(rawName).trim();
+    s = s.replace(/^[A-Z0-9]{2,10}\s*[-–—:\s]\s*/i, '');
+    s = s.replace(/^[A-Z]\d{2,8}\s+/i, '');
+    s = s.replace(/^[-–—:\s]+\s*/i, '');
+    return s.trim() || String(rawName).trim();
+}
+
 var DEFAULT_PRINT_PREFS = {
     qrSize: 90,
-    qrCardWidth: 172,
+    qrCardWidth: 164,
     qrMarginTop: 0,
-    footerOffsetMm: 35,
+    footerOffsetMm: 0.5,
     customQrUrl: '',
     customLogoUrl: '',
     liveEditActive: true,
@@ -2099,7 +2108,11 @@ var PRINT_PREFS = Object.assign({}, DEFAULT_PRINT_PREFS);
 try {
     var savedPrefs = localStorage.getItem('khema_print_prefs');
     if (savedPrefs) {
-        PRINT_PREFS = Object.assign(PRINT_PREFS, JSON.parse(savedPrefs));
+        var parsed = JSON.parse(savedPrefs);
+        if (parsed.footerOffsetMm === 35 || parsed.footerOffsetMm === 45) {
+            parsed.footerOffsetMm = 0.5;
+        }
+        PRINT_PREFS = Object.assign(PRINT_PREFS, parsed);
     }
 } catch(e) {}
 
@@ -2136,7 +2149,7 @@ function toggleEditInvoiceToolbar() {
 
 function adjustPrintQrSize(delta) {
     PRINT_PREFS.qrSize = Math.max(50, Math.min(150, (PRINT_PREFS.qrSize || 90) + delta));
-    PRINT_PREFS.qrCardWidth = Math.max(140, PRINT_PREFS.qrSize + 82);
+    PRINT_PREFS.qrCardWidth = Math.max(140, PRINT_PREFS.qrSize + 74);
     applyPrintPrefs();
     savePrintPrefs();
 }
@@ -2148,7 +2161,8 @@ function adjustPrintQrTop(delta) {
 }
 
 function adjustPrintFooterOffset(delta) {
-    PRINT_PREFS.footerOffsetMm = Math.max(5, Math.min(130, (PRINT_PREFS.footerOffsetMm || 35) + delta));
+    var cur = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5);
+    PRINT_PREFS.footerOffsetMm = Math.max(0, Math.min(100, Math.round((cur + delta) * 10) / 10));
     applyPrintPrefs();
     savePrintPrefs();
 }
@@ -2176,7 +2190,7 @@ function applyPrintPrefs() {
     }
     if ($('dispPrintQrSize')) $('dispPrintQrSize').textContent = (PRINT_PREFS.qrSize || 90) + 'px';
     if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = (PRINT_PREFS.qrMarginTop || 0) + 'px';
-    if ($('dispPrintFooterOffset')) $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm || 35) + 'mm';
+    if ($('dispPrintFooterOffset')) $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm';
 
     var btnQrVis = document.getElementById('btnToggleQrVisibility');
     if (btnQrVis) {
@@ -5832,8 +5846,10 @@ function openPrintModal(custName) {
         if(!custNo && prof.code) custNo = prof.code;
         meta = Object.assign({}, prof, meta);
     }
-    var custKh = (prof && prof.nameKh) || meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var custEn = (prof && prof.nameEn) || meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var rawKh = (prof && prof.nameKh) || meta.custKh || custName;
+    var rawEn = (prof && prof.nameEn) || meta.custEn || custName;
+    var custKh = cleanCustomerDisplayName(rawKh);
+    var custEn = cleanCustomerDisplayName(rawEn);
     var phone = (prof && prof.phone) || meta.phone || '-';
     var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
@@ -5979,7 +5995,7 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
-            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:20px">' +
+            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:' + ((PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
                 '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;text-align:center;font-size:0.85rem;color:#334155;padding-bottom:4px">' +
                     '<div>' +
@@ -6042,11 +6058,11 @@ function adjustMultiPageFooter() {
     var sig = doc.querySelector('.signature-block');
     if(!sig) return;
 
-    var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 45;
+    var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5;
 
     var rows = doc.querySelectorAll('.print-table tbody tr');
     // If 11 rows or fewer (including Total Balance row), the statement fits on 1 page.
-    // Apply user configurable footer offset (default 45mm) to shift signature block down
+    // Apply user configurable footer offset (default 0.5mm) to shift signature block down
     if(rows.length <= 11) {
         sig.style.marginTop = footerOffset + 'mm';
         return;
@@ -6274,8 +6290,8 @@ function exportCustomerStatementExcel(custName) {
     var meta = D.meta || {};
     var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
     var prof = getCustomerProfile(custName, custNo);
-    var custKh = (prof && prof.nameKh) || meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var custEn = (prof && prof.nameEn) || meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var custKh = cleanCustomerDisplayName((prof && prof.nameKh) || meta.custKh || custName);
+    var custEn = cleanCustomerDisplayName((prof && prof.nameEn) || meta.custEn || custName);
     var phone = (prof && prof.phone) || meta.phone || '-';
     var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
@@ -6422,8 +6438,8 @@ function exportCustomerStatementCSV(custName) {
     var meta = D.meta || {};
     var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
     var prof = getCustomerProfile(custName, custNo);
-    var custKh = (prof && prof.nameKh) || meta.custKh || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
-    var custEn = (prof && prof.nameEn) || meta.custEn || custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '');
+    var custKh = cleanCustomerDisplayName((prof && prof.nameKh) || meta.custKh || custName);
+    var custEn = cleanCustomerDisplayName((prof && prof.nameEn) || meta.custEn || custName);
     var phone = (prof && prof.phone) || meta.phone || '-';
     var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
@@ -6945,11 +6961,52 @@ document.addEventListener('click', e => {
 
 });
 
+function prepareStatementPrintTitle() {
+    var rawCust = currentPrintCustomer || '';
+    if (!rawCust && res && res.docs) {
+        var keys = Object.keys(res.docs);
+        if (keys.length) rawCust = keys[0];
+    }
+    var D = (res && res.docs && res.docs[rawCust]) || {};
+    var meta = D.meta || {};
+    var prof = (typeof getCustomerProfile === 'function') ? getCustomerProfile(rawCust, meta.custNo) : null;
+    var rawName = (prof && (prof.nameEn || prof.nameKh)) || meta.custEn || meta.custKh || rawCust;
+    var cName = (typeof cleanCustomerDisplayName === 'function') ? cleanCustomerDisplayName(rawName) : rawName;
+    var safeCName = String(cName).replace(/[\\/:*?"<>|]/g, '').trim();
+    return 'Customer Statement-' + (safeCName || 'Document');
+}
+
+var origBrowserTitle = document.title;
+
 $('btnPrintNow').onclick = () => {
     adjustMultiPageFooter();
+    var pTitle = prepareStatementPrintTitle();
+    if (pTitle) {
+        origBrowserTitle = document.title;
+        document.title = pTitle;
+    }
     window.print();
+    setTimeout(() => {
+        if (origBrowserTitle) document.title = origBrowserTitle;
+    }, 1500);
 };
-window.addEventListener('beforeprint', adjustMultiPageFooter);
+
+window.addEventListener('beforeprint', () => {
+    adjustMultiPageFooter();
+    if ($('printModal') && $('printModal').classList.contains('active')) {
+        var pTitle = prepareStatementPrintTitle();
+        if (pTitle) {
+            origBrowserTitle = document.title;
+            document.title = pTitle;
+        }
+    }
+});
+
+window.addEventListener('afterprint', () => {
+    if (origBrowserTitle) {
+        document.title = origBrowserTitle;
+    }
+});
 $('btnSavePNG').onclick = () => exportModalPNG(currentPrintCustomer);
 $('btnSaveExcel').onclick = () => exportCustomerStatementExcel(currentPrintCustomer);
 $('btnSaveCSV').onclick = () => exportCustomerStatementCSV(currentPrintCustomer);
