@@ -625,6 +625,9 @@ summary:hover{background:var(--bg)}
         <span style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:#e0f2fe;color:#0369a1;font-weight:700;border:1px solid #7dd3fc;display:inline-flex;align-items:center;gap:4px">📄 គំរូទំហំ A4 Standard</span>
       </h3>
       <div class="modal-actions">
+        <button id="btnToggleEditInvoice" type="button" onclick="toggleEditInvoiceToolbar()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#166534;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:6px 14px;border-radius:6px" title="ចុចដើម្បីបើក/បិទ ផ្ទាំងកែប្រែវិក័យបត្រ (Edit invoice)">
+          <span id="editInvoiceBtnIcon">✏️</span> <span id="editInvoiceBtnText">Edit invoice</span>
+        </button>
         <button class="p" id="btnPrintNow" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print / PDF)</button>
         <button id="btnSavePNG" style="background:#059669;border-color:#059669;color:#fff">🖼️ រក្សាទុក PNG</button>
         <button id="btnSaveExcel" style="background:#16a34a;border-color:#16a34a;color:#fff">📊 រក្សាទុក Excel</button>
@@ -635,11 +638,16 @@ summary:hover{background:var(--bg)}
       </div>
     </div>
     <!-- Interactive Print Customizer Toolbar (no-print) -->
-    <div id="printCustomizerToolbar" class="no-print" style="background:#f8fafc;border-bottom:1px solid #cbd5e1;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:0.8rem">
+    <div id="printCustomizerToolbar" class="no-print" style="display:none;background:#f8fafc;border-bottom:1px solid #cbd5e1;padding:8px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:0.8rem">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <!-- Live Edit Mode Toggle -->
         <button type="button" id="btnToggleLiveEdit" onclick="togglePrintLiveEdit()" style="background:#f0fdf4;border:1px solid #86efac;color:#15803d;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="ចុចដើម្បីបើក/បិទការចុចវាយអក្សរកែប្រែផ្ទាល់លើវិក័យបត្រ">
           <span id="liveEditIcon">✏️</span> <span id="liveEditText">កែប្រែអក្សរផ្ទាល់ (Edit: ON)</span>
+        </button>
+
+        <!-- Toggle QR Show / Hide (ដាក់ qr or អត់ដាក់) -->
+        <button type="button" id="btnToggleQrVisibility" onclick="toggleQrVisibility()" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="ចុចដើម្បីកំណត់ ដាក់ ឬមិនដាក់ QR Code លើវិក័យបត្រ (Show/Hide QR)">
+          <span id="qrVisibilityIcon">✅</span> <span id="qrVisibilityText">ដាក់ QR: បើក (Show)</span>
         </button>
 
         <!-- Upload Custom QR / Image -->
@@ -2079,11 +2087,12 @@ fetch('/qr-square-khema.png')
 var DEFAULT_PRINT_PREFS = {
     qrSize: 90,
     qrCardWidth: 172,
-    qrMarginTop: 14,
-    footerOffsetMm: 45,
+    qrMarginTop: 0,
+    footerOffsetMm: 35,
     customQrUrl: '',
     customLogoUrl: '',
-    liveEditActive: true
+    liveEditActive: true,
+    showQr: true
 };
 
 var PRINT_PREFS = Object.assign({}, DEFAULT_PRINT_PREFS);
@@ -2100,6 +2109,31 @@ function savePrintPrefs() {
     } catch(e) {}
 }
 
+function toggleQrVisibility() {
+    PRINT_PREFS.showQr = (PRINT_PREFS.showQr === false) ? true : false;
+    savePrintPrefs();
+    applyPrintPrefs();
+    if (typeof showToast === 'function') {
+        showToast(PRINT_PREFS.showQr ? '✓ បានបើកបង្ហាញ QR Code លើវិក័យបត្រ' : '✓ បានលាក់ QR Code ពីវិក័យបត្រ');
+    }
+}
+
+var editInvoiceToolbarVisible = false;
+function toggleEditInvoiceToolbar() {
+    editInvoiceToolbarVisible = !editInvoiceToolbarVisible;
+    var tb = document.getElementById('printCustomizerToolbar');
+    var btn = document.getElementById('btnToggleEditInvoice');
+    if (tb) {
+        tb.style.display = editInvoiceToolbarVisible ? 'flex' : 'none';
+    }
+    if (btn) {
+        btn.style.background = editInvoiceToolbarVisible ? '#dcfce7' : '#f0fdf4';
+        btn.style.borderColor = editInvoiceToolbarVisible ? '#16a34a' : '#86efac';
+        btn.style.color = editInvoiceToolbarVisible ? '#15803d' : '#166534';
+        btn.style.boxShadow = editInvoiceToolbarVisible ? '0 0 0 2px rgba(22,163,74,0.2)' : 'none';
+    }
+}
+
 function adjustPrintQrSize(delta) {
     PRINT_PREFS.qrSize = Math.max(50, Math.min(150, (PRINT_PREFS.qrSize || 90) + delta));
     PRINT_PREFS.qrCardWidth = Math.max(140, PRINT_PREFS.qrSize + 82);
@@ -2108,13 +2142,13 @@ function adjustPrintQrSize(delta) {
 }
 
 function adjustPrintQrTop(delta) {
-    PRINT_PREFS.qrMarginTop = Math.max(0, Math.min(80, (PRINT_PREFS.qrMarginTop || 14) + delta));
+    PRINT_PREFS.qrMarginTop = Math.max(0, Math.min(80, (PRINT_PREFS.qrMarginTop != null ? PRINT_PREFS.qrMarginTop : 0) + delta));
     applyPrintPrefs();
     savePrintPrefs();
 }
 
 function adjustPrintFooterOffset(delta) {
-    PRINT_PREFS.footerOffsetMm = Math.max(10, Math.min(130, (PRINT_PREFS.footerOffsetMm || 45) + delta));
+    PRINT_PREFS.footerOffsetMm = Math.max(5, Math.min(130, (PRINT_PREFS.footerOffsetMm || 35) + delta));
     applyPrintPrefs();
     savePrintPrefs();
 }
@@ -2131,16 +2165,38 @@ function applyPrintPrefs() {
         if (PRINT_PREFS.qrMarginTop != null) card.style.marginTop = PRINT_PREFS.qrMarginTop + 'px';
     }
     var wrapper = document.getElementById('statementQrWrapper');
-    if (wrapper && PRINT_PREFS.qrCardWidth) {
-        wrapper.style.flex = '0 0 ' + (PRINT_PREFS.qrCardWidth + 6) + 'px';
+    if (wrapper) {
+        wrapper.style.display = (PRINT_PREFS.showQr === false) ? 'none' : 'flex';
     }
     if (PRINT_PREFS.customLogoUrl) {
         var logo = document.getElementById('statementCompanyLogo');
         if (logo) logo.src = PRINT_PREFS.customLogoUrl;
     }
     if ($('dispPrintQrSize')) $('dispPrintQrSize').textContent = (PRINT_PREFS.qrSize || 90) + 'px';
-    if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = (PRINT_PREFS.qrMarginTop || 14) + 'px';
-    if ($('dispPrintFooterOffset')) $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm || 45) + 'mm';
+    if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = (PRINT_PREFS.qrMarginTop || 0) + 'px';
+    if ($('dispPrintFooterOffset')) $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm || 35) + 'mm';
+
+    var btnQrVis = document.getElementById('btnToggleQrVisibility');
+    if (btnQrVis) {
+        var isShown = (PRINT_PREFS.showQr !== false);
+        btnQrVis.style.background = isShown ? '#eff6ff' : '#f1f5f9';
+        btnQrVis.style.borderColor = isShown ? '#93c5fd' : '#cbd5e1';
+        btnQrVis.style.color = isShown ? '#1d4ed8' : '#64748b';
+        if ($('qrVisibilityIcon')) $('qrVisibilityIcon').textContent = isShown ? '✅' : '🚫';
+        if ($('qrVisibilityText')) $('qrVisibilityText').textContent = isShown ? 'ដាក់ QR: បើក (Show)' : 'ដាក់ QR: បិទ (Hide)';
+    }
+
+    var tb = document.getElementById('printCustomizerToolbar');
+    var btnEditInv = document.getElementById('btnToggleEditInvoice');
+    if (tb) {
+        tb.style.display = editInvoiceToolbarVisible ? 'flex' : 'none';
+    }
+    if (btnEditInv) {
+        btnEditInv.style.background = editInvoiceToolbarVisible ? '#dcfce7' : '#f0fdf4';
+        btnEditInv.style.borderColor = editInvoiceToolbarVisible ? '#16a34a' : '#86efac';
+        btnEditInv.style.color = editInvoiceToolbarVisible ? '#15803d' : '#166534';
+        btnEditInv.style.boxShadow = editInvoiceToolbarVisible ? '0 0 0 2px rgba(22,163,74,0.2)' : 'none';
+    }
 
     adjustMultiPageFooter();
 }
@@ -5835,29 +5891,7 @@ function openPrintModal(custName) {
                         '<div contenteditable="true" style="font-size:0.8rem;color:#475569;line-height:1.4">' + esc(compAddrEn) + '</div>' +
                         '<div contenteditable="true" style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-top:2px">' + esc(compPhone) + '</div>' +
                     '</div>' +
-                    '<div id="statementQrWrapper" style="flex:0 0 ' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth ? PRINT_PREFS.qrCardWidth + 6 : 178)) + 'px;display:flex;justify-content:flex-end;align-items:flex-start">' +
-                        '<div id="statementQrCard" style="position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 172) + 'px;margin-top:' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 14) + 'px;padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)">' +
-                            '<!-- SCAN TO PAY BADGE -->' +
-                            '<div contenteditable="true" style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#f8fafc;padding:0 6px;font-size:0.62rem;font-weight:800;letter-spacing:0.8px;color:#0f172a;white-space:nowrap;line-height:1;-webkit-print-color-adjust:exact;print-color-adjust:exact">SCAN TO PAY</div>' +
-                            '<!-- QR CODE IMAGE -->' +
-                            '<div style="display:flex;justify-content:center;margin-top:2px;margin-bottom:4px;cursor:pointer" onclick="toggleStatementQr()" title="ចុចដើម្បីប្ដូររវាង QR RMS & Khema (ឬប្រើប៊ូតុងប្ដូររូប QR ខាងលើ)">' +
-                                '<img id="statementQrImg" src="' + qrInfo.qrUrl + '" alt="QR Code" style="width:' + ((PRINT_PREFS && PRINT_PREFS.qrSize) || 90) + 'px;height:' + ((PRINT_PREFS && PRINT_PREFS.qrSize) || 90) + 'px;object-fit:contain;display:block;border-radius:4px">' +
-                            '</div>' +
-                            '<!-- NAME UNDER QR -->' +
-                            '<div id="statementQrName" contenteditable="true" style="font-size:0.72rem;font-weight:800;color:#0f172a;line-height:1.2;letter-spacing:0.4px;margin-bottom:5px">' + esc(qrInfo.name) + '</div>' +
-                            '<!-- ACCOUNT NUMBERS -->' +
-                            '<div style="width:100%;font-size:0.68rem;line-height:1.3;text-align:left">' +
-                                '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 4px;border-bottom:1px solid #e2e8f0">' +
-                                    '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#0f172a;color:#fff;font-size:10px;font-weight:bold;line-height:1">៛</span>' +
-                                    '<b id="statementQrKhrAcc" contenteditable="true" style="color:#0f172a;font-family:Consolas,monospace,sans-serif;font-size:0.7rem;letter-spacing:0.3px">' + qrInfo.khrAcc + '</b>' +
-                                '</div>' +
-                                '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 4px">' +
-                                    '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#0f172a;color:#fff;font-size:10px;font-weight:bold;line-height:1">$</span>' +
-                                    '<b id="statementQrUsdAcc" contenteditable="true" style="color:#0f172a;font-family:Consolas,monospace,sans-serif;font-size:0.7rem;letter-spacing:0.3px">' + qrInfo.usdAcc + '</b>' +
-                                '</div>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>' +
+                    '<div style="flex:0 0 160px"></div>' +
                 '</div>' +
 
                 '<!-- 2. STATEMENT TITLE (ចំណងជើងរបាយការណ៍) -->' +
@@ -5944,7 +5978,31 @@ function openPrintModal(custName) {
 
             '<!-- 5. SIGNATURE FOOTER (ជើងទំព័រហត្ថលេខា) -->' +
             '<div class="a4-footer-block signature-block">' +
-                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px;text-align:center;font-size:0.85rem;color:#334155">' +
+                '<!-- QR CARD PLACED AT BOTTOM RIGHT (ខាងលើហត្ថលេខាអតិថិជន) -->' +
+                '<div id="statementQrWrapper" style="display:' + ((PRINT_PREFS && PRINT_PREFS.showQr === false) ? 'none' : 'flex') + ';justify-content:flex-end;margin-bottom:12px;padding-right:15px">' +
+                    '<div id="statementQrCard" style="position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 172) + 'px;margin-top:' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 0) + 'px;padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)">' +
+                        '<!-- SCAN TO PAY BADGE -->' +
+                        '<div contenteditable="true" style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#f8fafc;padding:0 6px;font-size:0.62rem;font-weight:800;letter-spacing:0.8px;color:#0f172a;white-space:nowrap;line-height:1;-webkit-print-color-adjust:exact;print-color-adjust:exact">SCAN TO PAY</div>' +
+                        '<!-- QR CODE IMAGE -->' +
+                        '<div style="display:flex;justify-content:center;margin-top:2px;margin-bottom:4px;cursor:pointer" onclick="toggleStatementQr()" title="ចុចដើម្បីប្ដូររវាង QR RMS & Khema (ឬប្រើប៊ូតុងប្ដូររូប QR ខាងលើ)">' +
+                            '<img id="statementQrImg" src="' + qrInfo.qrUrl + '" alt="QR Code" style="width:' + ((PRINT_PREFS && PRINT_PREFS.qrSize) || 90) + 'px;height:' + ((PRINT_PREFS && PRINT_PREFS.qrSize) || 90) + 'px;object-fit:contain;display:block;border-radius:4px">' +
+                        '</div>' +
+                        '<!-- NAME UNDER QR -->' +
+                        '<div id="statementQrName" contenteditable="true" style="font-size:0.72rem;font-weight:800;color:#0f172a;line-height:1.2;letter-spacing:0.4px;margin-bottom:5px">' + esc(qrInfo.name) + '</div>' +
+                        '<!-- ACCOUNT NUMBERS -->' +
+                        '<div style="width:100%;font-size:0.68rem;line-height:1.3;text-align:left">' +
+                            '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 4px;border-bottom:1px solid #e2e8f0">' +
+                                '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#0f172a;color:#fff;font-size:10px;font-weight:bold;line-height:1">៛</span>' +
+                                '<b id="statementQrKhrAcc" contenteditable="true" style="color:#0f172a;font-family:Consolas,monospace,sans-serif;font-size:0.7rem;letter-spacing:0.3px">' + qrInfo.khrAcc + '</b>' +
+                            '</div>' +
+                            '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 4px">' +
+                                '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#0f172a;color:#fff;font-size:10px;font-weight:bold;line-height:1">$</span>' +
+                                '<b id="statementQrUsdAcc" contenteditable="true" style="color:#0f172a;font-family:Consolas,monospace,sans-serif;font-size:0.7rem;letter-spacing:0.3px">' + qrInfo.usdAcc + '</b>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:10px;text-align:center;font-size:0.85rem;color:#334155">' +
                     '<div>' +
                         '<div contenteditable="true" style="font-weight:600;margin-bottom:2px">' + esc(sig1Kh) + '</div>' +
                         '<div contenteditable="true" style="font-size:0.78rem;color:#64748b;margin-bottom:50px">' + esc(sig1En) + '</div>' +
