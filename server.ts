@@ -2292,51 +2292,11 @@ function generateExcelWorkbook(
   ];
   XLSX.utils.book_append_sheet(wb, ws2, 'SHEET2');
 
-  // Append Combined_GL (Stacked Header and Lines in single sheet)
-  const combinedAoa: any[][] = [
-    ['Entry No', 'Date (dd-MMM-YYYY)', 'Prefix', 'Source Entry No', 'Reference', 'Remark', 'Currency ID', 'Exchange Rate'],
-    ...sheet1Rows.map(r => [
-      r['Entry No'], r['Date (dd-MMM-YYYY)'], r['Prefix'], r['Source Entry No'],
-      r['Reference'], r['Remark'], r['Currency ID'], r['Exchange Rate']
-    ]),
-    [],
-    ['Entry No', 'Date (dd-MMM-YYYY)', 'Account ID', 'Account Name', 'Class ID', 'Description', 'Debit', 'Credit', 'Job No', 'Job Task No', 'Job Planning Line'],
-    ...sheet2Rows.map(r => [
-      r['Entry No'], r['Date (dd-MMM-YYYY)'], r['Account ID'], r['Account Name'],
-      r['Class ID'], r['Description'], r['Debit'], r['Credit'],
-      r['Job No'], r['Job Task No'], r['Job Planning Line']
-    ])
-  ];
-  const wsCombined = XLSX.utils.aoa_to_sheet(combinedAoa);
-  wsCombined['!cols'] = [
-    { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 25 },
-    { wch: 14 }, { wch: 35 }, { wch: 14 }, { wch: 14 },
-    { wch: 10 }, { wch: 14 }, { wch: 18 }
-  ];
-  XLSX.utils.book_append_sheet(wb, wsCombined, 'Combined_GL');
-
-  // Append Detailed Transactions Sheet
-  const safeSheetName = targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_');
-  const wsDetails = XLSX.utils.json_to_sheet(sortedRaw.map((r, idx) => ({
-    'No.': r.no || (idx + 1),
-    'Date': r.date || '',
-    'Source': r.source || 'GL-JE',
-    'Entry No': r.entryNo || 0,
-    'JV No': r.jvNo || '',
-    'Reference': r.reference || '',
-    'Class': r.class || 'KHEMA88888',
-    'Vendor': r.vendor || '',
-    'Description': r.description || '',
-    'Debit': Number(r.debit) || 0,
-    'Credit': Number(r.credit) || 0,
-  })));
-  XLSX.utils.book_append_sheet(wb, wsDetails, `${safeSheetName}_Details`);
-
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   return { buffer, targetSheet };
 }
 
-// GET /api/download-excel - direct download of Excel (GL Template with SHEET1, SHEET2, Combined_GL)
+// GET /api/download-excel - direct download of Excel (GL Template with SHEET1 and SHEET2 only)
 app.get('/api/download-excel', (req, res) => {
   try {
     const requestedSheet = (req.query.sheet as string) || '';
