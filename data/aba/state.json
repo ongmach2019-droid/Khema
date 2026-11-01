@@ -76044,5 +76044,19 @@
       "acc": "500328522"
     }
   ],
-  "updatedAt": "2026-10-30T07:57:29.749Z"
+  "updatedAt": "2026-11-01T06:38:17.424Z",
+  "printPrefs": {
+    "qrSize": 90,
+    "qrCardWidth": 164,
+    "qrMarginTop": 0,
+    "qrMarginLeft": 0,
+    "footerOffsetMm": 2,
+    "tableFontSize": 12,
+    "tableCellPadding": 5,
+    "customQrUrl": "",
+    "customLogoUrl": "",
+    "liveEditActive": true,
+    "showQr": true
+  },
+  "discounts": {}
 }

@@ -716,6 +716,7 @@ summary:hover{background:var(--bg)}
         <button id="btnSaveExcel" style="background:#16a34a;border-color:#16a34a;color:#fff">📊 រក្សាទុក Excel</button>
         <button id="btnSaveCSV" style="background:#475569;border-color:#475569;color:#fff">📄 រក្សាទុក CSV</button>
         <button id="btnSendTelegram" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>
+        <button id="btnToggleFullscreen" onclick="toggleStatementFullscreen()" style="background:#0f766e;border-color:#0f766e;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:4px" title="ពង្រីកធំពេញអេក្រង់ ឬបង្រួមតូច"><span id="fsIcon">⛶</span> <span id="fsText">ពេញអេក្រង់</span></button>
         <button id="btnCopyInvoice" style="background:#4f46e5;border-color:#4338ca;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:4px" title="ចម្លងរូបភាព និងព័ត៌មានវិក័យបត្រ Statement ចូល Clipboard">📋 Copy invoice</button>
         <button id="btnCloseModal" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626">✕ បិទ</button>
       </div>
@@ -6206,8 +6207,39 @@ function adjustMultiPageFooter() {
     var dataRows = allRows.filter(r => !r.textContent.includes('Total Balance'));
     var userOffsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
 
-    // SINGLE-PAGE (<= 11 rows): Strictly 1 page, NEVER spill to page 2!
-    if (dataRows.length <= 11) {
+    var pxPerMm = (doc.offsetWidth || 794) / 210;
+    if (pxPerMm <= 0) pxPerMm = 3.78;
+    var printablePageHeightPx = 281 * pxPerMm; // 297mm - 16mm print margins
+
+    var headerEl = doc.querySelector('.print-header');
+    var titleEl = doc.querySelector('.khmer-moul') ? doc.querySelector('.khmer-moul').parentElement : null;
+    var custBox = doc.querySelector('#custInfoDisplay') ? doc.querySelector('#custInfoDisplay').closest('div') : null;
+    var thead = doc.querySelector('.print-table thead');
+    var sigH = sig.offsetHeight || (45 * pxPerMm);
+
+    // Height of content preceding the table on page 1
+    var topSectionH = (headerEl ? headerEl.offsetHeight : 0) +
+                      (titleEl ? titleEl.offsetHeight : 0) +
+                      (custBox ? custBox.offsetHeight : 0) +
+                      (28 * pxPerMm);
+    var theadH = thead ? thead.offsetHeight : (10 * pxPerMm);
+
+    // Accurately simulate page breaks across rows
+    var curPageH = topSectionH + theadH;
+    var simulatedPages = 1;
+
+    for (var i = 0; i < allRows.length; i++) {
+        var rowH = allRows[i].offsetHeight || (7.5 * pxPerMm);
+        if (curPageH + rowH > printablePageHeightPx) {
+            simulatedPages++;
+            curPageH = theadH + rowH; // thead repeats on each print page
+        } else {
+            curPageH += rowH;
+        }
+    }
+
+    // SINGLE-PAGE (content fits on 1 page): Strictly 1 page, lock footer to bottom!
+    if (simulatedPages === 1 && (curPageH + sigH <= printablePageHeightPx + (4 * pxPerMm))) {
         doc.classList.add('single-page');
         if (spacer) {
             spacer.style.height = '0px';
@@ -6230,7 +6262,7 @@ function adjustMultiPageFooter() {
         return;
     }
 
-    // MULTI-PAGE (> 11 rows): Dynamic pagination & bottom spacer
+    // MULTI-PAGE (> 1 page): Calculate spacer so footer is strictly anchored at bottom of last page!
     doc.classList.remove('single-page');
     doc.style.height = 'auto';
     sig.style.position = 'relative';
@@ -6243,27 +6275,19 @@ function adjustMultiPageFooter() {
 
     if (spacer) {
         spacer.style.display = 'block';
-        spacer.style.height = '0px';
     }
 
-    var pxPerMm = (doc.offsetWidth || 794) / 210;
-    if (pxPerMm <= 0) pxPerMm = 3.78;
+    var availableLastPagePx = printablePageHeightPx - curPageH;
+    var naturalSpacerPx = 0;
 
-    var a4PageHeightPx = 297 * pxPerMm;
-    var bottomPaddingPx = 14 * pxPerMm;
-
-    var tableRect = table.getBoundingClientRect();
-    var docRect = doc.getBoundingClientRect();
-    var tableBottomPx = tableRect.bottom - docRect.top;
-    var sigHeightPx = sig.offsetHeight || 170;
-
-    var minSigBottomPx = tableBottomPx + sigHeightPx + bottomPaddingPx;
-    var pagesCount = Math.ceil((minSigBottomPx + 5 * pxPerMm) / a4PageHeightPx);
-    if (pagesCount < 1) pagesCount = 1;
-
-    // Target bottom of last page with 15mm safety margin
-    var targetSigTopPx = (pagesCount * a4PageHeightPx) - bottomPaddingPx - sigHeightPx - (15 * pxPerMm);
-    var naturalSpacerPx = Math.max(0, targetSigTopPx - tableBottomPx);
+    if (availableLastPagePx >= sigH + (6 * pxPerMm)) {
+        // Footer fits on current last page; push it to bottom
+        naturalSpacerPx = availableLastPagePx - sigH - (6 * pxPerMm);
+    } else {
+        // Footer pushed to new page; push it to bottom of that new page
+        simulatedPages++;
+        naturalSpacerPx = printablePageHeightPx - sigH - (6 * pxPerMm);
+    }
 
     var userOffsetPx = userOffsetMm * pxPerMm;
     var finalSpacerPx = Math.max(0, naturalSpacerPx - userOffsetPx);
@@ -6273,8 +6297,8 @@ function adjustMultiPageFooter() {
         spacer.style.height = finalSpacerMm.toFixed(1) + 'mm';
     }
 
-    doc.style.setProperty('--num-pages', pagesCount);
-    doc.style.minHeight = (pagesCount * 297) + 'mm';
+    doc.style.setProperty('--num-pages', simulatedPages);
+    doc.style.minHeight = (simulatedPages * 297) + 'mm';
 }
 
 function initDraggableElements() {
@@ -9011,17 +9035,14 @@ function silentlySyncServerState() {
         .then(r => r.json())
         .then(data => {
             var state = (data && data.state) ? data.state : data;
-            if(state && state.updatedAt && state.updatedAt !== lastServerUpdatedAt) {
-                var hasLocalData = (res && res.names && res.names.length > 0) || (FILES && FILES.length > 0);
-                if((state.doctors && state.doctors.length > 0) || !hasLocalData) {
-                    console.log('🔄 Detected updated state from another user on network:', state.updatedAt);
-                    applyServerState(state);
-                    updateAmeBadge();
-                    if($('printModal') && $('printModal').classList.contains('active') && currentPrintCustomer) {
-                        openPrintModal(currentPrintCustomer);
-                    }
-                } else {
-                    lastServerUpdatedAt = state.updatedAt;
+            if(!state) return;
+            if(state.updatedAt && state.updatedAt !== lastServerUpdatedAt) {
+                lastServerUpdatedAt = state.updatedAt;
+                console.log('🔄 Synced live state from network/server across all devices:', lastServerUpdatedAt);
+                applyServerState(state);
+                updateAmeBadge();
+                if($('printModal') && $('printModal').classList.contains('active') && currentPrintCustomer) {
+                    openPrintModal(currentPrintCustomer);
                 }
             }
         })

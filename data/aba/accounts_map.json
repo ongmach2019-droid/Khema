@@ -1,8 +1,27 @@
 [
   {
+    "entry": "C00001",
+    "customerId": "C00001",
+    "name": "ពេទ្យធ្មេញ  បឹងបៃតង",
+    "rawAcct": "123445667/000111222/000000000",
+    "acct": "123445667",
+    "accounts": [
+      "123445667",
+      "000111222",
+      "000000000"
+    ],
+    "rawAccounts": [
+      "123445667",
+      "000111222",
+      "000000000"
+    ],
+    "accountHolder": "",
+    "telegram": "@OngMach2026"
+  },
+  {
     "entry": "C00007",
     "customerId": "C00007",
-    "name": "C00007 - Aesthetic Dental Clinic",
+    "name": "ពេទ្យធ្មេញ អេស្តេទិច",
     "rawAcct": "000 566 234",
     "acct": "000566234",
     "accounts": [
@@ -32,7 +51,7 @@
   {
     "entry": "C00013",
     "customerId": "C00013",
-    "name": "C00013 - Narun Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ណារុន",
     "rawAcct": "010 898 900",
     "acct": "010898900",
     "accounts": [
@@ -47,7 +66,7 @@
   {
     "entry": "C00037",
     "customerId": "C00037",
-    "name": "C00037 - Chaktomok Digital Dental Lab",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ចតុមុខ",
     "rawAcct": "005 400 922",
     "acct": "005400922",
     "accounts": [
@@ -62,7 +81,7 @@
   {
     "entry": "C00045",
     "customerId": "C00045",
-    "name": "C00045 - Beauty Smile Dental Clinic",
+    "name": "គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍",
     "rawAcct": "001 654 720",
     "acct": "001654720",
     "accounts": [
@@ -92,7 +111,7 @@
   {
     "entry": "C00051",
     "customerId": "C00051",
-    "name": "C00051 - Bonteay Srey Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ បន្ទាយស្រី",
     "rawAcct": "000 717 200",
     "acct": "000717200",
     "accounts": [
@@ -107,7 +126,7 @@
   {
     "entry": "C00076",
     "customerId": "C00076",
-    "name": "C00076 - Bun Sopanha Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ប៊ុន សុបញ្ញា",
     "rawAcct": "260 001 378 900 18",
     "acct": "26000137890018",
     "accounts": [
@@ -122,7 +141,7 @@
   {
     "entry": "C00084",
     "customerId": "C00084",
-    "name": "C00084 - Camdent Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ខេមដេន",
     "rawAcct": "000 351 852",
     "acct": "000351852",
     "accounts": [
@@ -137,7 +156,7 @@
   {
     "entry": "C00107",
     "customerId": "C00107",
-    "name": "C00107 - Chan Reah Dental Clinic-Moniret",
+    "name": "ពេទ្យធ្មេញ​ ចន្ទ័រះ-ផ្លូវមនីរេត",
     "rawAcct": "001 691 201",
     "acct": "001691201",
     "accounts": [
@@ -152,7 +171,7 @@
   {
     "entry": "C00140",
     "customerId": "C00140",
-    "name": "C00140 - Cheav Som An Dental Clinic",
+    "name": "ពេទ្យធ្មេញ​ ចែវ​ សំអាន",
     "rawAcct": "000 497 514",
     "acct": "000497514",
     "accounts": [
@@ -182,7 +201,7 @@
   {
     "entry": "C00232",
     "customerId": "C00232",
-    "name": "C00232 - D-Care Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ឌី ឃែរ",
     "rawAcct": "000 046 959",
     "acct": "000046959",
     "accounts": [
@@ -197,7 +216,7 @@
   {
     "entry": "C00254",
     "customerId": "C00254",
-    "name": "C00254 - Doctor Care Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ដុកទ័រ ឃែរ",
     "rawAcct": "001 779 000 / 001 779 008",
     "acct": "001779000",
     "accounts": [
@@ -259,7 +278,7 @@
   {
     "entry": "C00328",
     "customerId": "C00328",
-    "name": "C00328 - Happy Smile Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ហេបភី ស្មាយល៍",
     "rawAcct": "006 455 825",
     "acct": "006455825",
     "accounts": [
@@ -274,7 +293,7 @@
   {
     "entry": "C00428",
     "customerId": "C00428",
-    "name": "C00428 - i-Dent Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ អាយ ដេន៏",
     "rawAcct": "001 244 195",
     "acct": "001244195",
     "accounts": [
@@ -289,7 +308,7 @@
   {
     "entry": "C00439",
     "customerId": "C00439",
-    "name": "C00439 - Jasmine Dental Clinic",
+    "name": "គ្លីនីកធ្មេញ ចាស្មីន",
     "rawAcct": "898 999 988",
     "acct": "898999988",
     "accounts": [
@@ -304,7 +323,7 @@
   {
     "entry": "C00485",
     "customerId": "C00485",
-    "name": "C00485 - AKARA DENTAL CLINIC-Vimean Ekreach",
+    "name": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា-វិមានឯករាជ្យ",
     "rawAcct": "014 598 524",
     "acct": "014598524",
     "accounts": [
@@ -334,7 +353,7 @@
   {
     "entry": "C00507",
     "customerId": "C00507",
-    "name": "C00507 - Kim Chamroeun Dental Clinic",
+    "name": "ពេទ្យធ្មេញ គឺម ចំរើន",
     "rawAcct": "300 003 981 902 10",
     "acct": "30000398190210",
     "accounts": [
@@ -364,7 +383,7 @@
   {
     "entry": "C00535",
     "customerId": "C00535",
-    "name": "C00535 - Kim Sor Dental Clinic",
+    "name": "ពេទ្យធ្មេញ គឹម ស៊",
     "rawAcct": "350 001 339 283 18",
     "acct": "35000133928318",
     "accounts": [
@@ -379,7 +398,7 @@
   {
     "entry": "C00548",
     "customerId": "C00548",
-    "name": "C00548 - Kok Heng II Dental Clinic-Orussei 3",
+    "name": "ពេទ្យធ្មេញ កុក ហេង ២",
     "rawAcct": "012 320 530",
     "acct": "012320530",
     "accounts": [
@@ -394,7 +413,7 @@
   {
     "entry": "C00695",
     "customerId": "C00695",
-    "name": "C00695 - Master Care Dental Clinic",
+    "name": "មន្ទីព្យាបាលធ្មេញ ម៉ាស្ទ័រឃែរ",
     "rawAcct": "Check Deposite",
     "acct": "",
     "accounts": [],
@@ -407,7 +426,7 @@
   {
     "entry": "C00696",
     "customerId": "C00696",
-    "name": "C00696 - Master Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ម៉ាស្ទ័រ",
     "rawAcct": "018 609 299",
     "acct": "018609299",
     "accounts": [
@@ -437,7 +456,7 @@
   {
     "entry": "C00717",
     "customerId": "C00717",
-    "name": "C00717 - Amara Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ អមរា",
     "rawAcct": "271 120 211",
     "acct": "271120211",
     "accounts": [
@@ -452,7 +471,7 @@
   {
     "entry": "C00729",
     "customerId": "C00729",
-    "name": "C00729 - Modern Smile Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ម័រដីន ស្មាយល៏",
     "rawAcct": "000 755 553",
     "acct": "000755553",
     "accounts": [
@@ -467,7 +486,7 @@
   {
     "entry": "C00751",
     "customerId": "C00751",
-    "name": "C00751 - MY SMILE Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ម៉ាយ ស្មាយ",
     "rawAcct": "002 595 685",
     "acct": "002595685",
     "accounts": [
@@ -482,7 +501,7 @@
   {
     "entry": "C00752",
     "customerId": "C00752",
-    "name": "C00752 - My Teeth Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ម៉ាយធីស",
     "rawAcct": "347 300 538 757 21",
     "acct": "34730053875721",
     "accounts": [
@@ -512,7 +531,7 @@
   {
     "entry": "C00781",
     "customerId": "C00781",
-    "name": "C00781 - Nokor Phnom Dental Clinic",
+    "name": "ពេទ្យធ្មេញ នគរភ្នំ",
     "rawAcct": "095 989 833",
     "acct": "095989833",
     "accounts": [
@@ -542,7 +561,7 @@
   {
     "entry": "C00789",
     "customerId": "C00789",
-    "name": "C00789 - Nuon Voeun Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ នួន វឿន",
     "rawAcct": "002 009 123",
     "acct": "002009123",
     "accounts": [
@@ -557,7 +576,7 @@
   {
     "entry": "C00799",
     "customerId": "C00799",
-    "name": "C00799 - Oral Care Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ឳរ៉ាល់ ឃែរ",
     "rawAcct": "000 752 604",
     "acct": "000752604",
     "accounts": [
@@ -587,7 +606,7 @@
   {
     "entry": "C00916",
     "customerId": "C00916",
-    "name": "C00916 - Prak Srun Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ប្រាក់ ស្រ៊ុន",
     "rawAcct": "111 261 528 / 000 329 222",
     "acct": "111261528",
     "accounts": [
@@ -604,7 +623,7 @@
   {
     "entry": "C00935",
     "customerId": "C00935",
-    "name": "C00935 - Prum Bayon Dental Clinic",
+    "name": "មន្ទីរព្យាបាលមាត់ធ្មេញ ព្រហ្មបាយ័ន",
     "rawAcct": "015 382 057",
     "acct": "015382057",
     "accounts": [
@@ -619,7 +638,7 @@
   {
     "entry": "C00940",
     "customerId": "C00940",
-    "name": "C00940 - Pyramid Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ពីរ៉ាមីត",
     "rawAcct": "000 200 918",
     "acct": "000200918",
     "accounts": [
@@ -649,7 +668,7 @@
   {
     "entry": "C01008",
     "customerId": "C01008",
-    "name": "C01008 - Sarac Dental Clinic",
+    "name": "ពេទ្យធ្មេញ សារៈ",
     "rawAcct": "037 005 650 001",
     "acct": "037005650001",
     "accounts": [
@@ -679,7 +698,7 @@
   {
     "entry": "C01043",
     "customerId": "C01043",
-    "name": "C01043 - Seoul Implant Dental Clinic",
+    "name": "ពេទ្យធ្មេញ សេអ៊ូល អិមផ្លេន​",
     "rawAcct": "007 765 777",
     "acct": "007765777",
     "accounts": [
@@ -694,7 +713,7 @@
   {
     "entry": "C01054",
     "customerId": "C01054",
-    "name": "C01054 - Shang Hai Dental Clinic",
+    "name": "ពេទ្យធ្មេញ សៀង ហៃ",
     "rawAcct": "000 254 380",
     "acct": "000254380",
     "accounts": [
@@ -709,7 +728,7 @@
   {
     "entry": "C01055",
     "customerId": "C01055",
-    "name": "C01055 - OREDA Dental Clinic",
+    "name": "ឯកទេសព្យាបាលធ្មេញ អូរីដា",
     "rawAcct": "096 441 100",
     "acct": "096441100",
     "accounts": [
@@ -724,7 +743,7 @@
   {
     "entry": "C01057",
     "customerId": "C01057",
-    "name": "C01057 - Nimit Dental Clinic",
+    "name": "ពេទ្យធ្មេញ និមិត្ត",
     "rawAcct": "019 227 299",
     "acct": "019227299",
     "accounts": [
@@ -739,7 +758,7 @@
   {
     "entry": "C01071",
     "customerId": "C01071",
-    "name": "C01071 - TL Smile Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ធីអិលស្មាយ",
     "rawAcct": "011 528 597",
     "acct": "011528597",
     "accounts": [
@@ -754,7 +773,7 @@
   {
     "entry": "C01075",
     "customerId": "C01075",
-    "name": "C01075 - Eak Reach Dental Clinic-KPS",
+    "name": "ពេទ្យធ្មេញ ឯករាជ្យ",
     "rawAcct": "370 025 500 001 41",
     "acct": "37002550000141",
     "accounts": [
@@ -799,7 +818,7 @@
   {
     "entry": "C01149",
     "customerId": "C01149",
-    "name": "C01149 - Sokpheap Dental Clinic-KPC",
+    "name": "គ្លីនិកធ្មេញ សុខភាព-កំពង់ឆ្នាំង",
     "rawAcct": "120 000 370 791 23",
     "acct": "12000037079123",
     "accounts": [
@@ -814,7 +833,7 @@
   {
     "entry": "C01247",
     "customerId": "C01247",
-    "name": "C01247 - Take Care Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ធេក ឃែរ",
     "rawAcct": "000 643 535",
     "acct": "000643535",
     "accounts": [
@@ -844,7 +863,7 @@
   {
     "entry": "C01387",
     "customerId": "C01387",
-    "name": "C01387 - Young Man Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ យាំង ម៉េន",
     "rawAcct": "000 387 536",
     "acct": "000387536",
     "accounts": [
@@ -874,7 +893,7 @@
   {
     "entry": "C01405",
     "customerId": "C01405",
-    "name": "C01405 - BaiTorngDental Clinic",
+    "name": "ពេទ្យធ្មេញ បៃតង",
     "rawAcct": "001 018 376",
     "acct": "001018376",
     "accounts": [
@@ -904,7 +923,7 @@
   {
     "entry": "C01425",
     "customerId": "C01425",
-    "name": "C01425 - GS Dental Lab",
+    "name": "GS Dental Lab",
     "rawAcct": "089 649 966",
     "acct": "089649966",
     "accounts": [
@@ -919,7 +938,7 @@
   {
     "entry": "C01429",
     "customerId": "C01429",
-    "name": "C01429 - Dr.Home Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ដុកទ័រ ហូម",
     "rawAcct": "731 322 600 130 01",
     "acct": "73132260013001",
     "accounts": [
@@ -951,7 +970,7 @@
   {
     "entry": "C01451",
     "customerId": "C01451",
-    "name": "C01451 - Aries Dental Clinic",
+    "name": "ពេទ្យធ្មេញ អារីស",
     "rawAcct": "001 572 737 / 003 410 718",
     "acct": "001572737",
     "accounts": [
@@ -968,7 +987,7 @@
   {
     "entry": "C01510",
     "customerId": "C01510",
-    "name": "C01510 - Excellent Dental Clinic",
+    "name": "ពេទ្យធ្មេញ អ៊ិច ស៊ីឡិន",
     "rawAcct": "000 753 717",
     "acct": "000753717",
     "accounts": [
@@ -983,7 +1002,7 @@
   {
     "entry": "C01539",
     "customerId": "C01539",
-    "name": "C01539 - Khiev Sokhey Dental CLinic",
+    "name": "បន្ទប់ពិគ្រោះ និង ព្យាបាលជំងឺ មាត់-ធ្មេញ",
     "rawAcct": "087 999 897",
     "acct": "087999897",
     "accounts": [
@@ -998,7 +1017,7 @@
   {
     "entry": "C01559",
     "customerId": "C01559",
-    "name": "C01559 - Boeung Chhouk Dental Clinic-CBA",
+    "name": "គ្លីនិកធ្មេញ បឹងឈូក",
     "rawAcct": "035 466 760 001",
     "acct": "035466760001",
     "accounts": [
@@ -1013,7 +1032,7 @@
   {
     "entry": "C01602",
     "customerId": "C01602",
-    "name": "C01602 - Akara Dental Clinic-Chbar Ampov",
+    "name": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា សាខាច្បារអំពៅ",
     "rawAcct": "014 598 524",
     "acct": "014598524",
     "accounts": [
@@ -1028,7 +1047,7 @@
   {
     "entry": "C01660",
     "customerId": "C01660",
-    "name": "C01660 - Bright Dent Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ប្រាយឌិន",
     "rawAcct": "010 705 766",
     "acct": "010705766",
     "accounts": [
@@ -1043,7 +1062,7 @@
   {
     "entry": "C01679",
     "customerId": "C01679",
-    "name": "C01679 - True Dental Laboratory",
+    "name": "True Dental Laboratory",
     "rawAcct": "006 114 272",
     "acct": "006114272",
     "accounts": [
@@ -1058,7 +1077,7 @@
   {
     "entry": "C01683",
     "customerId": "C01683",
-    "name": "C01683 - Cam Lab",
+    "name": "ខេម ឡេប",
     "rawAcct": "500 328 522",
     "acct": "500328522",
     "accounts": [
@@ -1073,7 +1092,7 @@
   {
     "entry": "C01691",
     "customerId": "C01691",
-    "name": "C01691 - Lum Or Dental Clinic-PUC",
+    "name": "គ្លីនិកធ្មេញ លម្អ",
     "rawAcct": "000 697 004",
     "acct": "000697004",
     "accounts": [
@@ -1088,7 +1107,7 @@
   {
     "entry": "C01696",
     "customerId": "C01696",
-    "name": "C01696 - Choronai Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ចរណៃ",
     "rawAcct": "001 686 661",
     "acct": "001686661",
     "accounts": [
@@ -1103,7 +1122,7 @@
   {
     "entry": "C01703",
     "customerId": "C01703",
-    "name": "C01703 - Pixel Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ភីសែល",
     "rawAcct": "000 913 603",
     "acct": "000913603",
     "accounts": [
@@ -1118,7 +1137,7 @@
   {
     "entry": "C01717",
     "customerId": "C01717",
-    "name": "C01717 - BATTAMBANG GLORY DENTAL CINIC",
+    "name": "គ្លីនិកធ្មេញ បាត់ដំបង គ្លរី",
     "rawAcct": "052 123 456",
     "acct": "052123456",
     "accounts": [
@@ -1133,7 +1152,7 @@
   {
     "entry": "C01727",
     "customerId": "C01727",
-    "name": "C01727 - Smile Design Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ស្មាយ ឌីហ្សាញ",
     "rawAcct": "001 250 934",
     "acct": "001250934",
     "accounts": [
@@ -1148,7 +1167,7 @@
   {
     "entry": "C01750",
     "customerId": "C01750",
-    "name": "C01750 - DX Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ឌី អ៊ិច",
     "rawAcct": "010 782 603",
     "acct": "010782603",
     "accounts": [
@@ -1178,7 +1197,7 @@
   {
     "entry": "C01762",
     "customerId": "C01762",
-    "name": "C01762 - Kulen Dental Clinic",
+    "name": "ពេទ្យធ្មេញ គូលែន",
     "rawAcct": "008 145 959",
     "acct": "008145959",
     "accounts": [
@@ -1193,7 +1212,7 @@
   {
     "entry": "C01772",
     "customerId": "C01772",
-    "name": "C01772 - Sopheak Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ សុភ័ក្រ្ត",
     "rawAcct": "001 277 637",
     "acct": "001277637",
     "accounts": [
@@ -1208,7 +1227,7 @@
   {
     "entry": "C01777",
     "customerId": "C01777",
-    "name": "C01777 - Smile Care Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ស្មាយ ឃែរ",
     "rawAcct": "000 614 343",
     "acct": "000614343",
     "accounts": [
@@ -1223,7 +1242,7 @@
   {
     "entry": "C01790",
     "customerId": "C01790",
-    "name": "C01790 - Mineral Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ មីន័រ៉ល",
     "rawAcct": "003 424 411",
     "acct": "003424411",
     "accounts": [
@@ -1238,7 +1257,7 @@
   {
     "entry": "C01801",
     "customerId": "C01801",
-    "name": "C01801 - Central Dental Laboratory",
+    "name": "ឡាបូទន្តសាស្រ្ត សង់ត្រាល់",
     "rawAcct": "000 533 008",
     "acct": "000533008",
     "accounts": [
@@ -1298,7 +1317,7 @@
   {
     "entry": "C01849",
     "customerId": "C01849",
-    "name": "C01849 - U Smile Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ យូ ស្មាយ",
     "rawAcct": "069 388 849",
     "acct": "069388849",
     "accounts": [
@@ -1313,7 +1332,7 @@
   {
     "entry": "C01850",
     "customerId": "C01850",
-    "name": "C01850 - Meas Channy Dental Clinic",
+    "name": "ពេទ្យធ្មេញ មាស​ ចន្នី",
     "rawAcct": "003 287 365",
     "acct": "003287365",
     "accounts": [
@@ -1328,7 +1347,7 @@
   {
     "entry": "C01851",
     "customerId": "C01851",
-    "name": "C01851 - ChhukMeas Dental Clinic-KD",
+    "name": "ពេទ្យធ្មេញ ឈូកមាស",
     "rawAcct": "013 479 524",
     "acct": "013479524",
     "accounts": [
@@ -1343,7 +1362,7 @@
   {
     "entry": "C01852",
     "customerId": "C01852",
-    "name": "C01852 - Propey Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ប្រពៃ",
     "rawAcct": "010 570 333",
     "acct": "010570333",
     "accounts": [
@@ -1358,7 +1377,7 @@
   {
     "entry": "C01857",
     "customerId": "C01857",
-    "name": "C01857 - Ratanak Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ រតនៈ",
     "rawAcct": "556 356 249",
     "acct": "556356249",
     "accounts": [
@@ -1373,7 +1392,7 @@
   {
     "entry": "C01858",
     "customerId": "C01858",
-    "name": "C01858 - Ratha Dental Clinic-CSR",
+    "name": "ពេទ្យធ្មេញ រដ្ឋា",
     "rawAcct": "089 909 709",
     "acct": "089909709",
     "accounts": [
@@ -1388,7 +1407,7 @@
   {
     "entry": "C01878",
     "customerId": "C01878",
-    "name": "C01878 - Malis Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ម្លិះ",
     "rawAcct": "015 774 409",
     "acct": "015774409",
     "accounts": [
@@ -1403,7 +1422,7 @@
   {
     "entry": "C01879",
     "customerId": "C01879",
-    "name": "C01879 - Prestige Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ប្រេស្ទីហ្ស៍",
     "rawAcct": "012 758 109",
     "acct": "012758109",
     "accounts": [
@@ -1448,7 +1467,7 @@
   {
     "entry": "C01888",
     "customerId": "C01888",
-    "name": "C01888 - ST Digital CAD CAM LAB",
+    "name": "អេសធីឌីជីថល ខាដខាមលែប",
     "rawAcct": "001 098 894",
     "acct": "001098894",
     "accounts": [
@@ -1463,7 +1482,7 @@
   {
     "entry": "C01890",
     "customerId": "C01890",
-    "name": "C01890 - Kesara Dental Clinic",
+    "name": "គ្លីនិកធ្មេញកេសរ",
     "rawAcct": "005 278 366",
     "acct": "005278366",
     "accounts": [
@@ -1478,7 +1497,7 @@
   {
     "entry": "C01892",
     "customerId": "C01892",
-    "name": "C01892 - Crystal Dental Laboratroy",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ គ្រីស្តាល់",
     "rawAcct": "003 348 938",
     "acct": "003348938",
     "accounts": [
@@ -1493,7 +1512,7 @@
   {
     "entry": "C01896",
     "customerId": "C01896",
-    "name": "C01896 - Heang Leanghor Dental Clinic",
+    "name": "ពេទ្យធ្មេញ ហ៊ាង លាងហ៊",
     "rawAcct": "037 402 650 001",
     "acct": "037402650001",
     "accounts": [
@@ -1508,7 +1527,7 @@
   {
     "entry": "C01898",
     "customerId": "C01898",
-    "name": "C01898 - OBI Dental Clinic",
+    "name": "ពេទ្យធ្មេញ អូ ប៊ី អាយ",
     "rawAcct": "344 806 589 324 28",
     "acct": "34480658932428",
     "accounts": [
@@ -1523,7 +1542,7 @@
   {
     "entry": "C01899",
     "customerId": "C01899",
-    "name": "C01899 - Oral Well Dental Clinic",
+    "name": "ពេទ្យធ្មេញ អូរ៉លវ៉ែល",
     "rawAcct": "000 922 488",
     "acct": "000922488",
     "accounts": [
@@ -1538,7 +1557,7 @@
   {
     "entry": "C01905",
     "customerId": "C01905",
-    "name": "C01905 - Soen Hon Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ស៊ឺន ហ៊ុន",
     "rawAcct": "968 844 994",
     "acct": "968844994",
     "accounts": [
@@ -1583,7 +1602,7 @@
   {
     "entry": "C01911",
     "customerId": "C01911",
-    "name": "C01911 - Dream Dental Beauty Clinic",
+    "name": "មន្ទីរព្យាបាលធ្មេញ ឌ្រីម ឌេនធល ប៊ីយ៉ូធី",
     "rawAcct": "009 125 755",
     "acct": "009125755",
     "accounts": [
@@ -1598,7 +1617,7 @@
   {
     "entry": "C01915",
     "customerId": "C01915",
-    "name": "C01915 - Pixel Dental Clinic-CKD",
+    "name": "ពេទ្យធ្មេញ ភីសែល-ចម្ការដូង",
     "rawAcct": "000 913 603",
     "acct": "000913603",
     "accounts": [
@@ -1613,7 +1632,7 @@
   {
     "entry": "C01921",
     "customerId": "C01921",
-    "name": "C01921 - My Lab Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ម៉ាយ ឡេប",
     "rawAcct": "077 781 188",
     "acct": "077781188",
     "accounts": [
@@ -1643,7 +1662,7 @@
   {
     "entry": "C01943",
     "customerId": "C01943",
-    "name": "C01943 - Dr. 33 Dental Clinic",
+    "name": "គ្លីនិកទន្តសាស្រ្ត ដុកទ័រ 33",
     "rawAcct": "347 304 006 303 43",
     "acct": "34730400630343",
     "accounts": [
@@ -1673,7 +1692,7 @@
   {
     "entry": "C01949",
     "customerId": "C01949",
-    "name": "C01949 - DIO Cambodia Co.,LTD",
+    "name": "ឌីអាយអូ ខេមបូឌា ខូ អិល ធី ឌី",
     "rawAcct": "019 463 426",
     "acct": "019463426",
     "accounts": [
@@ -1703,7 +1722,7 @@
   {
     "entry": "C01958",
     "customerId": "C01958",
-    "name": "C01958 - Premium Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ព្រីមៀម",
     "rawAcct": "001 498 485",
     "acct": "001498485",
     "accounts": [
@@ -1718,7 +1737,7 @@
   {
     "entry": "C01966",
     "customerId": "C01966",
-    "name": "C01966 - Daisy Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ដេស៊ី",
     "rawAcct": "004 707 435",
     "acct": "004707435",
     "accounts": [
@@ -1733,7 +1752,7 @@
   {
     "entry": "C01968",
     "customerId": "C01968",
-    "name": "C01968 - MASTERPIECE Dental Specialist Center",
+    "name": "មន្ទីរព្យាបាលធ្មេញឯកទេស ម៉ាស្ទ័រភីស",
     "rawAcct": "001 854 040",
     "acct": "001854040",
     "accounts": [
@@ -1748,7 +1767,7 @@
   {
     "entry": "C01975",
     "customerId": "C01975",
-    "name": "C01975 - Dang Tong Thmey II Dental Clinic-PP",
+    "name": "ពេទ្យធ្មេញ ដងទង់ថ្មី២",
     "rawAcct": "500 579 127",
     "acct": "500579127",
     "accounts": [
@@ -1763,7 +1782,7 @@
   {
     "entry": "C01980",
     "customerId": "C01980",
-    "name": "C01980 - Moon TK Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ មូន",
     "rawAcct": "015 532 195",
     "acct": "015532195",
     "accounts": [
@@ -1778,7 +1797,7 @@
   {
     "entry": "C01981",
     "customerId": "C01981",
-    "name": "C01981 - Brightline Dental Clinic",
+    "name": "គ្លីនិចធ្មេញ ប្រាយឡាញ",
     "rawAcct": "077 333 309",
     "acct": "077333309",
     "accounts": [
@@ -1793,7 +1812,7 @@
   {
     "entry": "C01995",
     "customerId": "C01995",
-    "name": "C01995 - Idol Dental Clinic",
+    "name": "មន្ទីរព្យាបាលធ្មេញ អាយដល",
     "rawAcct": "099 600 055",
     "acct": "099600055",
     "accounts": [
@@ -1823,7 +1842,7 @@
   {
     "entry": "C02015",
     "customerId": "C02015",
-    "name": "C02015 - Daro Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ដារ៉ូ",
     "rawAcct": "002 630 082",
     "acct": "002630082",
     "accounts": [
@@ -1838,7 +1857,7 @@
   {
     "entry": "C02017",
     "customerId": "C02017",
-    "name": "C02017 - Protect Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ​ ប្រូធិក",
     "rawAcct": "000 965 848",
     "acct": "000965848",
     "accounts": [
@@ -1853,7 +1872,7 @@
   {
     "entry": "C02022",
     "customerId": "C02022",
-    "name": "C02022 - Vuthy Seth Dental Clinic",
+    "name": "ពេទ្យធ្មេញ វុទ្ធី សិទ្ធី",
     "rawAcct": "000 514 461",
     "acct": "000514461",
     "accounts": [
@@ -1898,7 +1917,7 @@
   {
     "entry": "C02029",
     "customerId": "C02029",
-    "name": "C02029 - Zirconia Dental laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ហ្សឺកូនៀម",
     "rawAcct": "105 469 341 / 018 397 509",
     "acct": "105469341",
     "accounts": [
@@ -1915,7 +1934,7 @@
   {
     "entry": "C02036",
     "customerId": "C02036",
-    "name": "C02036 - M25 Dental Clinic",
+    "name": "ពេទ្យធ្មេញ M25",
     "rawAcct": "000 598 739",
     "acct": "000598739",
     "accounts": [
@@ -1930,7 +1949,7 @@
   {
     "entry": "C02039",
     "customerId": "C02039",
-    "name": "C02039 - An Nare Dental Clinic",
+    "name": "ពេទ្យធ្មេញ អាន ណារ៉េ",
     "rawAcct": "424 656 999",
     "acct": "424656999",
     "accounts": [
@@ -1945,7 +1964,7 @@
   {
     "entry": "C02040",
     "customerId": "C02040",
-    "name": "C02040 - Royal Dental Cabinet",
+    "name": "គ្លីនិកធ្មេញ រ៉ូយ៉ាល់",
     "rawAcct": "500 483 628",
     "acct": "500483628",
     "accounts": [
@@ -1960,7 +1979,7 @@
   {
     "entry": "C02041",
     "customerId": "C02041",
-    "name": "C02041 - MUNI DENTAL CLINIC",
+    "name": "គ្លិនិកធ្មេញ មុនិ",
     "rawAcct": "011 361 433",
     "acct": "011361433",
     "accounts": [
@@ -1975,7 +1994,7 @@
   {
     "entry": "C02048",
     "customerId": "C02048",
-    "name": "C02048 - KH Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ខេ អេក",
     "rawAcct": "012 666 454",
     "acct": "012666454",
     "accounts": [
@@ -1990,7 +2009,7 @@
   {
     "entry": "C02052",
     "customerId": "C02052",
-    "name": "C02052 - Amara Dental Clinic-TK",
+    "name": "មន្ទីរព្យាបាលធ្មេញ អមរា-ទួលគោក",
     "rawAcct": "130 620 244",
     "acct": "130620244",
     "accounts": [
@@ -2005,7 +2024,7 @@
   {
     "entry": "C02054",
     "customerId": "C02054",
-    "name": "C02054 - Chan Davin Dental Clinic",
+    "name": "ពេទ្យធ្មេញ​ ចាន់ ដាវិដ",
     "rawAcct": "002 359 434",
     "acct": "002359434",
     "accounts": [
@@ -2020,7 +2039,7 @@
   {
     "entry": "C02058",
     "customerId": "C02058",
-    "name": "C02058 - Lumorng Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ លំអង",
     "rawAcct": "016 298 777 / 078 896 800",
     "acct": "016298777",
     "accounts": [
@@ -2037,7 +2056,7 @@
   {
     "entry": "C02064",
     "customerId": "C02064",
-    "name": "C02064 - Perfect Smile Aesthetic Dental Laboratory",
+    "name": "មន្ទីផលិតគ្រាប់ធ្មេញ ភឺហ្វិក ស្មាយ",
     "rawAcct": "077 333 309",
     "acct": "077333309",
     "accounts": [
@@ -2052,7 +2071,7 @@
   {
     "entry": "C02065",
     "customerId": "C02065",
-    "name": "C02065 - Elite Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ អេលីត",
     "rawAcct": "016 220 210",
     "acct": "016220210",
     "accounts": [
@@ -2067,7 +2086,7 @@
   {
     "entry": "C02068",
     "customerId": "C02068",
-    "name": "C02068 - Piseth Dental Clinic-Preah Vihea",
+    "name": "គ្លីនិកធ្មេញ​ ពិសិដ្ខ-ព្រះវិហារ",
     "rawAcct": "900 007 577 4919",
     "acct": "9000075774919",
     "accounts": [
@@ -2097,7 +2116,7 @@
   {
     "entry": "C02086",
     "customerId": "C02086",
-    "name": "C02086 - MUNI Dental Clinic-PP",
+    "name": "គ្លីនិកធ្មេញ មុនិ-ភ្នំពេញ",
     "rawAcct": "015 428 900",
     "acct": "015428900",
     "accounts": [
@@ -2112,7 +2131,7 @@
   {
     "entry": "C02087",
     "customerId": "C02087",
-    "name": "C02087 - Seang Pheng Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ស៊ាន ផេង",
     "rawAcct": "092 056 295 122 001 02",
     "acct": "09205629512200102",
     "accounts": [
@@ -2127,7 +2146,7 @@
   {
     "entry": "C02090",
     "customerId": "C02090",
-    "name": "C02090 - Brace Studio Dental Clinic",
+    "name": "បន្ទប់ពិគ្រោះព្យាបាលជម្ងឺមាត់ធ្មេញ ប្រេស ស្តូឌីយោ",
     "rawAcct": "096 363 3333",
     "acct": "0963633333",
     "accounts": [
@@ -2142,7 +2161,7 @@
   {
     "entry": "C02093",
     "customerId": "C02093",
-    "name": "C02093 - PRL Dental Laboratory",
+    "name": "PRL Dental Laboratory",
     "rawAcct": "002 547 792",
     "acct": "002547792",
     "accounts": [
@@ -2157,7 +2176,7 @@
   {
     "entry": "C02096",
     "customerId": "C02096",
-    "name": "C02096 - Kim San Dental Clinic - DK",
+    "name": "ពេទ្យធ្មេញ គីម សាន",
     "rawAcct": "006 319 998",
     "acct": "006319998",
     "accounts": [
@@ -2172,7 +2191,7 @@
   {
     "entry": "C02097",
     "customerId": "C02097",
-    "name": "C02097 - I Deal Dental Clinic",
+    "name": "ពេទ្យធេ្មញ អាយ ដៀល",
     "rawAcct": "343 706 309 233 23",
     "acct": "34370630923323",
     "accounts": [
@@ -2187,7 +2206,7 @@
   {
     "entry": "C02098",
     "customerId": "C02098",
-    "name": "C02098 - Ream Dental Studio",
+    "name": "គ្លីនិកធ្មេញ រៀម",
     "rawAcct": "003 450 767",
     "acct": "003450767",
     "accounts": [
@@ -2217,7 +2236,7 @@
   {
     "entry": "C02107",
     "customerId": "C02107",
-    "name": "C02107 - Vachana Dental Clinic",
+    "name": "មន្ទីរពេទ្យធ្មេញ វចនា",
     "rawAcct": "090---717",
     "acct": "090717",
     "accounts": [
@@ -2232,7 +2251,7 @@
   {
     "entry": "C02114",
     "customerId": "C02114",
-    "name": "C02114 - Seang Heng Dental Clinic",
+    "name": "គ្លីនិកធ្មេញ ស៊ាង ហេង",
     "rawAcct": "360 003 812 399 28",
     "acct": "36000381239928",
     "accounts": [
@@ -2247,7 +2266,7 @@
   {
     "entry": "C02116",
     "customerId": "C02116",
-    "name": "C02116 - Care Plus Dental Clinic",
+    "name": "បន្ទប់ពិគ្រោះព្យាបាលជម្ងឺមាត់ធ្មេញ ឃែរ ផ្លឹស",
     "rawAcct": "001 526 428",
     "acct": "001526428",
     "accounts": [
@@ -2262,7 +2281,7 @@
   {
     "entry": "C02117",
     "customerId": "C02117",
-    "name": "C02117 - Ponleu Doung Chan Dental Clinic",
+    "name": "គ្លីនិកព្យាបាលធ្មេញ ពន្លឺដួងច័ន្ទ",
     "rawAcct": "000 276 902",
     "acct": "000276902",
     "accounts": [
@@ -2277,7 +2296,7 @@
   {
     "entry": "C02120",
     "customerId": "C02120",
-    "name": "C02120 - PKA Dental Aesthetic",
+    "name": "គ្លីនិកសម្ផស្សមាត់-ធ្មេញ ផ្កា",
     "rawAcct": "014 658 421",
     "acct": "014658421",
     "accounts": [
@@ -2292,7 +2311,7 @@
   {
     "entry": "C02122",
     "customerId": "C02122",
-    "name": "C02122 - Dentica Dental Care",
+    "name": "គ្លីនិកធ្មេញ ដេនធីកា",
     "rawAcct": "018 178 207",
     "acct": "018178207",
     "accounts": [
@@ -2307,7 +2326,7 @@
   {
     "entry": "C02124",
     "customerId": "C02124",
-    "name": "C02124 - Sun and Moon Dental Laboratory",
+    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ សាន់ អិន ម៉ូន",
     "rawAcct": "000 228 256",
     "acct": "000228256",
     "accounts": [
@@ -2322,7 +2341,7 @@
   {
     "entry": "C02133",
     "customerId": "C02133",
-    "name": "C02133 - First Smile Dental Clinic",
+    "name": "បន្ទប់ពិគ្រោះព្យាបាលជំហឺមាត់-ធ្មេញ  ហ្វឺសស្មាយ",
     "rawAcct": "005 195 589",
     "acct": "005195589",
     "accounts": [
@@ -2337,7 +2356,7 @@
   {
     "entry": "C02134",
     "customerId": "C02134",
-    "name": "C02134 - Wat Sarac Dental Clinic",
+    "name": "ពេទ្យធ្មេញ វ៉ាត សារាក់",
     "rawAcct": "037 005 650 001",
     "acct": "037005650001",
     "accounts": [

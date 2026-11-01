@@ -158,18 +158,16 @@ export function writeSharedPrefs(newPrefs: Partial<SharedPrefs>): SharedPrefs {
 
 export function getAbaStateStatus(): { success: boolean; updatedAt: string; summary?: any } {
   const cached = readJsonFile<AbaState | null>('state.json', null);
-  if (cached) {
-    return {
-      success: true,
-      updatedAt: cached.updatedAt || new Date().toISOString(),
-      summary: cached.summary
-    };
+  const shared = readSharedPrefs();
+  let latestTs = cached?.updatedAt || '';
+  if (shared?.updatedAt && (!latestTs || shared.updatedAt > latestTs)) {
+    latestTs = shared.updatedAt;
   }
-  const state = getAbaState();
+  if (!latestTs) latestTs = new Date().toISOString();
   return {
     success: true,
-    updatedAt: state.updatedAt || new Date().toISOString(),
-    summary: state.summary
+    updatedAt: latestTs,
+    summary: cached?.summary
   };
 }
 
@@ -202,37 +200,51 @@ function readJsonFile<T>(filename: string, defaultVal: T): T {
   ensureDataDir();
   const filePath = path.join(dataDir, filename);
   let localData: any = null;
+  let localMtime = 0;
   if (fs.existsSync(filePath)) {
     try {
+      localMtime = fs.statSync(filePath).mtimeMs;
       const raw = fs.readFileSync(filePath, 'utf-8');
       localData = JSON.parse(raw);
     } catch {}
   }
 
-  // Check network drive if local is missing, empty, or smaller
+  // Check network drives if local is missing, empty, or older
   const netDirs = getNetworkDriveAbaDirs();
   for (const dir of netDirs) {
     try {
       const zp = path.join(dir, filename);
       if (fs.existsSync(zp)) {
+        const netStat = fs.statSync(zp);
+        const netMtime = netStat.mtimeMs;
         const raw = fs.readFileSync(zp, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          if (!Array.isArray(localData) || localData.length < parsed.length) {
-            try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
-            return parsed as T;
+
+        let netIsNewer = false;
+        if (!localData) {
+          netIsNewer = true;
+        } else if (netMtime > localMtime + 500) {
+          netIsNewer = true;
+        } else if (parsed && typeof parsed === 'object' && parsed.updatedAt && localData.updatedAt) {
+          if (parsed.updatedAt > localData.updatedAt) {
+            netIsNewer = true;
           }
-        } else if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          if (!localData || Object.keys(localData).length < Object.keys(parsed).length) {
-            try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
-            return parsed as T;
-          }
+        } else if (Array.isArray(parsed) && Array.isArray(localData) && parsed.length > localData.length) {
+          netIsNewer = true;
+        }
+
+        if (netIsNewer) {
+          try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
+          localData = parsed;
+          localMtime = netMtime;
+        } else if (localData && localMtime > netMtime + 500) {
+          try { fs.writeFileSync(zp, JSON.stringify(localData, null, 2), 'utf-8'); } catch {}
         }
       }
     } catch {}
   }
 
-  if (localData !== null && localData !== undefined && (!Array.isArray(localData) || localData.length > 0)) {
+  if (localData !== null && localData !== undefined) {
     return localData as T;
   }
   return (localData as T) || defaultVal;
@@ -384,16 +396,25 @@ export function parseCustomerProfiles(): Record<string, any> {
     }
   }
 
-  // 2. Check uploaded customer files if present to override / supplement
-  const candidates = ['customers.xls', 'customers.xlsx', 'Customer_List.xls', 'Customer_List.xlsx'];
+  // 2. Check customer files across network drives and local dataDir
+  const candidates = [
+    'Customer_Bank_Account_Number_Latest.xlsx',
+    'Customer_Bank_Account_Number.xlsx',
+    'customers.xls',
+    'customers.xlsx',
+    'Customer_List.xls',
+    'Customer_List.xlsx'
+  ];
+  const searchDirs = [...getNetworkDriveAbaDirs(), dataDir];
   let foundFile = '';
   for (const c of candidates) {
-    const upH = path.join('H:\\', 'InvoiceAI', 'uploads', c);
-    if (fs.existsSync(upH)) { foundFile = upH; break; }
-    const directH = path.join('H:\\', 'InvoiceAI', c);
-    if (fs.existsSync(directH)) { foundFile = directH; break; }
-    const p = path.join(dataDir, c);
-    if (fs.existsSync(p)) { foundFile = p; break; }
+    for (const d of searchDirs) {
+      const upP = path.join(d, 'uploads', c);
+      if (fs.existsSync(upP)) { foundFile = upP; break; }
+      const directP = path.join(d, c);
+      if (fs.existsSync(directP)) { foundFile = directP; break; }
+    }
+    if (foundFile) break;
   }
   if (!foundFile) return profiles;
 
@@ -403,29 +424,54 @@ export function parseCustomerProfiles(): Record<string, any> {
     let hdrIdx = -1;
     for (let i = 0; i < Math.min(20, aoa.length); i++) {
       const rowStr = (aoa[i] || []).join(' ').toLowerCase();
-      if (rowStr.includes('code') || rowStr.includes('customer name') || rowStr.includes('telephone') || rowStr.includes('phone')) {
+      if (rowStr.includes('code') || rowStr.includes('clinic id') || rowStr.includes('customer name') || rowStr.includes('telephone') || rowStr.includes('phone')) {
         hdrIdx = i;
         break;
       }
     }
+    const hdr = hdrIdx !== -1 ? (aoa[hdrIdx] || []) : [];
+    const colCode = hdr.findIndex((c: any) => /code|id|clinic\s*id/i.test(String(c)));
+    const colEn = hdr.findIndex((c: any) => /clinic\s*name$|customer\s*name|name.*en/i.test(String(c)));
+    const colKh = hdr.findIndex((c: any) => /2nd|kh|lang/i.test(String(c)));
+    const colPhone = hdr.findIndex((c: any) => /tel|phone/i.test(String(c)));
+    const colAddr = hdr.findIndex((c: any) => /addr/i.test(String(c)));
+    const colCur = hdr.findIndex((c: any) => /curr/i.test(String(c)));
+    const colAcc = hdr.findIndex((c: any) => /account\s*num|aba|bank/i.test(String(c)));
+    const colTg = hdr.findIndex((c: any) => /telegram|tg/i.test(String(c)));
+    const colHolder = hdr.findIndex((c: any) => /account\s*holder|^name$/i.test(String(c)));
+
     const startRow = hdrIdx !== -1 ? hdrIdx + 1 : 0;
     for (let i = startRow; i < aoa.length; i++) {
       const r = aoa[i] || [];
-      const code = String(r[1] || r[0] || '').trim().toUpperCase();
+      const codeRaw = colCode !== -1 ? r[colCode] : (r[0] || r[1]);
+      const code = String(codeRaw || '').trim().toUpperCase();
       if (code && /^C\d{4,}/i.test(code)) {
+        const nameEn = colEn !== -1 ? String(r[colEn] || '').trim() : String(r[1] || r[2] || '').trim();
+        const nameKh = colKh !== -1 ? String(r[colKh] || '').trim() : String(r[2] || r[3] || '').trim();
+        const phone = colPhone !== -1 ? String(r[colPhone] || '').trim() : String(r[6] || r[4] || '').trim();
+        const address = colAddr !== -1 ? String(r[colAddr] || '').trim() : String(r[7] || r[9] || '').trim();
+        const currency = colCur !== -1 ? String(r[colCur] || '').trim() : String(r[8] || r[10] || '').trim();
+        const bankAccounts = colAcc !== -1 ? String(r[colAcc] || '').trim() : String(r[3] || '').trim();
+        const telegram = colTg !== -1 ? String(r[colTg] || '').trim() : String(r[5] || '').trim();
+        const accountHolder = colHolder !== -1 ? String(r[colHolder] || '').trim() : String(r[4] || '').trim();
+
         profiles[code] = Object.assign(profiles[code] || {}, {
           code,
-          nameEn: String(r[2] || (profiles[code] && profiles[code].nameEn) || '').trim(),
-          nameKh: String(r[3] || (profiles[code] && profiles[code].nameKh) || '').trim(),
-          phone: String(r[6] || r[4] || (profiles[code] && profiles[code].phone) || '').trim(),
-          address: String(r[9] || (profiles[code] && profiles[code].address) || '').trim(),
-          currency: String(r[10] || (profiles[code] && profiles[code].currency) || 'USD').trim()
+          nameEn: nameEn || (profiles[code] && profiles[code].nameEn) || '',
+          nameKh: nameKh || (profiles[code] && profiles[code].nameKh) || '',
+          phone: phone || (profiles[code] && profiles[code].phone) || '',
+          address: address || (profiles[code] && profiles[code].address) || '',
+          currency: currency || (profiles[code] && profiles[code].currency) || 'USD',
+          bankAccounts: bankAccounts || (profiles[code] && profiles[code].bankAccounts) || '',
+          telegram: telegram || (profiles[code] && profiles[code].telegram) || '',
+          accountHolder: accountHolder || (profiles[code] && profiles[code].accountHolder) || ''
         });
       }
     }
   } catch (err) {
-    console.warn('Error reading customer profiles on server:', err);
+    console.warn('Could not read customer Excel profiles from', foundFile, err);
   }
+
   return profiles;
 }
 
@@ -1346,6 +1392,12 @@ export function syncFromNetworkDriveIfNeeded(): void {
   if (!netDirs || !netDirs.length) return;
 
   const keyFiles = [
+    'Customer_Bank_Account_Number.xlsx',
+    'Customer_Bank_Account_Number_Latest.xlsx',
+    'shared_prefs.json',
+    'accounts_map.json',
+    'state.json',
+    'statement_template.xlsx',
     'aba_statement.xlsx',
     'aba_statement.xls',
     'debts.xls',
@@ -1355,7 +1407,6 @@ export function syncFromNetworkDriveIfNeeded(): void {
     'Account id aba.xlsx',
     'customers.xls',
     'customers.xlsx',
-    'state.json',
     'tg_sent.json',
     'tg_directory.json',
     'uploads_history.json',
@@ -1382,6 +1433,18 @@ export function syncFromNetworkDriveIfNeeded(): void {
           } catch (e) {
             console.warn(`Could not copy ${f} to network drive:`, e);
           }
+        } else if (fs.existsSync(localFile) && fs.existsSync(netFile)) {
+          try {
+            const netStat = fs.statSync(netFile);
+            const localStat = fs.statSync(localFile);
+            if (netStat.mtimeMs > localStat.mtimeMs + 500) {
+              fs.copyFileSync(netFile, localFile);
+              console.log(`✓ Updated ${f} from newer version on network drive (${netDir})`);
+            } else if (localStat.mtimeMs > netStat.mtimeMs + 500) {
+              fs.copyFileSync(localFile, netFile);
+              console.log(`✓ Synced newer local ${f} to network drive (${netDir})`);
+            }
+          } catch (e) {}
         }
       }
     } catch (err) {
