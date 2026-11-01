@@ -93,7 +93,84 @@ export interface AbaState {
     acc?: string;
     name?: string;
   }>;
+  profiles?: Record<string, any>;
+  printPrefs?: any;
+  discounts?: Record<string, any>;
   updatedAt: string;
+}
+
+export interface SharedPrefs {
+  printPrefs: any;
+  discounts: Record<string, any>;
+  updatedAt: string;
+}
+
+export function readSharedPrefs(): SharedPrefs {
+  ensureDataDir();
+  const defaultPrefs: SharedPrefs = {
+    printPrefs: {
+      qrSize: 90,
+      qrCardWidth: 164,
+      qrMarginTop: 0,
+      qrMarginLeft: 0,
+      footerOffsetMm: 0,
+      tableFontSize: 12,
+      tableCellPadding: 5,
+      customQrUrl: '',
+      customLogoUrl: '',
+      liveEditActive: true,
+      showQr: true
+    },
+    discounts: {},
+    updatedAt: new Date().toISOString()
+  };
+  const saved = readJsonFile<SharedPrefs | null>('shared_prefs.json', null);
+  if (saved && saved.printPrefs) {
+    return {
+      printPrefs: Object.assign({}, defaultPrefs.printPrefs, saved.printPrefs),
+      discounts: saved.discounts || {},
+      updatedAt: saved.updatedAt || defaultPrefs.updatedAt
+    };
+  }
+  return defaultPrefs;
+}
+
+export function writeSharedPrefs(newPrefs: Partial<SharedPrefs>): SharedPrefs {
+  ensureDataDir();
+  const current = readSharedPrefs();
+  const merged: SharedPrefs = {
+    printPrefs: Object.assign({}, current.printPrefs, newPrefs.printPrefs || {}),
+    discounts: Object.assign({}, current.discounts, newPrefs.discounts || {}),
+    updatedAt: new Date().toISOString()
+  };
+  writeJsonFile('shared_prefs.json', merged);
+
+  const cachedState = readJsonFile<AbaState | null>('state.json', null);
+  if (cachedState) {
+    cachedState.updatedAt = merged.updatedAt;
+    cachedState.printPrefs = merged.printPrefs;
+    cachedState.discounts = merged.discounts;
+    writeJsonFile('state.json', cachedState);
+  }
+
+  return merged;
+}
+
+export function getAbaStateStatus(): { success: boolean; updatedAt: string; summary?: any } {
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    return {
+      success: true,
+      updatedAt: cached.updatedAt || new Date().toISOString(),
+      summary: cached.summary
+    };
+  }
+  const state = getAbaState();
+  return {
+    success: true,
+    updatedAt: state.updatedAt || new Date().toISOString(),
+    summary: state.summary
+  };
 }
 
 const dataDir = path.resolve(process.cwd(), 'data', 'aba');
@@ -1232,24 +1309,32 @@ export function computeAbaReconciliation(): AbaState {
 }
 
 export function getAbaState(): AbaState {
+  const shared = readSharedPrefs();
   const cached = readJsonFile<AbaState | null>('state.json', null);
   if (cached) {
     if (cached.doctors && cached.doctors.length > 0) {
-      // Invalidate stale cache containing old test name Ong Mach
       const hasOngMach = cached.doctors.some(d =>
         (d.name && d.name.toLowerCase().includes('ong mach')) ||
         (d.customerId === 'C00168' && !d.name.includes('Eng Hong'))
       );
       if (!hasOngMach) {
+        cached.profiles = cached.profiles || parseCustomerProfiles();
+        cached.printPrefs = shared.printPrefs;
+        cached.discounts = shared.discounts;
         return cached;
       }
       console.log('Invalidating stale cache containing old test name Ong Mach');
     } else {
-      // Cached state exists (e.g. clean state after reset). Return it with stable timestamp to prevent continuous client re-sync
+      cached.profiles = cached.profiles || parseCustomerProfiles();
+      cached.printPrefs = shared.printPrefs;
+      cached.discounts = shared.discounts;
       return cached;
     }
   }
   const fresh = computeAbaReconciliation();
+  fresh.profiles = parseCustomerProfiles();
+  fresh.printPrefs = shared.printPrefs;
+  fresh.discounts = shared.discounts;
   writeJsonFile('state.json', fresh);
   return fresh;
 }
@@ -1727,6 +1812,37 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
       console.warn(`Could not sync customer file to network drive ${dir}:`, err);
     }
   });
+
+    // 5. Invalidate / update state.json with new profiles & bump updatedAt for cross-device sync
+  try {
+    const cachedState = readJsonFile<AbaState | null>('state.json', null);
+    if (cachedState) {
+      cachedState.profiles = profiles;
+      cachedState.updatedAt = new Date().toISOString();
+      if (cachedState.doctors && cachedState.doctors.length > 0) {
+        cachedState.doctors.forEach(d => {
+          const prof = profiles[d.id] || profiles[d.customerId];
+          if (prof) {
+            d.meta = Object.assign({}, d.meta || {}, {
+              custKh: prof.nameKh || (d.meta && d.meta.custKh),
+              custEn: prof.nameEn || (d.meta && d.meta.custEn),
+              phone: prof.phone || (d.meta && d.meta.phone),
+              address: prof.address || (d.meta && d.meta.address),
+              currency: prof.currency || (d.meta && d.meta.currency)
+            });
+            if (prof.nameKh || prof.nameEn) {
+              const codePrefix = d.id ? `${d.id} - ` : '';
+              d.name = codePrefix + (prof.nameEn || prof.nameKh || d.name);
+            }
+          }
+        });
+      }
+      writeJsonFile('state.json', cachedState);
+      console.log('✓ Updated state.json with new customer profiles & bumped updatedAt for cross-device sync');
+    }
+  } catch (syncErr) {
+    console.warn('Could not update state.json with new customer profiles:', syncErr);
+  }
 
   return { success: true, count: list.length, fileLocked: anyFileLocked };
 }

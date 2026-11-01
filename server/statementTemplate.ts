@@ -228,7 +228,7 @@ export function readStatementTemplate(): StatementTemplateConfig {
     const wb = xlsx.readFile(filePath);
 
     // 1. Read Sheet "Template Settings" if exists
-    const s2Name = wb.SheetNames.find(n => /setting/i.test(n) || /កំណត់/i.test(n));
+    const s2Name = wb.SheetNames.find((n: string) => /setting/i.test(n) || /កំណត់/i.test(n));
     if (s2Name) {
       const rows: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[s2Name], { header: 1 });
       for (let i = 1; i < rows.length; i++) {

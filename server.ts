@@ -15,7 +15,10 @@ import {
   resetAbaState,
   syncFromNetworkDriveIfNeeded,
   getNetworkDriveAbaDirs,
-  syncCustomerProfilesToFile
+  syncCustomerProfilesToFile,
+  readSharedPrefs,
+  writeSharedPrefs,
+  getAbaStateStatus
 } from './server/abaReconciliation.ts';
 import {
   readStatementTemplate,
@@ -172,6 +175,35 @@ app.post('/api/aba/sync-customer-file', (req, res) => {
     res.json(result);
   } catch (err: any) {
     console.error('Error in /api/aba/sync-customer-file:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Shared preferences (print layout, footer offset, QR positioning, and discounts across all devices)
+app.get('/api/aba/shared-prefs', (_req, res) => {
+  try {
+    const prefs = readSharedPrefs();
+    res.json({ success: true, ...prefs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/aba/shared-prefs', (req, res) => {
+  try {
+    const saved = writeSharedPrefs(req.body);
+    res.json({ success: true, ...saved });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lightweight status check for instant real-time sync across all devices (~100 bytes)
+app.get('/api/aba/state-status', (_req, res) => {
+  try {
+    const status = getAbaStateStatus();
+    res.json(status);
+  } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -2142,10 +2142,26 @@ try {
     }
 } catch(e) {}
 
+var syncPrefsTimeout = null;
 function savePrintPrefs() {
     try {
         localStorage.setItem('khema_print_prefs', JSON.stringify(PRINT_PREFS));
     } catch(e) {}
+
+    // Real-time server sync across all devices
+    if(syncPrefsTimeout) clearTimeout(syncPrefsTimeout);
+    syncPrefsTimeout = setTimeout(() => {
+        fetch('/api/aba/shared-prefs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ printPrefs: PRINT_PREFS, discounts: DISCOUNT_MAP })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if(res && res.updatedAt) lastServerUpdatedAt = res.updatedAt;
+        })
+        .catch(err => console.warn('Sync shared prefs error:', err));
+    }, 250);
 }
 
 function toggleQrVisibility() {
@@ -4291,6 +4307,27 @@ var lastServerUpdatedAt = '';
 function applyServerState(state) {
     if(!state) return false;
     if(state.updatedAt) lastServerUpdatedAt = state.updatedAt;
+
+    // Cross-device sync: Ingest shared Customer Profiles from server
+    if(state.profiles && typeof state.profiles === 'object' && Object.keys(state.profiles).length > 0) {
+        CUSTOMER_PROFILES = Object.assign({}, CUSTOMER_PROFILES, state.profiles);
+        try { localStorage.setItem('khema_customer_profiles', JSON.stringify(CUSTOMER_PROFILES)); } catch(e) {}
+        updateCustomerCountBadge();
+    }
+
+    // Cross-device sync: Ingest shared Print Preferences from server
+    if(state.printPrefs && typeof state.printPrefs === 'object') {
+        PRINT_PREFS = Object.assign({}, PRINT_PREFS, state.printPrefs);
+        try { localStorage.setItem('khema_print_prefs', JSON.stringify(PRINT_PREFS)); } catch(e) {}
+        applyPrintPrefs();
+        if(typeof adjustMultiPageFooter === 'function') adjustMultiPageFooter();
+    }
+
+    // Cross-device sync: Ingest shared Invoice Discounts from server
+    if(state.discounts && typeof state.discounts === 'object') {
+        DISCOUNT_MAP = Object.assign({}, DISCOUNT_MAP, state.discounts);
+        try { localStorage.setItem('aba_inv_discounts', JSON.stringify(DISCOUNT_MAP)); } catch(e) {}
+    }
     
     // Ingest slot info from server if available and not present locally
     if(state.bankSlots && typeof state.bankSlots === 'object') {
@@ -8980,6 +9017,9 @@ function silentlySyncServerState() {
                     console.log('🔄 Detected updated state from another user on network:', state.updatedAt);
                     applyServerState(state);
                     updateAmeBadge();
+                    if($('printModal') && $('printModal').classList.contains('active') && currentPrintCustomer) {
+                        openPrintModal(currentPrintCustomer);
+                    }
                 } else {
                     lastServerUpdatedAt = state.updatedAt;
                 }
@@ -8988,9 +9028,24 @@ function silentlySyncServerState() {
         .catch(() => {});
 }
 
-// Sync on window focus and every 25 seconds
-window.addEventListener('focus', silentlySyncServerState);
-setInterval(silentlySyncServerState, 25000);
+// Lightweight high-frequency sync (every 3 seconds) so all devices update instantly without user action
+function pollServerUpdates() {
+    fetch('/api/aba/state-status')
+        .then(r => r.json())
+        .then(status => {
+            if(status && status.updatedAt && status.updatedAt !== lastServerUpdatedAt) {
+                console.log('🔄 Detected update from another device on network. Syncing live state...');
+                silentlySyncServerState();
+            }
+        })
+        .catch(() => {});
+}
+
+window.addEventListener('focus', pollServerUpdates);
+document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') pollServerUpdates();
+});
+setInterval(pollServerUpdates, 3000);
 
 restoreSavedData();
 
