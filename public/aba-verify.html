@@ -69,6 +69,8 @@
 .col-resizer:hover, .col-resizer.resizing{background:#0284c7;width:8px}
 #statementQrCard{cursor:grab;user-select:none;transition:box-shadow 0.15s}
 #statementQrCard:hover{box-shadow:0 0 0 1.5px #38bdf8, 0 2px 8px rgba(0,0,0,0.08)}
+.signature-block{cursor:grab;transition:box-shadow 0.15s}
+.signature-block:hover{outline:1px dashed #38bdf8;border-radius:4px}
 .print-table th.n,.print-table td.n{text-align:right}
 .print-table tfoot td{font-weight:bold;background:#f8fafc}
 
@@ -130,7 +132,7 @@
   }
   .print-paper.single-page .signature-block, #printDocument.single-page .signature-block{
     position:absolute !important;
-    bottom:4mm !important;
+    bottom:var(--sig-bottom, 4mm) !important;
     left:0 !important;
     right:0 !important;
     width:100% !important;
@@ -138,9 +140,8 @@
     align-items:flex-end !important;
     justify-content:space-between !important;
     gap:14px !important;
-    margin-top:0 !important;
-    padding-top:0 !important;
-    padding-bottom:0 !important;
+    margin:0 !important;
+    padding:0 !important;
   }
   .print-table{
     width:100% !important;
@@ -2073,7 +2074,7 @@ var DEFAULT_PRINT_PREFS = {
     qrCardWidth: 164,
     qrMarginTop: 0,
     qrMarginLeft: 0,
-    footerOffsetMm: 0,
+    footerOffsetMm: 4,
     tableFontSize: 12,
     tableCellPadding: 5,
     customQrUrl: '',
@@ -6021,7 +6022,7 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
-            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto">' +
+            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto;cursor:grab" title="💡 ចុច Mouse លើជើងទំព័រឱ្យជាប់ រួចអូសឡើង/ចុះ (Drag) ដើម្បីរំកិលទីតាំងតាមចិត្ត">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
                 '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;text-align:center;font-size:0.85rem;color:#334155;padding-bottom:4px">' +
                     '<div>' +
@@ -6092,33 +6093,35 @@ function adjustMultiPageFooter() {
 
     var allRows = Array.from(doc.querySelectorAll('.print-table tbody tr'));
     var dataRows = allRows.filter(r => !r.textContent.includes('Total Balance'));
+    var offsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 4;
 
-    // Single-page (<= 11 rows): pin footer flush at bottom of 277mm A4 container
+    // Single-page (<= 11 rows): pin footer at bottom of 277mm A4 container
     if (dataRows.length <= 11) {
         doc.classList.add('single-page');
-        sig.style.position = '';
-        sig.style.bottom = '';
-        sig.style.left = '';
-        sig.style.right = '';
-        sig.style.width = '';
-        sig.style.marginTop = '';
-        sig.style.marginBottom = '';
+        sig.style.position = 'absolute';
+        sig.style.bottom = offsetMm + 'mm';
+        sig.style.left = '16mm';
+        sig.style.right = '16mm';
+        sig.style.width = 'calc(100% - 32mm)';
+        sig.style.marginTop = '0';
+        sig.style.marginBottom = '0';
+        sig.style.setProperty('--sig-bottom', offsetMm + 'mm');
         return;
     }
 
     // Multi-page (> 11 rows): normal flow
     doc.classList.remove('single-page');
-    sig.style.position = '';
+    sig.style.position = 'relative';
     sig.style.bottom = '';
     sig.style.left = '';
     sig.style.right = '';
-    sig.style.width = '';
+    sig.style.width = '100%';
     sig.style.marginTop = '24px';
     sig.style.marginBottom = '';
 }
 
 function initDraggableElements() {
-    // MOUSE DRAG FOR QR CARD (យកម៉ៅចាប់រំកិល QR តាមចិត្ត)
+    // 1. MOUSE DRAG FOR QR CARD (យកម៉ៅចាប់រំកិល QR តាមចិត្ត)
     var qrCard = document.getElementById('statementQrCard');
     if (qrCard) {
         var isDraggingQr = false;
@@ -6126,7 +6129,6 @@ function initDraggableElements() {
         var origLeft = 0, origTop = 0;
 
         qrCard.onmousedown = function(e) {
-            // Do not drag if user is typing inside an editable field
             if (e.target && e.target.getAttribute && e.target.getAttribute('contenteditable') === 'true') {
                 return;
             }
@@ -6159,6 +6161,53 @@ function initDraggableElements() {
 
             document.addEventListener('mousemove', onQrMouseMove);
             document.addEventListener('mouseup', onQrMouseUp);
+        };
+    }
+
+    // 2. MOUSE DRAG FOR FOOTER (យកម៉ៅចាប់រំកិលជើងទំព័រឡើងលើ/ចុះក្រោមតាមចិត្ត)
+    var sig = document.querySelector('.signature-block');
+    var doc = document.getElementById('printDocument');
+    if (sig && doc) {
+        var isDraggingSig = false;
+        var startSigY = 0;
+        var startOffsetMm = 4;
+        var pxPerMm = (doc.offsetWidth || 794) / 210;
+
+        sig.onmousedown = function(e) {
+            // Do not drag footer if clicking inside QR or on editable text
+            if (e.target && (e.target.getAttribute('contenteditable') === 'true' || e.target.closest('#statementQrCard') || e.target.closest('button') || e.target.closest('input'))) {
+                return;
+            }
+            isDraggingSig = true;
+            startSigY = e.clientY;
+            startOffsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 4;
+            sig.style.cursor = 'grabbing';
+            document.body.style.userSelect = 'none';
+
+            function onSigMouseMove(ev) {
+                if (!isDraggingSig) return;
+                var diffY = ev.clientY - startSigY;
+                // Dragging UP (diffY < 0) moves footer HIGHER (increases bottom distance)
+                // Dragging DOWN (diffY > 0) moves footer LOWER (decreases bottom distance)
+                var diffMm = diffY / pxPerMm;
+                var newOffset = Math.max(0, Math.min(180, Math.round((startOffsetMm - diffMm) * 10) / 10));
+                PRINT_PREFS.footerOffsetMm = newOffset;
+                sig.style.setProperty('--sig-bottom', newOffset + 'mm');
+                sig.style.bottom = newOffset + 'mm';
+            }
+
+            function onSigMouseUp() {
+                if (!isDraggingSig) return;
+                isDraggingSig = false;
+                sig.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onSigMouseMove);
+                document.removeEventListener('mouseup', onSigMouseUp);
+                savePrintPrefs();
+            }
+
+            document.addEventListener('mousemove', onSigMouseMove);
+            document.addEventListener('mouseup', onSigMouseUp);
         };
     }
 }
