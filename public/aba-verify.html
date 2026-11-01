@@ -114,10 +114,10 @@
 @media print{
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 8mm 10mm 8mm 10mm;
   }
   html, body{
-    width:210mm !important;
+    width:100% !important;
     height:auto !important;
     background:#fff !important;
     color:#000 !important;
@@ -133,12 +133,12 @@
   #printModal .modal-body, #printModalBody{padding:0 !important;margin:0 !important;overflow:visible !important;background:none !important;display:block !important;height:auto !important;max-height:none !important}
   [contenteditable="true"]{outline:none !important;background-color:transparent !important}
   .print-paper, #printDocument{
-    width:210mm !important;
-    max-width:210mm !important;
-    min-height:297mm !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-height:auto !important;
     display:block !important;
-    margin:0 auto !important;
-    padding:12mm 14mm 12mm 14mm !important;
+    margin:0 !important;
+    padding:0 !important;
     box-shadow:none !important;
     border:none !important;
     border-radius:0 !important;
@@ -146,6 +146,42 @@
     position:relative !important;
     box-sizing:border-box !important;
   }
+
+  /* CRITICAL: GUARANTEE STRICT SINGLE PAGE FOR <= 11 ROWS (NEVER OVERFLOW TO PAGE 2) */
+  .print-paper.single-page, #printDocument.single-page{
+    position:relative !important;
+    height:274mm !important;
+    min-height:274mm !important;
+    max-height:274mm !important;
+    overflow:hidden !important;
+    display:block !important;
+    page-break-after:avoid !important;
+    break-after:avoid !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+  }
+  .print-paper.single-page .signature-block, #printDocument.single-page .signature-block{
+    position:absolute !important;
+    bottom:var(--sig-bottom, 2mm) !important;
+    left:0 !important;
+    right:0 !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    display:flex !important;
+    align-items:flex-end !important;
+    justify-content:space-between !important;
+    gap:14px !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+  }
+  .print-paper.single-page #statementFooterSpacer,
+  #printDocument.single-page #statementFooterSpacer{
+    display:none !important;
+    height:0 !important;
+  }
+
+  /* Multi-page statements */
   .a4-content{
     width:100% !important;
     display:block !important;
@@ -5885,8 +5921,8 @@ function openPrintModal(custName) {
     var rawEn = (prof && prof.nameEn) || meta.custEn || custName;
     var custKh = cleanCustomerDisplayName(rawKh);
     var custEn = cleanCustomerDisplayName(rawEn);
-    var cleanTitleName = cleanCustomerDisplayName(custEn || custKh || custName);
-    var safeTitleName = String(cleanTitleName).replace(/[\\/:*?"<>|]/g, '').trim();
+var fullCustName = (custKh && custKh.trim()) ? custKh.trim() : (custEn && custEn.trim() ? custEn.trim() : custName);
+    var safeTitleName = String(fullCustName).replace(/[\\/:*?"<>|]/g, '').trim();
     var pdfInitialTitle = 'customer statement-' + (safeTitleName || 'Document');
     document.title = pdfInitialTitle;
     try { if (window.parent && window.parent.document) window.parent.document.title = pdfInitialTitle; } catch(e) {}
@@ -6091,6 +6127,10 @@ function openPrintModal(custName) {
     initTableColumnResizing();
     initDraggableElements();
     adjustMultiPageFooter();
+    var elCustKh = document.getElementById('dispCustKh');
+    var elCustEn = document.getElementById('dispCustEn');
+    if (elCustKh) elCustKh.addEventListener('input', prepareStatementPrintTitle);
+    if (elCustEn) elCustEn.addEventListener('input', prepareStatementPrintTitle);
     requestAnimationFrame(() => {
         applyPrintPrefs();
         adjustMultiPageFooter();
@@ -6125,33 +6165,69 @@ function adjustMultiPageFooter() {
     var table = doc.querySelector('.print-table');
     if (!sig || !table) return;
 
-    // Temporarily reset spacer to 0 to measure natural layout
-    if (spacer) spacer.style.height = '0px';
+    var allRows = Array.from(doc.querySelectorAll('.print-table tbody tr'));
+    var dataRows = allRows.filter(r => !r.textContent.includes('Total Balance'));
+    var userOffsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
+
+    // SINGLE-PAGE (<= 11 rows): Strictly 1 page, NEVER spill to page 2!
+    if (dataRows.length <= 11) {
+        doc.classList.add('single-page');
+        if (spacer) {
+            spacer.style.height = '0px';
+            spacer.style.display = 'none';
+        }
+        var screenBottomMm = Math.max(-10, 12 + userOffsetMm);
+        var printBottomMm = Math.max(-10, 2 + userOffsetMm);
+        sig.style.position = 'absolute';
+        sig.style.bottom = screenBottomMm + 'mm';
+        sig.style.left = '14mm';
+        sig.style.right = '14mm';
+        sig.style.width = 'calc(100% - 28mm)';
+        sig.style.marginTop = '0';
+        sig.style.marginBottom = '0';
+        sig.style.setProperty('--sig-bottom', printBottomMm + 'mm');
+
+        doc.style.removeProperty('--num-pages');
+        doc.style.minHeight = '297mm';
+        doc.style.height = '297mm';
+        return;
+    }
+
+    // MULTI-PAGE (> 11 rows): Dynamic pagination & bottom spacer
+    doc.classList.remove('single-page');
+    doc.style.height = 'auto';
+    sig.style.position = 'relative';
+    sig.style.bottom = '';
+    sig.style.left = '';
+    sig.style.right = '';
+    sig.style.width = '100%';
+    sig.style.marginTop = '0';
+    sig.style.marginBottom = '';
+
+    if (spacer) {
+        spacer.style.display = 'block';
+        spacer.style.height = '0px';
+    }
 
     var pxPerMm = (doc.offsetWidth || 794) / 210;
     if (pxPerMm <= 0) pxPerMm = 3.78;
 
     var a4PageHeightPx = 297 * pxPerMm;
-    var bottomPaddingPx = 12 * pxPerMm;
+    var bottomPaddingPx = 14 * pxPerMm;
 
-    // Measure distance from top of doc to bottom of table
     var tableRect = table.getBoundingClientRect();
     var docRect = doc.getBoundingClientRect();
     var tableBottomPx = tableRect.bottom - docRect.top;
-
     var sigHeightPx = sig.offsetHeight || 170;
 
-    // Calculate pages required
     var minSigBottomPx = tableBottomPx + sigHeightPx + bottomPaddingPx;
-    var pagesCount = Math.ceil(minSigBottomPx / a4PageHeightPx);
+    var pagesCount = Math.ceil((minSigBottomPx + 5 * pxPerMm) / a4PageHeightPx);
     if (pagesCount < 1) pagesCount = 1;
 
-    // Target top of signature block on the last page so it sits exactly at the bottom
-    var targetSigTopPx = (pagesCount * a4PageHeightPx) - bottomPaddingPx - sigHeightPx;
+    // Target bottom of last page with 15mm safety margin
+    var targetSigTopPx = (pagesCount * a4PageHeightPx) - bottomPaddingPx - sigHeightPx - (15 * pxPerMm);
     var naturalSpacerPx = Math.max(0, targetSigTopPx - tableBottomPx);
 
-    // Apply user offset (-10mm to +180mm)
-    var userOffsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
     var userOffsetPx = userOffsetMm * pxPerMm;
     var finalSpacerPx = Math.max(0, naturalSpacerPx - userOffsetPx);
     var finalSpacerMm = finalSpacerPx / pxPerMm;
@@ -6162,15 +6238,6 @@ function adjustMultiPageFooter() {
 
     doc.style.setProperty('--num-pages', pagesCount);
     doc.style.minHeight = (pagesCount * 297) + 'mm';
-
-    // Reset sig inline styles to flow cleanly after spacer
-    sig.style.position = 'relative';
-    sig.style.bottom = '';
-    sig.style.left = '';
-    sig.style.right = '';
-    sig.style.width = '100%';
-    sig.style.marginTop = '0';
-    sig.style.marginBottom = '';
 }
 
 function initDraggableElements() {
@@ -7260,31 +7327,27 @@ document.addEventListener('click', e => {
 });
 
 function prepareStatementPrintTitle() {
-    var domEn = document.getElementById('dispCustEn');
     var domKh = document.getElementById('dispCustKh');
-    var domName = '';
-    if (domEn && domEn.textContent && domEn.textContent.trim()) {
-        domName = domEn.textContent.trim();
-    } else if (domKh && domKh.textContent && domKh.textContent.trim()) {
-        domName = domKh.textContent.trim();
+    var domEn = document.getElementById('dispCustEn');
+    var rawName = '';
+    // Prefer exact full name displayed in ឈ្មោះក្រុមហ៊ុន ឬអតិថិជន (Khmer/Primary line)
+    if (domKh && domKh.textContent && domKh.textContent.trim()) {
+        rawName = domKh.textContent.trim();
+    } else if (domEn && domEn.textContent && domEn.textContent.trim()) {
+        rawName = domEn.textContent.trim();
+    } else if (currentPrintCustomer) {
+        rawName = currentPrintCustomer;
     }
 
-    var rawCust = domName || currentPrintCustomer || '';
-    if (!rawCust && res && res.docs) {
-        var keys = Object.keys(res.docs);
-        if (keys.length) rawCust = keys[0];
-    }
-    var D = (res && res.docs && res.docs[rawCust]) || {};
-    var meta = D.meta || {};
-    var prof = (typeof getCustomerProfile === 'function') ? getCustomerProfile(rawCust, meta.custNo) : null;
-    var rawName = rawCust || (prof && (prof.nameEn || prof.nameKh)) || meta.custEn || meta.custKh;
-    var cName = (typeof cleanCustomerDisplayName === 'function') ? cleanCustomerDisplayName(rawName) : rawName;
-    var safeCName = String(cName).replace(/[\\/:*?"<>|]/g, '').trim();
+    // Capture the FULL NAME (ឈ្មោះពេញ) without stripping codes or prefixes
+    var safeCName = String(rawName).replace(/[\\/:*?"<>|]/g, '').trim();
     var pdfTitle = 'customer statement-' + (safeCName || 'Document');
-        document.title = pdfTitle;
-        try { if (window.parent && window.parent.document) window.parent.document.title = pdfTitle; } catch(e) {}
-        try { if (window.top && window.top.document) window.top.document.title = pdfTitle; } catch(e) {}
-        return pdfTitle;
+
+    document.title = pdfTitle;
+    try { if (window.parent && window.parent.document) window.parent.document.title = pdfTitle; } catch(e) {}
+    try { if (window.top && window.top.document) window.top.document.title = pdfTitle; } catch(e) {}
+
+    return pdfTitle;
 }
 
 $('btnPrintNow').onclick = () => {
