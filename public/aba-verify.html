@@ -116,6 +116,29 @@
     display:block !important;
   }
   .col-resizer{display:none !important;}
+  .print-paper.single-page, #printDocument.single-page{
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:space-between !important;
+    height:272mm !important;
+    max-height:272mm !important;
+    overflow:hidden !important;
+    page-break-after:avoid !important;
+    break-after:avoid !important;
+  }
+  .print-paper.single-page .a4-content, #printDocument.single-page .a4-content{
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 !important;
+    justify-content:space-between !important;
+  }
+  .print-paper.single-page .signature-block, #printDocument.single-page .signature-block{
+    margin-top:auto !important;
+    padding-top:10px !important;
+    padding-bottom:0 !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+  }
   .print-table{
     width:100% !important;
     page-break-inside:auto;
@@ -131,8 +154,8 @@
     align-items:flex-end !important;
     justify-content:space-between !important;
     gap:14px !important;
-    padding-top:24px !important;
-    padding-bottom:6mm !important;
+    padding-top:12px !important;
+    padding-bottom:0 !important;
     page-break-inside:avoid !important;
     break-inside:avoid !important;
   }
@@ -6151,10 +6174,28 @@ function adjustMultiPageFooter() {
         $('dispPrintFooterOffset').textContent = (footerOffset > 0 ? '+' : '') + footerOffset + 'mm';
     }
 
+    // Count table data rows (excluding the total balance row)
+    var allRows = Array.from(doc.querySelectorAll('.print-table tbody tr'));
+    var dataRows = allRows.filter(r => !r.textContent.includes('Total Balance'));
+
+    // CASE 1: 1-PAGE DOCUMENT (11 rows or fewer fits comfortably on 1 page)
+    // GUARANTEE STRICT 1-PAGE LAYOUT: NO 2nd PAGE POSSIBLE!
+    if (dataRows.length <= 11) {
+        doc.classList.add('single-page');
+        sig.style.position = 'relative';
+        sig.style.marginTop = 'auto';
+        sig.style.marginBottom = (footerOffset ? (footerOffset + 'mm') : '0mm');
+        sig.style.transform = footerOffset ? ('translateY(' + (-footerOffset) + 'mm)') : '';
+        return;
+    }
+
+    // CASE 2: MULTI-PAGE DOCUMENT (> 11 rows)
+    doc.classList.remove('single-page');
+    sig.style.transform = '';
+
     // Calculate actual pixel scaling for A4 (210mm wide)
     var docWidth = doc.offsetWidth || 794;
     var pxPerMm = docWidth / 210;
-    // Printable page height on A4 (297mm - 20mm margin = 277mm)
     var pageHeightPx = 277 * pxPerMm;
 
     var table = doc.querySelector('.print-table');
@@ -6181,8 +6222,8 @@ function adjustMultiPageFooter() {
     var targetPageBottom = numPages * pageHeightPx;
     var gapPx = (targetPageBottom - sigHeight) - effectiveBottom;
 
-    // If gap is too small, Chrome print pushes signature block to next page
-    if (gapPx < 12 * pxPerMm) {
+    // If gap is too tight (less than 16px), Chrome will break signature block to next page
+    if (gapPx < 16 * pxPerMm) {
         numPages += 1;
         targetPageBottom = numPages * pageHeightPx;
         var startOfNewPage = (numPages - 1) * pageHeightPx + theadHeight;
@@ -6190,9 +6231,8 @@ function adjustMultiPageFooter() {
     }
 
     var gapMm = gapPx / pxPerMm;
-    // 6mm safety margin ensures it never spills to an extra blank page
-    // footerOffset: negative (-5, -10) pushes lower towards bottom margin; positive pulls up
-    var finalMarginTopMm = Math.max(10, Math.round(((gapMm - 6) - footerOffset) * 10) / 10);
+    // Generous 16mm safety buffer ensures multi-page NEVER accidentally spills onto an extra blank page
+    var finalMarginTopMm = Math.max(16, Math.round(((gapMm - 16) - footerOffset) * 10) / 10);
 
     sig.style.position = 'relative';
     sig.style.bottom = '';
