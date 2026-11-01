@@ -13,5 +13,39 @@
     "showQr": true
   },
   "discounts": {},
-  "updatedAt": "2026-11-01T06:38:17.424Z"
+  "activeDebtKey": "khema",
+  "activeBankKey": "khema_aba",
+  "bankSlotsMeta": {
+    "khema_aba": {
+      "exists": false,
+      "name": ""
+    },
+    "khema_acleda": {
+      "exists": false,
+      "name": ""
+    },
+    "rms_aba": {
+      "exists": false,
+      "name": ""
+    },
+    "rms_acleda": {
+      "exists": false,
+      "name": ""
+    }
+  },
+  "debtSlotsMeta": {
+    "khema": {
+      "exists": false,
+      "name": ""
+    },
+    "rms": {
+      "exists": false,
+      "name": ""
+    },
+    "newsmile": {
+      "exists": false,
+      "name": ""
+    }
+  },
+  "updatedAt": "2026-11-01T08:10:15.702Z"
 }

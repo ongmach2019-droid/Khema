@@ -525,8 +525,7 @@ summary:hover{background:var(--bg)}
 
   <!-- Filter tabs for 3 files / classes -->
   <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
-    <button type="button" class="debt-filter-btn pb on" data-filter="all" style="padding:2px 7px;font-size:0.7rem;font-weight:700">✓ ទាំងអស់ (All)</button>
-    <button type="button" class="debt-filter-btn pb" data-filter="khema" style="padding:2px 7px;font-size:0.7rem;font-weight:700">Khema file</button>
+    <button type="button" class="debt-filter-btn pb on" data-filter="khema" style="padding:2px 7px;font-size:0.7rem;font-weight:700">Khema file</button>
     <button type="button" class="debt-filter-btn pb" data-filter="rms" style="padding:2px 7px;font-size:0.7rem;font-weight:700">RMS file</button>
     <button type="button" class="debt-filter-btn pb" data-filter="newsmile" style="padding:2px 7px;font-size:0.7rem;font-weight:700">New Smile file</button>
   </div>
@@ -1197,7 +1196,7 @@ try {
 } catch(e) {}
 
 var activeBankKey = localStorage.getItem('aba_bank_source_key') || 'khema_aba';
-var activeDebtKey = localStorage.getItem('aba_debt_filter_key') || 'all';
+var activeDebtKey = localStorage.getItem('aba_debt_filter_key') || 'khema'; if (activeDebtKey === 'all') activeDebtKey = 'khema';
 
 function saveBankSlotsToStorage() {
     try {
@@ -1232,39 +1231,21 @@ function saveDebtSlotsToStorage() {
 function rebuildDebtFiles() {
     FILES = [];
     HDR = {};
-    if (activeDebtKey === 'all') {
-        ['khema', 'rms', 'newsmile'].forEach(k => {
-            var slot = DEBT_SLOTS[k];
-            if (slot && slot.files && slot.files.length) {
-                slot.files.forEach(f => {
-                    f.slotKey = k;
-                    FILES.push(f);
-                });
-                if (slot.hdr) Object.assign(HDR, slot.hdr);
-            }
-        });
-        var allNames = ['khema', 'rms', 'newsmile']
-            .map(k => DEBT_SLOTS[k]?.name)
-            .filter(Boolean)
-            .join(', ');
-        FILE_NAMES.debt = allNames;
-        localStorage.setItem('debt_file_name', allNames);
+    if (activeDebtKey === 'all') activeDebtKey = 'khema';
+    var slot = DEBT_SLOTS[activeDebtKey];
+    if (slot && (!slot.files || !slot.files.length) && FILES && FILES.length > 0 && slot.name) {
+        slot.files = FILES.slice();
+    }
+    if (slot && slot.files && slot.files.length) {
+        FILES = slot.files.slice();
+        FILES.forEach(f => { f.slotKey = activeDebtKey; });
+        HDR = Object.assign({}, slot.hdr || {});
+        FILE_NAMES.debt = slot.name || '';
+        localStorage.setItem('debt_file_name', slot.name || '');
     } else {
-        var slot = DEBT_SLOTS[activeDebtKey];
-        if (slot && (!slot.files || !slot.files.length) && FILES && FILES.length > 0 && slot.name) {
-            slot.files = FILES.slice();
-        }
-        if (slot && slot.files && slot.files.length) {
-            FILES = slot.files.slice();
-            FILES.forEach(f => { f.slotKey = activeDebtKey; });
-            HDR = Object.assign({}, slot.hdr || {});
-            FILE_NAMES.debt = slot.name || '';
-            localStorage.setItem('debt_file_name', slot.name || '');
-        } else {
-            FILES = [];
-            HDR = {};
-            FILE_NAMES.debt = '';
-        }
+        FILES = [];
+        HDR = {};
+        FILE_NAMES.debt = '';
     }
 }
 
@@ -1312,7 +1293,7 @@ function setActiveBankSlot(slotKey, syncDebt) {
 }
 
 function setActiveDebtFilter(filterKey, syncBank) {
-    if (!['all', 'khema', 'rms', 'newsmile'].includes(filterKey)) filterKey = 'all';
+    if (filterKey === 'all' || !['khema', 'rms', 'newsmile'].includes(filterKey)) filterKey = 'khema';
     activeDebtKey = filterKey;
     localStorage.setItem('aba_debt_filter_key', filterKey);
 
@@ -1322,7 +1303,6 @@ function setActiveDebtFilter(filterKey, syncBank) {
             if (activeBankKey === 'rms_aba' || activeBankKey === 'rms_acleda') {
                 var targetBank = (BANK_SLOTS['khema_aba']?.name) ? 'khema_aba' : ((BANK_SLOTS['khema_acleda']?.name) ? 'khema_acleda' : 'khema_aba');
                 setActiveBankSlot(targetBank, false);
-                return;
             } else {
                 applyBankProfile(activeBankKey);
             }
@@ -1330,7 +1310,6 @@ function setActiveDebtFilter(filterKey, syncBank) {
             if (activeBankKey === 'khema_aba' || activeBankKey === 'khema_acleda') {
                 var targetBank = (BANK_SLOTS['rms_aba']?.name) ? 'rms_aba' : ((BANK_SLOTS['rms_acleda']?.name) ? 'rms_acleda' : 'rms_aba');
                 setActiveBankSlot(targetBank, false);
-                return;
             } else {
                 applyBankProfile(activeBankKey);
             }
@@ -1343,6 +1322,22 @@ function setActiveDebtFilter(filterKey, syncBank) {
     rebuildDebtFiles();
     if (typeof run === 'function') run();
     if (typeof updateBoxUI === 'function') updateBoxUI();
+
+    // Broadcast across all devices in real time and ingest fresh state
+    fetch('/api/aba/shared-prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            activeDebtKey: activeDebtKey,
+            activeBankKey: activeBankKey,
+            printPrefs: PRINT_PREFS,
+            discounts: DISCOUNT_MAP
+        })
+    }).then(r => r.json()).then(res => {
+        if (res && res.updatedAt) lastServerUpdatedAt = res.updatedAt;
+        if (res && res.state) applyServerState(res.state);
+        else if (typeof silentlySyncServerState === 'function') silentlySyncServerState();
+    }).catch(() => {});
 }
 
 function uploadAbaSlotFileToServer(fileType, file, slotKey) {
@@ -6238,8 +6233,9 @@ function adjustMultiPageFooter() {
         }
     }
 
-    // SINGLE-PAGE (content fits on 1 page): Strictly 1 page, lock footer to bottom!
-    if (simulatedPages === 1 && (curPageH + sigH <= printablePageHeightPx + (4 * pxPerMm))) {
+    // SINGLE-PAGE (<= 11 rows or natural 1 page): Strictly 1 page, lock footer to bottom! NEVER spill to page 2!
+    var isSinglePage = (dataRows.length <= 11) || (simulatedPages === 1 && (curPageH + sigH <= printablePageHeightPx + (10 * pxPerMm)));
+    if (isSinglePage) {
         doc.classList.add('single-page');
         if (spacer) {
             spacer.style.height = '0px';
@@ -6295,7 +6291,9 @@ function adjustMultiPageFooter() {
 
     if (spacer) {
         spacer.style.height = finalSpacerMm.toFixed(1) + 'mm';
+        spacer.style.setProperty('--print-spacer-h', finalSpacerMm.toFixed(1) + 'mm');
     }
+    doc.style.setProperty('--print-spacer-h', finalSpacerMm.toFixed(1) + 'mm');
 
     doc.style.setProperty('--num-pages', simulatedPages);
     doc.style.minHeight = (simulatedPages * 297) + 'mm';
@@ -7421,6 +7419,15 @@ $('btnPrintNow').onclick = () => {
     }
     window.print();
 };
+
+window.addEventListener('keydown', e => {
+    // Ctrl+P listener for Customer Statement print title
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        if ($('printModal') && $('printModal').classList.contains('active')) {
+            if (typeof prepareStatementPrintTitle === 'function') prepareStatementPrintTitle();
+        }
+    }
+});
 
 window.addEventListener('beforeprint', () => {
     var toast = document.getElementById('globalToast');

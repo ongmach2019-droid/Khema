@@ -27,6 +27,7 @@ export interface DoctorInvoice {
 }
 
 export interface DoctorStatement {
+  slotKey?: string;
   id: string;
   name: string;
   customerId: string;
@@ -54,20 +55,28 @@ export interface DoctorStatement {
   invoices: DoctorInvoice[];
   inv: DoctorInvoice[];
   payments: Array<{
+    id?: string;
     date: string;
     amt: number;
-    text: string;
+    text?: string;
+    particular?: string;
     ref?: string;
+    source?: string;
   }>;
   pay: Array<{
+    id?: string;
     date: string;
     amt: number;
-    text: string;
+    text?: string;
+    particular?: string;
     ref?: string;
+    source?: string;
   }>;
 }
 
 export interface AbaState {
+  activeDebtKey?: string;
+  activeBankKey?: string;
   success: boolean;
   summary: {
     owed: number;
@@ -102,6 +111,10 @@ export interface AbaState {
 export interface SharedPrefs {
   printPrefs: any;
   discounts: Record<string, any>;
+  activeDebtKey?: string;
+  activeBankKey?: string;
+  bankSlotsMeta?: Record<string, { exists: boolean; name: string }>;
+  debtSlotsMeta?: Record<string, { exists: boolean; name: string }>;
   updatedAt: string;
 }
 
@@ -122,6 +135,19 @@ export function readSharedPrefs(): SharedPrefs {
       showQr: true
     },
     discounts: {},
+    activeDebtKey: 'khema',
+    activeBankKey: 'khema_aba',
+    bankSlotsMeta: {
+      khema_aba: { exists: false, name: '' },
+      khema_acleda: { exists: false, name: '' },
+      rms_aba: { exists: false, name: '' },
+      rms_acleda: { exists: false, name: '' }
+    },
+    debtSlotsMeta: {
+      khema: { exists: false, name: '' },
+      rms: { exists: false, name: '' },
+      newsmile: { exists: false, name: '' }
+    },
     updatedAt: new Date().toISOString()
   };
   const saved = readJsonFile<SharedPrefs | null>('shared_prefs.json', null);
@@ -129,6 +155,10 @@ export function readSharedPrefs(): SharedPrefs {
     return {
       printPrefs: Object.assign({}, defaultPrefs.printPrefs, saved.printPrefs),
       discounts: saved.discounts || {},
+      activeDebtKey: (saved.activeDebtKey && saved.activeDebtKey !== 'all') ? saved.activeDebtKey : defaultPrefs.activeDebtKey,
+      activeBankKey: saved.activeBankKey || defaultPrefs.activeBankKey,
+      bankSlotsMeta: Object.assign({}, defaultPrefs.bankSlotsMeta, saved.bankSlotsMeta || {}),
+      debtSlotsMeta: Object.assign({}, defaultPrefs.debtSlotsMeta, saved.debtSlotsMeta || {}),
       updatedAt: saved.updatedAt || defaultPrefs.updatedAt
     };
   }
@@ -141,6 +171,10 @@ export function writeSharedPrefs(newPrefs: Partial<SharedPrefs>): SharedPrefs {
   const merged: SharedPrefs = {
     printPrefs: Object.assign({}, current.printPrefs, newPrefs.printPrefs || {}),
     discounts: Object.assign({}, current.discounts, newPrefs.discounts || {}),
+    activeDebtKey: (newPrefs.activeDebtKey && newPrefs.activeDebtKey !== 'all') ? newPrefs.activeDebtKey : (current.activeDebtKey || 'khema'),
+    activeBankKey: newPrefs.activeBankKey || current.activeBankKey || 'khema_aba',
+    bankSlotsMeta: Object.assign({}, current.bankSlotsMeta, newPrefs.bankSlotsMeta || {}),
+    debtSlotsMeta: Object.assign({}, current.debtSlotsMeta, newPrefs.debtSlotsMeta || {}),
     updatedAt: new Date().toISOString()
   };
   writeJsonFile('shared_prefs.json', merged);
@@ -150,7 +184,19 @@ export function writeSharedPrefs(newPrefs: Partial<SharedPrefs>): SharedPrefs {
     cachedState.updatedAt = merged.updatedAt;
     cachedState.printPrefs = merged.printPrefs;
     cachedState.discounts = merged.discounts;
+    cachedState.activeDebtKey = merged.activeDebtKey;
+    cachedState.activeBankKey = merged.activeBankKey;
+    if (merged.bankSlotsMeta) cachedState.bankSlots = merged.bankSlotsMeta;
+    if (merged.debtSlotsMeta) cachedState.debtSlots = merged.debtSlotsMeta;
     writeJsonFile('state.json', cachedState);
+  }
+
+  // If active slot changed, immediately recompute doctors so all devices see the fresh slot data
+  if (newPrefs.activeDebtKey && newPrefs.activeDebtKey !== current.activeDebtKey) {
+    try {
+      const fresh = computeAbaReconciliation();
+      writeJsonFile('state.json', fresh);
+    } catch {}
   }
 
   return merged;
@@ -189,6 +235,7 @@ export function getNetworkDriveAbaDirs(): string[] {
         const p = path.join(d, 'InvoiceAI');
         if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
         dirs.push(p);
+        break; // Stop at first available network drive to prevent duplicate network latency
       }
     } catch {}
   }
@@ -209,7 +256,7 @@ function readJsonFile<T>(filename: string, defaultVal: T): T {
     } catch {}
   }
 
-  // Check network drives if local is missing, empty, or older
+  // Check network drives ONLY if local is missing or network file has a newer mtime
   const netDirs = getNetworkDriveAbaDirs();
   for (const dir of netDirs) {
     try {
@@ -217,28 +264,12 @@ function readJsonFile<T>(filename: string, defaultVal: T): T {
       if (fs.existsSync(zp)) {
         const netStat = fs.statSync(zp);
         const netMtime = netStat.mtimeMs;
-        const raw = fs.readFileSync(zp, 'utf-8');
-        const parsed = JSON.parse(raw);
-
-        let netIsNewer = false;
-        if (!localData) {
-          netIsNewer = true;
-        } else if (netMtime > localMtime + 500) {
-          netIsNewer = true;
-        } else if (parsed && typeof parsed === 'object' && parsed.updatedAt && localData.updatedAt) {
-          if (parsed.updatedAt > localData.updatedAt) {
-            netIsNewer = true;
-          }
-        } else if (Array.isArray(parsed) && Array.isArray(localData) && parsed.length > localData.length) {
-          netIsNewer = true;
-        }
-
-        if (netIsNewer) {
+        if (!localData || netMtime > localMtime + 1000) {
+          const raw = fs.readFileSync(zp, 'utf-8');
+          const parsed = JSON.parse(raw);
           try { fs.writeFileSync(filePath, raw, 'utf-8'); } catch {}
           localData = parsed;
           localMtime = netMtime;
-        } else if (localData && localMtime > netMtime + 500) {
-          try { fs.writeFileSync(zp, JSON.stringify(localData, null, 2), 'utf-8'); } catch {}
         }
       }
     } catch {}
@@ -256,12 +287,18 @@ function writeJsonFile(filename: string, data: any) {
   const filePath = path.join(dataDir, filename);
   const jsonStr = JSON.stringify(data, null, 2);
   fs.writeFileSync(filePath, jsonStr, 'utf-8');
-  getNetworkDriveAbaDirs().forEach(dir => {
+
+  // Background async network mirror to prevent blocking main event loop
+  setTimeout(() => {
     try {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, filename), jsonStr, 'utf-8');
+      getNetworkDriveAbaDirs().forEach(dir => {
+        try {
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(path.join(dir, filename), jsonStr, 'utf-8');
+        } catch {}
+      });
     } catch {}
-  });
+  }, 10);
 }
 
 // Extract parenthesized ABA / bank account number like (000 428 736) or contiguous digits
@@ -375,14 +412,19 @@ export function getCanonicalCustomerName(code: string, name: string): string {
   return clean || c || rawName || 'គ្មានឈ្មោះ';
 }
 
+let cachedProfiles: Record<string, any> | null = null;
+
 // Parse customer profiles from customers.xls or customers.xlsx
-export function parseCustomerProfiles(): Record<string, any> {
+export function parseCustomerProfiles(forceReload = false): Record<string, any> {
+  if (cachedProfiles && !forceReload && Object.keys(cachedProfiles).length > 0) {
+    return cachedProfiles;
+  }
   const profiles: Record<string, any> = {};
 
   // 1. First load from public/khema_customers.json or data/aba/khema_customers.json
   const jsonPaths = [
-    path.join(process.cwd(), 'public', 'khema_customers.json'),
-    path.join(dataDir, 'khema_customers.json')
+    path.join(dataDir, 'khema_customers.json'),
+    path.join(process.cwd(), 'public', 'khema_customers.json')
   ];
   for (const jp of jsonPaths) {
     if (fs.existsSync(jp)) {
@@ -396,7 +438,7 @@ export function parseCustomerProfiles(): Record<string, any> {
     }
   }
 
-  // 2. Check customer files across network drives and local dataDir
+  // 2. Check customer files across local dataDir FIRST, then network
   const candidates = [
     'Customer_Bank_Account_Number_Latest.xlsx',
     'Customer_Bank_Account_Number.xlsx',
@@ -405,7 +447,7 @@ export function parseCustomerProfiles(): Record<string, any> {
     'Customer_List.xls',
     'Customer_List.xlsx'
   ];
-  const searchDirs = [...getNetworkDriveAbaDirs(), dataDir];
+  const searchDirs = [dataDir, ...getNetworkDriveAbaDirs()];
   let foundFile = '';
   for (const c of candidates) {
     for (const d of searchDirs) {
@@ -416,7 +458,10 @@ export function parseCustomerProfiles(): Record<string, any> {
     }
     if (foundFile) break;
   }
-  if (!foundFile) return profiles;
+  if (!foundFile) {
+    cachedProfiles = profiles;
+    return profiles;
+  }
 
   try {
     const wb = xlsx.readFile(foundFile);
@@ -472,11 +517,17 @@ export function parseCustomerProfiles(): Record<string, any> {
     console.warn('Could not read customer Excel profiles from', foundFile, err);
   }
 
+  cachedProfiles = profiles;
   return profiles;
 }
 
+let cachedAccountsMap: any[] | null = null;
+
 // Parse accounts mapping
-export function parseAccountsMap(): any[] {
+export function parseAccountsMap(forceReload = false): any[] {
+  if (cachedAccountsMap && !forceReload && cachedAccountsMap.length > 0) {
+    return cachedAccountsMap;
+  }
   let list = readJsonFile<any[]>('accounts_map.json', [
     { entry: 'C00007', customerId: 'C00007', name: 'Aesthetic Dental Clinic', acct: '000111222', rawAcct: '000 111 222' }
   ]);
@@ -521,24 +572,17 @@ export function parseAccountsMap(): any[] {
     }
   }
 
+  // Check local dataDir FIRST, then network
   const accCandidates = [
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'Customer_Bank_Account_Number.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'Customer_Bank_Account_Number.xls'),
-    path.join('H:\\', 'InvoiceAI', 'Customer_Bank_Account_Number.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'Customer_Bank_Account_Number.xls'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'accounts.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'uploads', 'accounts.xls'),
-    path.join('H:\\', 'InvoiceAI', 'Account id aba.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'accounts.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'accounts.xls'),
-    path.join('Z:\\', 'InvoiceAI', 'uploads', 'Account id aba.xlsx'),
-    path.join('Z:\\', 'InvoiceAI', 'uploads', 'accounts.xlsx'),
     path.join(dataDir, 'Customer_Bank_Account_Number.xlsx'),
-    path.join(dataDir, 'Account id aba.xlsx'),
     path.join(dataDir, 'accounts.xlsx'),
+    path.join(dataDir, 'Account id aba.xlsx'),
+    path.join(dataDir, 'Customer_Bank_Account_Number.xls'),
     path.join(dataDir, 'accounts.xls'),
-    path.join(process.cwd(), 'Account id aba.xlsx')
+    path.join(process.cwd(), 'Account id aba.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'uploads', 'Customer_Bank_Account_Number.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'Customer_Bank_Account_Number.xlsx'),
+    path.join('H:\\', 'InvoiceAI', 'accounts.xlsx')
   ];
   for (const c of accCandidates) {
     if (fs.existsSync(c)) {
@@ -586,11 +630,13 @@ export function parseAccountsMap(): any[] {
             }
           }
         });
+        break; // Successfully loaded accounts mapping; no need to read remaining files!
       } catch (err) {
         console.warn('Error reading account file candidate:', c, err);
       }
     }
   }
+  cachedAccountsMap = list;
   return list;
 }
 
@@ -637,62 +683,80 @@ export function computeAbaReconciliation(): AbaState {
   const accMap = parseAccountsMap();
   const tgDir = parseTgDirectory();
   const tgSent = parseTgSent();
+  const shared = readSharedPrefs();
+  const activeDebtKey = (shared && shared.activeDebtKey && shared.activeDebtKey !== 'all') ? shared.activeDebtKey : 'khema';
+  const activeBankKey = (shared && shared.activeBankKey) ? shared.activeBankKey : 'khema_aba';
 
-  // 1. Read debts: ONLY from uploads folder! Deduplicated per slot
   const localUploadsDir = path.join(dataDir, 'uploads');
   const hUploadsDir = path.join('H:\\', 'InvoiceAI', 'uploads');
   const zUploadsDir = path.join('Z:\\', 'InvoiceAI', 'uploads');
 
+  // Discover debt files per slot strictly - EMPTY SLOTS REMAIN EMPTY (no arbitrary grabbing)
   const debtSlots = ['khema', 'rms', 'newsmile'];
-  const debtFilesToRead: string[] = [];
+  const debtSlotsMeta: Record<string, { exists: boolean; name: string; count: number }> = {
+    khema: { exists: false, name: '', count: 0 },
+    rms: { exists: false, name: '', count: 0 },
+    newsmile: { exists: false, name: '', count: 0 }
+  };
+  const debtSlotFiles: Record<string, string> = {};
 
   debtSlots.forEach(slot => {
     const slotPrefix = slot === 'khema' ? 'Khema' : (slot === 'rms' ? 'RMS' : 'New Smile');
-    const candidates = [
-      path.join(hUploadsDir, `${slot}_debt.xlsx`),
-      path.join(hUploadsDir, `${slot}_debt.xls`),
-      path.join(hUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
-      path.join(hUploadsDir, `${slotPrefix} Aged Receivable.xls`),
-      path.join(localUploadsDir, `${slot}_debt.xlsx`),
-      path.join(localUploadsDir, `${slot}_debt.xls`),
+    // Check localUploadsDir FIRST for instant zero-latency reading
+    const localCandidates = [
+      path.join(localUploadsDir, `${slotPrefix} Aged Report 31.10.26.xls`),
+      path.join(localUploadsDir, `${slotPrefix} Aged Report 31.10.26.xlsx`),
       path.join(localUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
       path.join(localUploadsDir, `${slotPrefix} Aged Receivable.xls`),
-      path.join(zUploadsDir, `${slot}_debt.xlsx`),
-      path.join(zUploadsDir, `${slot}_debt.xls`),
-      path.join(zUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
-      path.join(zUploadsDir, `${slotPrefix} Aged Receivable.xls`)
+      path.join(localUploadsDir, `${slot}_debt.xlsx`),
+      path.join(localUploadsDir, `${slot}_debt.xls`)
     ];
-    for (const c of candidates) {
-      if (fs.existsSync(c)) {
-        debtFilesToRead.push(c);
-        break; // Exactly one file per slot
+    let found = localCandidates.find(c => fs.existsSync(c));
+
+    // If not found locally, check H:\ network drive and sync to local
+    if (!found) {
+      const netCandidates = [
+        path.join(hUploadsDir, `${slotPrefix} Aged Report 31.10.26.xls`),
+        path.join(hUploadsDir, `${slotPrefix} Aged Report 31.10.26.xlsx`),
+        path.join(hUploadsDir, `${slotPrefix} Aged Receivable.xlsx`),
+        path.join(hUploadsDir, `${slotPrefix} Aged Receivable.xls`),
+        path.join(hUploadsDir, `${slot}_debt.xlsx`),
+        path.join(hUploadsDir, `${slot}_debt.xls`)
+      ];
+      const netFound = netCandidates.find(c => fs.existsSync(c));
+      if (netFound) {
+        try {
+          const dest = path.join(localUploadsDir, path.basename(netFound));
+          fs.copyFileSync(netFound, dest);
+          found = dest;
+        } catch {
+          found = netFound;
+        }
       }
+    }
+
+    if (found) {
+      debtSlotFiles[slot] = found;
+      let displayName = path.basename(found);
+      if (displayName === `${slot}_debt.xls` || displayName === `${slot}_debt.xlsx`) {
+        const origMatch = localCandidates.concat([
+          path.join(hUploadsDir, `${slotPrefix} Aged Report 31.10.26.xls`),
+          path.join(hUploadsDir, `${slotPrefix} Aged Report 31.10.26.xlsx`)
+        ]).find(can => fs.existsSync(can) && !can.includes(`${slot}_debt`));
+        if (origMatch) displayName = path.basename(origMatch);
+      }
+      debtSlotsMeta[slot] = { exists: true, name: displayName, count: 0 };
     }
   });
-
-  // If no slot debts found, fallback to debts.xlsx or debts.xls in uploads ONLY
-  if (debtFilesToRead.length === 0) {
-    const fallbackDebts = [
-      path.join(hUploadsDir, 'debts.xlsx'),
-      path.join(hUploadsDir, 'debts.xls'),
-      path.join(localUploadsDir, 'debts.xlsx'),
-      path.join(localUploadsDir, 'debts.xls'),
-      path.join(zUploadsDir, 'debts.xlsx'),
-      path.join(zUploadsDir, 'debts.xls')
-    ];
-    for (const c of fallbackDebts) {
-      if (fs.existsSync(c)) {
-        debtFilesToRead.push(c);
-        break; // Only one fallback file
-      }
-    }
-  }
 
   const doctorsMap: Record<string, DoctorStatement> = {};
   const doctorOrder: string[] = [];
 
-  for (const debtFile of (debtFilesToRead.length ? debtFilesToRead : [''])) {
-    if (!debtFile) continue;
+  // Parse each slot independently and tag doctors with slotKey
+  for (const slot of debtSlots) {
+    const debtFile = debtSlotFiles[slot];
+    if (!debtFile || !fs.existsSync(debtFile)) continue;
+    let slotInvCount = 0;
     try {
       const wb = xlsx.readFile(debtFile);
       const aoa: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
@@ -700,7 +764,6 @@ export function computeAbaReconciliation(): AbaState {
 
       for (let i = 0; i < aoa.length; i++) {
         const r = aoa[i] || [];
-        // Header row of customer: e.g. "C00007 - Aesthetic Dental Clinic"
         if (r.length > 0 && typeof r[0] === 'string' && /^[A-Z]\d{4,}\s*[-–]/i.test(r[0].trim())) {
           const rawName = r[0].trim();
           const custIdMatch = rawName.match(/^([A-Z]\d{4,})/i);
@@ -712,12 +775,12 @@ export function computeAbaReconciliation(): AbaState {
             (custId && a.entry && a.entry.toUpperCase() === custId)
           );
 
-          // Check if mapped to a customer profile or custom name
           const baseName = prof.nameEn || prof.nameKh || (matchedAcc && matchedAcc.name) || rawName;
           const displayName = getCanonicalCustomerName(custId, baseName);
+          const uniqueKey = `${slot}_${displayName}`;
 
-          if (doctorsMap[displayName] || (custId && doctorsMap[custId])) {
-            currentDoc = doctorsMap[displayName] || (custId ? doctorsMap[custId] : null);
+          if (doctorsMap[uniqueKey]) {
+            currentDoc = doctorsMap[uniqueKey];
             continue;
           }
 
@@ -733,6 +796,7 @@ export function computeAbaReconciliation(): AbaState {
             name: displayName,
             customerId: custId,
             entry: custId,
+            slotKey: slot,
             meta: {
               custNo: custId,
               custKh,
@@ -755,17 +819,16 @@ export function computeAbaReconciliation(): AbaState {
             inv: [],
             pay: []
           };
-          doctorsMap[displayName] = currentDoc;
-          if (custId) doctorsMap[custId] = currentDoc;
-          doctorOrder.push(displayName);
+          doctorsMap[uniqueKey] = currentDoc;
+          doctorOrder.push(uniqueKey);
           continue;
         }
 
-        // Invoice row
         if (currentDoc && r.length >= 20) {
           const invNo = String(r[4] || '').trim();
           if (/^INV/i.test(invNo)) {
             if (currentDoc.invoices.some(v => v.inv === invNo)) continue;
+            slotInvCount++;
             const origAmt = parseFloat(r[21]) || 0;
             const bal = parseFloat(r[27] != null ? r[27] : r[21]) || 0;
             const isPartial = bal < origAmt || (r[13] && /partial/i.test(String(r[13])));
@@ -779,68 +842,89 @@ export function computeAbaReconciliation(): AbaState {
               date: String(r[2] || ''),
               inv: invNo,
               ref: String(r[5] || ''),
-              desc: String(r[7] || ''),
+              desc: String(r[6] || '').trim(),
+              amt: origAmt,
               origAmt,
               bal,
-              amt: bal,
-              paidBefore: 0,
+              paidBefore: Math.max(0, origAmt - bal),
               paidNow: 0,
               remaining: bal,
-              runBal: 0,
+              pp: 0,
+              pb: Math.max(0, origAmt - bal),
+              rem: bal,
               status: invStatus,
-              statusKh: invStatusKh
+              statusKh: invStatusKh,
+              runBal: origAmt
             });
+            currentDoc.inv = currentDoc.invoices;
           }
         }
       }
-    } catch (err) {
-      console.warn('Error reading debts on server:', err);
+      debtSlotsMeta[slot].count = slotInvCount;
+    } catch (e) {
+      console.warn('Error reading debt file for slot ' + slot, e);
     }
   }
 
-  // 2. Read ABA statements: ONLY from uploads folder! Deduplicated per slot
+  // Discover bank statement files strictly per slot (Local FIRST for instant loading)
   const bankSlots = ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'];
-  const bankFilesToRead: string[] = [];
+  const bankSlotsMeta: Record<string, { exists: boolean; name: string }> = {
+    khema_aba: { exists: false, name: '' },
+    khema_acleda: { exists: false, name: '' },
+    rms_aba: { exists: false, name: '' },
+    rms_acleda: { exists: false, name: '' }
+  };
+  const bankSlotFiles: Record<string, string> = {};
 
   bankSlots.forEach(slot => {
-    const candidates = [
-      path.join(hUploadsDir, `${slot}.xlsx`),
-      path.join(hUploadsDir, `${slot}.xls`),
-      path.join(hUploadsDir, `${slot}.csv`),
+    const localCandidates = [
       path.join(localUploadsDir, `${slot}.xlsx`),
       path.join(localUploadsDir, `${slot}.xls`),
-      path.join(localUploadsDir, `${slot}.csv`),
-      path.join(zUploadsDir, `${slot}.xlsx`),
-      path.join(zUploadsDir, `${slot}.xls`),
-      path.join(zUploadsDir, `${slot}.csv`)
+      path.join(localUploadsDir, `${slot}.csv`)
     ];
-    for (const c of candidates) {
-      if (fs.existsSync(c)) {
-        bankFilesToRead.push(c);
-        break; // Exactly one file per slot
+    if (slot === 'khema_aba') {
+      localCandidates.push(
+        path.join(localUploadsDir, 'aba_statement.xlsx'),
+        path.join(localUploadsDir, 'aba_statement.xls')
+      );
+    }
+    let found = localCandidates.find(c => fs.existsSync(c));
+    if (!found) {
+      const netCandidates = [
+        path.join(hUploadsDir, `${slot}.xlsx`),
+        path.join(hUploadsDir, `${slot}.xls`),
+        path.join(hUploadsDir, `${slot}.csv`)
+      ];
+      if (slot === 'khema_aba') {
+        netCandidates.push(
+          path.join(hUploadsDir, 'aba_statement.xlsx'),
+          path.join(hUploadsDir, 'aba_statement.xls')
+        );
       }
+      const netFound = netCandidates.find(c => fs.existsSync(c));
+      if (netFound) {
+        try {
+          const dest = path.join(localUploadsDir, path.basename(netFound));
+          fs.copyFileSync(netFound, dest);
+          found = dest;
+        } catch {
+          found = netFound;
+        }
+      }
+    }
+    if (found) {
+      bankSlotFiles[slot] = found;
+      bankSlotsMeta[slot] = { exists: true, name: path.basename(found) };
     }
   });
 
-  if (bankFilesToRead.length === 0) {
-    const fallbackBank = [
-      path.join(hUploadsDir, 'aba_statement.xlsx'),
-      path.join(hUploadsDir, 'aba_statement.xls'),
-      path.join(localUploadsDir, 'aba_statement.xlsx'),
-      path.join(localUploadsDir, 'aba_statement.xls'),
-      path.join(zUploadsDir, 'aba_statement.xlsx'),
-      path.join(zUploadsDir, 'aba_statement.xls')
-    ];
-    for (const c of fallbackBank) {
-      if (fs.existsSync(c)) {
-        bankFilesToRead.push(c);
-        break;
-      }
-    }
-  }
-
+  // Reconcile payments against matching slot doctors
   const unmatched: any[] = [];
-  for (const abaFile of bankFilesToRead) {
+  for (const slot of bankSlots) {
+    const abaFile = bankSlotFiles[slot];
+    if (!abaFile || !fs.existsSync(abaFile)) continue;
+    const targetEntitySlot = slot.startsWith('rms') ? 'rms' : 'khema';
+
     try {
       const wb = xlsx.readFile(abaFile);
       const aoa: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
@@ -871,11 +955,8 @@ export function computeAbaReconciliation(): AbaState {
       const startRow = hdrIdx !== -1 ? hdrIdx + 1 : 0;
       for (let i = startRow; i < aoa.length; i++) {
         const r = aoa[i] || [];
-
-        // 1. Resolve date
         let dateRes = dateCol !== -1 ? parseDateRobust(r[dateCol]) : { dateObj: null, dateStr: '', dmyStr: '', shortStr: '' };
         if (!dateRes.dateObj) {
-          // Check first 5 cells for shifted column (e.g. row 60 shifted to col 1)
           for (let c = 0; c < Math.min(r.length, 5); c++) {
             const trial = parseDateRobust(r[c]);
             if (trial.dateObj) { dateRes = trial; break; }
@@ -883,7 +964,6 @@ export function computeAbaReconciliation(): AbaState {
         }
         if (!dateRes.dateObj) continue;
 
-        // 2. Resolve description
         let text = textCol !== -1 ? String(r[textCol] || '').trim() : '';
         if (!text || text.length < 3 || parseDateRobust(text).dateObj) {
           let longest = '';
@@ -896,7 +976,6 @@ export function computeAbaReconciliation(): AbaState {
           if (longest) text = longest;
         }
 
-        // 3. Resolve credit / payment amount
         let crVal = crCol !== -1 ? parseFloat(String(r[crCol] || '').replace(/[^0-9.\-]/g, '')) || 0 : 0;
         if (crVal <= 0) {
           for (let c = 0; c < r.length; c++) {
@@ -910,19 +989,16 @@ export function computeAbaReconciliation(): AbaState {
         }
         if (crVal <= 0 && !text) continue;
 
-        // 4. Resolve reference
         let refVal = refCol !== -1 ? String(r[refCol] || '').trim() : '';
         if (!refVal) {
           const mTrx = text.match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
           if (mTrx) refVal = mTrx[1];
         }
 
-        // 5. Match customer from accMap or existing doctors
         const txAcc = extractAbaAccount(text);
         const cleanTextDigits = text.replace(/\D/g, '');
         let hitDoc: DoctorStatement | null = null;
 
-        // Match by account number in accMap
         for (const a of accMap) {
           const accList: string[] = (a.accounts && a.accounts.length)
             ? a.accounts
@@ -940,201 +1016,67 @@ export function computeAbaReconciliation(): AbaState {
             const targetId = (a.customerId || a.entry || '').toUpperCase();
             const targetName = (a.name || '').trim();
             const targetCanon = getCanonicalCustomerName(targetId, targetName);
-            if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
-            if (!hitDoc && targetCanon && doctorsMap[targetCanon]) hitDoc = doctorsMap[targetCanon];
-            if (!hitDoc && targetName && doctorsMap[targetName]) hitDoc = doctorsMap[targetName];
-            if (!hitDoc && targetId && targetName && doctorsMap[`${targetId} - ${targetName}`]) {
-              hitDoc = doctorsMap[`${targetId} - ${targetName}`];
+            const tryKeys = [
+              `${targetEntitySlot}_${targetCanon}`,
+              `${targetEntitySlot}_${targetName}`,
+              `${targetEntitySlot}_${targetId}`
+            ];
+            for (const tk of tryKeys) {
+              if (doctorsMap[tk]) { hitDoc = doctorsMap[tk]; break; }
             }
             if (hitDoc) break;
           }
         }
 
-        // Match by customer name in accMap
         if (!hitDoc) {
           for (const a of accMap) {
             const aName = (a.name || '').trim();
             if (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) {
               const targetId = (a.customerId || a.entry || '').toUpperCase();
               const targetCanon = getCanonicalCustomerName(targetId, aName);
-              if (targetId && doctorsMap[targetId]) hitDoc = doctorsMap[targetId];
-              if (!hitDoc && targetCanon && doctorsMap[targetCanon]) hitDoc = doctorsMap[targetCanon];
-              if (!hitDoc && doctorsMap[aName]) hitDoc = doctorsMap[aName];
-              if (!hitDoc && targetId && doctorsMap[`${targetId} - ${aName}`]) {
-                hitDoc = doctorsMap[`${targetId} - ${aName}`];
+              const tryKeys = [
+                `${targetEntitySlot}_${targetCanon}`,
+                `${targetEntitySlot}_${aName}`,
+                `${targetEntitySlot}_${targetId}`
+              ];
+              for (const tk of tryKeys) {
+                if (doctorsMap[tk]) { hitDoc = doctorsMap[tk]; break; }
               }
               if (hitDoc) break;
             }
           }
         }
 
-        // Match by doctor order list
-        if (!hitDoc) {
-          for (const dName of doctorOrder) {
-            const D = doctorsMap[dName];
-            if (!D) continue;
-            const cId = D.customerId;
-            if (cId && text.toUpperCase().includes(cId)) { hitDoc = D; break; }
-            const cleanDName = dName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
-            if (cleanDName.length >= 4 && text.toLowerCase().includes(cleanDName.toLowerCase())) {
-              hitDoc = D;
-              break;
-            }
-          }
-        }
-
-        // Auto-create customer entry if accMap has record but doctor had no debt row
-        if (!hitDoc) {
-          for (const a of accMap) {
-            const accList: string[] = (a.accounts && a.accounts.length)
-              ? a.accounts
-              : [String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '')];
-            const matchAcc = accList.some(cleanA => cleanA && cleanA.length >= 5 && cleanTextDigits.includes(cleanA));
-            const aName = (a.name || '').trim();
-            const aId = (a.customerId || a.entry || '').toUpperCase();
-            const hasMatch = matchAcc ||
-                             (aName && aName.length >= 4 && text.toLowerCase().includes(aName.toLowerCase())) ||
-                             (aId && aId.length >= 4 && text.toUpperCase().includes(aId));
-            if (hasMatch) {
-              const newKey = getCanonicalCustomerName(aId, aName || aId);
-              if (!doctorsMap[newKey] && !(aId && doctorsMap[aId])) {
-                const newDoc: DoctorStatement = {
-                  id: newKey,
-                  name: newKey,
-                  customerId: aId,
-                  entry: aId,
-                  meta: {
-                    custNo: aId,
-                    custKh: aName,
-                    custEn: aName,
-                    phone: '',
-                    address: '',
-                    currency: 'USD'
-                  },
-                  owed: 0,
-                  paidTotal: 0,
-                  paidBeforeTotal: 0,
-                  paidCurrent: 0,
-                  rem: 0,
-                  extra: 0,
-                  status: 'No Debt',
-                  statusKh: 'គ្មានបំណុល',
-                  invoices: [],
-                  inv: [],
-                  payments: [],
-                  pay: []
-                };
-                doctorsMap[newKey] = newDoc;
-                if (aId) doctorsMap[aId] = newDoc;
-                doctorOrder.push(newKey);
-              }
-              hitDoc = doctorsMap[newKey] || (aId ? doctorsMap[aId] : null);
-              break;
-            }
-          }
-        }
-
         if (hitDoc) {
           hitDoc.payments.push({
-            date: dateRes.dmyStr,
+            id: `${hitDoc.id}-PAY-${hitDoc.payments.length + 1}`,
+            date: dateRes.dmyStr || dateRes.dateStr,
+            amt: crVal,
+            particular: text,
+            ref: refVal,
+            source: slot.includes('acleda') ? 'Acleda' : 'ABA'
+          });
+          hitDoc.pay = hitDoc.payments;
+        } else {
+          unmatched.push({
+            date: dateRes.dmyStr || dateRes.dateStr,
             amt: crVal,
             text,
             ref: refVal
           });
-        } else {
-          unmatched.push({
-            id: i,
-            date: dateRes.dmyStr,
-            amt: crVal,
-            text,
-            acc: txAcc
-          });
         }
       }
-    } catch (err) {
-      console.warn('Error reading ABA statement on server:', err);
+    } catch (e) {
+      console.warn('Error reading bank file ' + abaFile, e);
     }
   }
 
-  // 2.5. Read accounts.xlsx for OR/JV payments and accounts mapping
-  const accCandidates = [
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'accounts.xlsx'),
-    path.join('H:\\', 'InvoiceAI', 'data', 'aba', 'accounts.xls'),
-    path.join(dataDir, 'accounts.xlsx'),
-    path.join(dataDir, 'accounts.xls'),
-    path.join(dataDir, 'Account id aba.xlsx')
-  ];
-  let accFile = '';
-  for (const c of accCandidates) {
-    if (fs.existsSync(c)) { accFile = c; break; }
-  }
-
-  if (accFile) {
-    try {
-      const wb = xlsx.readFile(accFile);
-      const s1Name = wb.SheetNames.find((s: string) => s.toUpperCase() === 'SHEET1') || wb.SheetNames[0];
-      const s2Name = wb.SheetNames.find((s: string) => s.toUpperCase() === 'SHEET2') || wb.SheetNames[1];
-
-      if (s1Name && s2Name) {
-        const rowsS1: any[] = xlsx.utils.sheet_to_json(wb.Sheets[s1Name]);
-        const rowsS2: any[] = xlsx.utils.sheet_to_json(wb.Sheets[s2Name]);
-
-        const orMap: Record<string, { custId: string; date: string; entryNo: string }> = {};
-        rowsS1.forEach(r => {
-          const entryNo = String(r['Entry No'] || '').trim();
-          const custId = String(r['Customer ID'] || '').trim().toUpperCase();
-          const dVal = String(r['Date (dd-MMM-YYYY)'] || r['Date'] || '').trim();
-          if (entryNo && custId) {
-            orMap[entryNo] = { custId, date: dVal, entryNo };
-          }
-        });
-
-        rowsS2.forEach(r => {
-          const entryNo = String(r['Entry No'] || '').trim();
-          const invNo = String(r['Invoice No/Account ID'] || r['Invoice No'] || '').trim();
-          const paidAmt = parseFloat(String(r['Receive to Cash Acc./Amount'] || r['Amount'] || '').replace(/[^0-9.-]/g, '')) || 0;
-          const desc = String(r['Description'] || '').trim();
-          const orInfo = orMap[entryNo];
-
-          if (orInfo && orInfo.custId && paidAmt > 0) {
-            let hitDoc = doctorsMap[orInfo.custId];
-            if (!hitDoc) {
-              for (const name of doctorOrder) {
-                if (doctorsMap[name] && doctorsMap[name].customerId === orInfo.custId) {
-                  hitDoc = doctorsMap[name];
-                  break;
-                }
-              }
-            }
-            if (hitDoc) {
-              hitDoc.payments.push({
-                date: orInfo.date,
-                amt: paidAmt,
-                text: `${entryNo} (${invNo}): ${desc || 'Payment in OR'}`
-              });
-            }
-          }
-        });
-      }
-    } catch (err) {
-      console.warn('Error reading accounts.xlsx on server:', err);
-    }
-  }
-
-  // 3. Reconcile invoices and calculate totals for each doctor
-  let totalOwed = 0;
-  let totalPaid = 0;
-  let totalRem = 0;
-  let tgSentCount = 0;
-  let tgNotSentCount = 0;
-
-  const resultDoctors: DoctorStatement[] = [];
-
-  for (const dName of doctorOrder) {
-    const D = doctorsMap[dName];
+  // Calculate balances per doctor
+  const allDoctorsList: DoctorStatement[] = [];
+  for (const k of doctorOrder) {
+    const D = doctorsMap[k];
     if (!D) continue;
 
-    // Running balance computation
     let running = 0;
     D.invoices.forEach((v, idx) => {
       v.no = idx + 1;
@@ -1142,11 +1084,9 @@ export function computeAbaReconciliation(): AbaState {
       v.runBal = Math.round(running * 100) / 100;
     });
 
-    // Allocate payment: smart matching against newest invoices first (វិក័យបត្រថ្មីៗ)
     let availablePay = D.payments.reduce((s, p) => s + p.amt, 0);
     D.owed = D.invoices.reduce((s, v) => s + v.amt, 0);
 
-    // Initialize all invoices as unpaid
     D.invoices.forEach(v => {
       v.paidBefore = 0;
       v.paidNow = 0;
@@ -1158,7 +1098,6 @@ export function computeAbaReconciliation(): AbaState {
       v.statusKh = 'មិនទាន់សង';
     });
 
-    // Step 1: Exact amount matching against newest invoices first
     const sortedInvsDesc = D.invoices.slice().sort((a, b) => {
       const da = a.date ? new Date(a.date).getTime() : 0;
       const db = b.date ? new Date(b.date).getTime() : 0;
@@ -1181,7 +1120,6 @@ export function computeAbaReconciliation(): AbaState {
       }
     });
 
-    // Step 2: Allocate remaining available payment to newest unpaid invoices
     if (availablePay > 0.005) {
       sortedInvsDesc.forEach(v => {
         if (availablePay <= 0.005) return;
@@ -1189,60 +1127,30 @@ export function computeAbaReconciliation(): AbaState {
           const alloc = Math.min(v.remaining, availablePay);
           v.paidNow = Math.round((v.paidNow + alloc) * 100) / 100;
           v.pp = v.paidNow;
-          v.remaining = Math.max(0, Math.round((v.amt - v.paidNow) * 100) / 100);
+          v.remaining = Math.round((v.remaining - alloc) * 100) / 100;
           v.rem = v.remaining;
-          const isFull = v.remaining <= 0.005;
-          v.status = isFull ? 'Fully Paid' : 'Partially Paid';
-          v.statusKh = isFull ? 'សងគ្រប់' : 'សងមួយផ្នែក';
+          v.status = v.remaining <= 0.005 ? 'Fully Paid' : 'Partially Paid';
+          v.statusKh = v.remaining <= 0.005 ? 'សងគ្រប់' : 'សងមួយផ្នែក';
           availablePay = Math.max(0, Math.round((availablePay - alloc) * 100) / 100);
         }
       });
     }
 
-    // Sort invoices inside doctor: paid invoices first
-    D.invoices.sort((a, b) => {
-      const pa = (a.paidNow > 0 || a.remaining <= 0.005) ? 0 : 1;
-      const pb = (b.paidNow > 0 || b.remaining <= 0.005) ? 0 : 1;
-      if (pa !== pb) return pa - pb;
-      return (a.no || 0) - (b.no || 0);
-    });
-
-    D.paidCurrent = D.invoices.reduce((s, v) => s + v.paidNow, 0);
-    D.paidTotal = D.paidCurrent;
-    D.paidBeforeTotal = 0;
-    D.extra = Math.max(0, Math.round(availablePay * 100) / 100);
+    D.paidTotal = D.invoices.reduce((s, v) => s + (v.paidNow || 0), 0);
+    D.paidCurrent = D.paidTotal;
     D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+    D.extra = Math.round(availablePay * 100) / 100;
 
-    D.inv = D.invoices;
-    D.pay = D.payments;
-    (D as any).before = 0;
-    (D as any).per = D.payments.reduce((s, p) => s + p.amt, 0);
-    let maxServerPayDate: string | null = null;
-    let maxDateMs = 0;
-    D.payments.forEach(p => {
-      const pD = parseDateRobust(p.date).dateObj;
-      if (pD && pD.getTime() > maxDateMs) {
-        maxDateMs = pD.getTime();
-        maxServerPayDate = parseDateRobust(p.date).dmyStr;
-      }
-    });
-    (D as any).lastD = maxServerPayDate;
-    (D as any).lastPaymentDate = maxServerPayDate;
-
-    const fullDoc = D.owed > 0 && D.rem <= 0.005;
-    const partialDoc = D.owed > 0 && D.paidTotal > 0.005 && D.rem > 0.005;
-    const unpaidDoc = D.owed > 0 && D.paidTotal <= 0.005;
-
-    if (fullDoc) {
+    if (D.owed > 0 && D.rem <= 0.005) {
       D.status = 'Fully Paid';
       D.statusKh = 'សងគ្រប់';
-    } else if (partialDoc) {
+    } else if (D.paidTotal > 0.005 && D.rem > 0.005) {
       D.status = 'Partially Paid';
       D.statusKh = 'សងមួយផ្នែក';
-    } else if (unpaidDoc) {
+    } else if (D.owed > 0 && D.paidTotal <= 0.005) {
       D.status = 'Unpaid';
       D.statusKh = 'មិនទាន់សង';
-    } else if (D.owed === 0 && D.payments.length > 0) {
+    } else if (D.owed <= 0 && D.extra > 0) {
       D.status = 'Advance Payment';
       D.statusKh = 'ទូទាត់មុន';
     } else {
@@ -1250,83 +1158,30 @@ export function computeAbaReconciliation(): AbaState {
       D.statusKh = 'គ្មានបំណុល';
     }
 
-    // Sort invoices inside doctor: paid invoices first (សងគ្រប់/សងខ្លះ នៅខាងលើ)
-    D.invoices.sort((a, b) => {
-      const aPaid = (a.paidNow > 0 || a.remaining <= 0.005) ? 1 : 0;
-      const bPaid = (b.paidNow > 0 || b.remaining <= 0.005) ? 1 : 0;
-      if (aPaid !== bPaid) return bPaid - aPaid;
-      return a.no - b.no;
-    });
+    allDoctorsList.push(D);
+  }
 
-    if (D.tgSent) tgSentCount++;
-    else tgNotSentCount++;
+  // CRITICAL REQUIREMENT: NEVER CONSOLIDATE KHEMA AND RMS!
+  // Filter doctors for the currently active slot ONLY (e.g. 144 for Khema, 48 for RMS, 0 for empty slot)
+  const filteredForActiveSlot = allDoctorsList.filter(d => d.slotKey === activeDebtKey);
+  const resultDoctors = filteredForActiveSlot;
 
+  let totalOwed = 0;
+  let totalPaid = 0;
+  let totalRem = 0;
+  let tgSentCount = 0;
+  let tgNotSentCount = 0;
+
+  resultDoctors.forEach(D => {
     totalOwed += D.owed;
     totalPaid += D.paidTotal;
     totalRem += D.rem;
-
-    resultDoctors.push(D);
-  }
-
-  // SORT DOCTORS: Fully Paid (សងគ្រប់) FIRST (ខាងលើគេ), then Partially Paid (សងមួយផ្នែក), then Unpaid (មិនទាន់សង)
-  resultDoctors.sort((a, b) => {
-    const rank = (d: DoctorStatement) => {
-      if (d.rem <= 0.005 && d.paidTotal > 0) return 0; // សងគ្រប់ (Fully Paid)
-      if (d.paidTotal > 0) return 1;                   // សងមួយផ្នែក (Partially Paid)
-      return 2;                                        // មិនទាន់សង (Unpaid)
-    };
-    const rA = rank(a);
-    const rB = rank(b);
-    if (rA !== rB) return rA - rB;
-    if (rA < 2 && b.paidTotal !== a.paidTotal) {
-      return b.paidTotal - a.paidTotal; // Higher paid amount first
-    }
-    return 0; // Keep code order within same group
+    if (D.tgSent && D.tgSent.sentAt) tgSentCount++;
+    else tgNotSentCount++;
   });
 
-  // Compute bank & debt slots existence (strictly from uploads folders)
-  const bankSlotsMeta: Record<string, { exists: boolean; name: string }> = {
-    khema_aba: { exists: false, name: '' },
-    khema_acleda: { exists: false, name: '' },
-    rms_aba: { exists: false, name: '' },
-    rms_acleda: { exists: false, name: '' }
-  };
-  ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'].forEach(k => {
-    const candidates = [
-      path.join(hUploadsDir, `${k}.xlsx`),
-      path.join(hUploadsDir, `${k}.xls`),
-      path.join(hUploadsDir, `${k}.csv`),
-      path.join(localUploadsDir, `${k}.xlsx`),
-      path.join(localUploadsDir, `${k}.xls`),
-      path.join(localUploadsDir, `${k}.csv`)
-    ];
-    for (const c of candidates) {
-      if (fs.existsSync(c)) {
-        bankSlotsMeta[k] = { exists: true, name: path.basename(c) };
-        break;
-      }
-    }
-  });
-
-  const debtSlotsMeta: Record<string, { exists: boolean; name: string }> = {
-    khema: { exists: false, name: '' },
-    rms: { exists: false, name: '' },
-    newsmile: { exists: false, name: '' }
-  };
-  ['khema', 'rms', 'newsmile'].forEach(k => {
-    const candidates = [
-      path.join(hUploadsDir, `${k}_debt.xlsx`),
-      path.join(hUploadsDir, `${k}_debt.xls`),
-      path.join(localUploadsDir, `${k}_debt.xlsx`),
-      path.join(localUploadsDir, `${k}_debt.xls`)
-    ];
-    for (const c of candidates) {
-      if (fs.existsSync(c)) {
-        debtSlotsMeta[k] = { exists: true, name: path.basename(c) };
-        break;
-      }
-    }
-  });
+  const activeDebtFile = debtSlotFiles[activeDebtKey] || '';
+  const activeBankFile = bankSlotFiles[activeBankKey] || '';
 
   const finalState: AbaState = {
     success: true,
@@ -1339,12 +1194,14 @@ export function computeAbaReconciliation(): AbaState {
       tgNotSentCount
     },
     fileNames: {
-      aba: bankFilesToRead.length ? bankFilesToRead.map(f => path.basename(f)).join(', ') : '',
-      debt: debtFilesToRead.length ? debtFilesToRead.map(f => path.basename(f)).join(', ') : '',
-      acc: accFile ? path.basename(accFile) : (fs.existsSync(path.join(dataDir, 'customers.xls')) ? 'customers.xls' : '')
+      aba: activeBankFile ? path.basename(activeBankFile) : '',
+      debt: activeDebtFile ? path.basename(activeDebtFile) : '',
+      acc: 'customers.xls'
     },
     bankSlots: bankSlotsMeta,
     debtSlots: debtSlotsMeta,
+    activeDebtKey,
+    activeBankKey,
     doctors: resultDoctors,
     unmatched,
     updatedAt: new Date().toISOString()
