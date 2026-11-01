@@ -67,12 +67,8 @@
 .print-table th{background:#f1f5f9;font-weight:600;color:#0f172a;position:relative}
 .col-resizer{position:absolute;top:0;right:0;width:7px;bottom:0;cursor:col-resize;user-select:none;z-index:25;background:transparent;transition:background 0.15s}
 .col-resizer:hover, .col-resizer.resizing{background:#0284c7;width:8px}
-.footer-drag-handle{cursor:ns-resize;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:3px 0;margin-bottom:8px;font-size:0.72rem;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;user-select:none;transition:all 0.15s}
-.footer-drag-handle:hover, .footer-drag-handle.dragging{color:#0284c7;border-color:#0284c7;background:#f0f9ff}
-#statementQrCard{cursor:grab;transition:box-shadow 0.15s}
-#statementQrCard:hover{box-shadow:0 0 0 1.5px #38bdf8, 0 2px 6px rgba(0,0,0,0.06)}
-.qr-drag-handle{cursor:grab;position:absolute;top:-20px;right:0;background:#0284c7;color:#fff;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,0.15);transition:background 0.15s}
-.qr-drag-handle:hover{background:#0369a1}
+#statementQrCard{cursor:grab;user-select:none;transition:box-shadow 0.15s}
+#statementQrCard:hover{box-shadow:0 0 0 1.5px #38bdf8, 0 2px 8px rgba(0,0,0,0.08)}
 .print-table th.n,.print-table td.n{text-align:right}
 .print-table tfoot td{font-weight:bold;background:#f8fafc}
 
@@ -123,27 +119,28 @@
   }
   .col-resizer{display:none !important;}
   .print-paper.single-page, #printDocument.single-page{
-    display:flex !important;
-    flex-direction:column !important;
-    justify-content:space-between !important;
-    height:272mm !important;
-    max-height:272mm !important;
+    position:relative !important;
+    height:277mm !important;
+    min-height:277mm !important;
+    max-height:277mm !important;
     overflow:hidden !important;
+    display:block !important;
     page-break-after:avoid !important;
     break-after:avoid !important;
   }
-  .print-paper.single-page .a4-content, #printDocument.single-page .a4-content{
-    display:flex !important;
-    flex-direction:column !important;
-    flex:1 !important;
-    justify-content:space-between !important;
-  }
   .print-paper.single-page .signature-block, #printDocument.single-page .signature-block{
-    margin-top:auto !important;
-    padding-top:10px !important;
+    position:absolute !important;
+    bottom:4mm !important;
+    left:0 !important;
+    right:0 !important;
+    width:100% !important;
+    display:flex !important;
+    align-items:flex-end !important;
+    justify-content:space-between !important;
+    gap:14px !important;
+    margin-top:0 !important;
+    padding-top:0 !important;
     padding-bottom:0 !important;
-    page-break-inside:avoid !important;
-    break-inside:avoid !important;
   }
   .print-table{
     width:100% !important;
@@ -666,9 +663,6 @@ summary:hover{background:var(--bg)}
         <span style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:#e0f2fe;color:#0369a1;font-weight:700;border:1px solid #7dd3fc;display:inline-flex;align-items:center;gap:4px">📄 គំរូទំហំ A4 Standard</span>
       </h3>
       <div class="modal-actions">
-        <button id="btnToggleEditInvoice" type="button" onclick="toggleEditInvoiceToolbar()" style="background:#f0fdf4;border:1.5px solid #86efac;color:#166534;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:6px 14px;border-radius:6px" title="ចុចដើម្បីបើក/បិទ ផ្ទាំងកែប្រែវិក័យបត្រ (Edit invoice)">
-          <span id="editInvoiceBtnIcon">✏️</span> <span id="editInvoiceBtnText">Edit invoice</span>
-        </button>
         <button class="p" id="btnPrintNow" style="background:#0284c7;border-color:#0284c7;color:#fff">🖨️ បោះពុម្ព (Print / PDF)</button>
         <button id="btnSavePNG" style="background:#059669;border-color:#059669;color:#fff">🖼️ រក្សាទុក PNG</button>
         <button id="btnSaveExcel" style="background:#16a34a;border-color:#16a34a;color:#fff">📊 រក្សាទុក Excel</button>
@@ -676,87 +670,6 @@ summary:hover{background:var(--bg)}
         <button id="btnSendTelegram" style="background:#0284c7;border-color:#0284c7;color:#fff;font-weight:600">✈️ ផ្ញើទៅ Telegram</button>
         <button id="btnCopyInvoice" style="background:#4f46e5;border-color:#4338ca;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:4px" title="ចម្លងរូបភាព និងព័ត៌មានវិក័យបត្រ Statement ចូល Clipboard">📋 Copy invoice</button>
         <button id="btnCloseModal" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626">✕ បិទ</button>
-      </div>
-    </div>
-    <!-- Interactive Print Customizer Toolbar (no-print) -->
-    <div id="printCustomizerToolbar" class="no-print" style="display:none;background:#f8fafc;border-bottom:1px solid #cbd5e1;padding:8px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:0.8rem">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <!-- Live Edit Mode Toggle -->
-        <button type="button" id="btnToggleLiveEdit" onclick="togglePrintLiveEdit()" style="background:#f0fdf4;border:1px solid #86efac;color:#15803d;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="ចុចដើម្បីបើក/បិទការចុចវាយអក្សរកែប្រែផ្ទាល់លើវិក័យបត្រ">
-          <span id="liveEditIcon">✏️</span> <span id="liveEditText">កែប្រែអក្សរផ្ទាល់ (Edit: ON)</span>
-        </button>
-
-        <!-- Toggle QR Show / Hide (ដាក់ qr or អត់ដាក់) -->
-        <button type="button" id="btnToggleQrVisibility" onclick="toggleQrVisibility()" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="ចុចដើម្បីកំណត់ ដាក់ ឬមិនដាក់ QR Code លើវិក័យបត្រ (Show/Hide QR)">
-          <span id="qrVisibilityIcon">✅</span> <span id="qrVisibilityText">ដាក់ QR: បើក (Show)</span>
-        </button>
-
-        <!-- Upload Custom QR / Image -->
-        <label style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="ជ្រើសរើសរូបភាព QR Code ថ្មីពីកុំព្យូទ័រ">
-          🖼️ ប្ដូររូប QR
-          <input type="file" id="inpCustomQrUpload" accept="image/*" style="display:none" onchange="handleCustomQrUpload(this)">
-        </label>
-
-        <!-- Upload Custom Company Logo -->
-        <label style="background:#f3e8ff;border:1px solid #d8b4fe;color:#7e22ce;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="ជ្រើសរើសរូបភាព Logo ក្រុមហ៊ុនថ្មីពីកុំព្យូទ័រ">
-          🏢 ប្ដូររូប Logo
-          <input type="file" id="inpCompanyLogoUpload" accept="image/*" style="display:none" onchange="handleCompanyLogoUpload(this)">
-        </label>
-
-        <!-- QR Size Control -->
-        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px">
-          <span style="color:#475569;font-weight:600">📐 ទំហំ QR:</span>
-          <button type="button" onclick="adjustPrintQrSize(-6)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">-</button>
-          <span id="dispPrintQrSize" style="font-weight:700;color:#0f172a;min-width:34px;text-align:center">90px</span>
-          <button type="button" onclick="adjustPrintQrSize(6)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">+</button>
-        </div>
-
-        <!-- QR Position (Vertical) Control -->
-        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px">
-          <span style="color:#475569;font-weight:600">↕️ ទីតាំង QR:</span>
-          <button type="button" onclick="adjustPrintQrTop(-4)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិល QR ឡើងលើ">⬆️</button>
-          <span id="dispPrintQrTop" style="font-weight:700;color:#0f172a;min-width:30px;text-align:center">0px</span>
-          <button type="button" onclick="adjustPrintQrTop(4)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិល QR ចុះក្រោម">⬇️</button>
-        </div>
-
-        <!-- Footer Vertical Offset Control (អាចបន្ថយរហូតដល់ -10mm ឬ -20mm) -->
-        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px" title="រំកិលហត្ថលេខាឡើង/ចុះ (អាចបន្ថយរហូតដល់ -10mm ឬទាបជាង)">
-          <span style="color:#475569;font-weight:600">⬇️ ជើងទំព័រ:</span>
-          <button type="button" onclick="adjustPrintFooterOffset(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាចុះក្រោម (-)">⬇️</button>
-          <span id="dispPrintFooterOffset" style="font-weight:700;color:#0f172a;min-width:44px;text-align:center">0mm</span>
-          <button type="button" onclick="adjustPrintFooterOffset(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាឡើងលើ (+)">⬆️</button>
-        </div>
-
-        <!-- Table Formatting Controls (សារេក្រឡាតារាង) -->
-        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px" title="សារេទំហំអក្សរក្នុងតារាង">
-          <span style="color:#475569;font-weight:600">🔤 អក្សរតារាង:</span>
-          <button type="button" onclick="adjustTableFontSize(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">-</button>
-          <span id="dispTableFontSize" style="font-weight:700;color:#0f172a;min-width:32px;text-align:center">12px</span>
-          <button type="button" onclick="adjustTableFontSize(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">+</button>
-        </div>
-
-        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px" title="សារេកម្ពស់ក្រឡា/គម្លាតចន្លោះជួរ (Padding)">
-          <span style="color:#475569;font-weight:600">↕️ គម្លាតក្រឡា:</span>
-          <button type="button" onclick="adjustTableCellPadding(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">-</button>
-          <span id="dispTableCellPadding" style="font-weight:700;color:#0f172a;min-width:28px;text-align:center">5px</span>
-          <button type="button" onclick="adjustTableCellPadding(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">+</button>
-        </div>
-
-        <div style="display:inline-flex;align-items:center;gap:4px">
-          <button type="button" onclick="addStatementTableRow()" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem" title="បន្ថែមជួរទិន្នន័យថ្មីមួយក្នុងតារាង">➕ បន្ថែមជួរ</button>
-          <button type="button" onclick="deleteStatementTableLastRow()" style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem" title="លុបជួរទិន្នន័យចុងក្រោយ">➖ លុបជួរ</button>
-        </div>
-      </div>
-
-      <!-- Reset & Excel Template Sync -->
-      <div style="display:flex;align-items:center;gap:6px">
-        <button type="button" onclick="fetchExcelStatementTemplate(true)" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:5px 11px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="ចុចដើម្បីទាញយកការកែប្រែថ្មីៗពីហ្វាល់ Excel statement_template.xlsx ក្នុង Drive H មកអនុវត្តលើវិក័យបត្រនេះភ្លាមៗ">
-          🔄 ផ្ទុកគំរូពី Excel (H:)
-        </button>
-        <button type="button" onclick="openExcelTemplateInDriveH()" style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:5px 11px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="ចុចដើម្បីបើកហ្វាល់គំរូ statement_template.xlsx ក្នុង Drive H ដោយផ្ទាល់ក្នុងកម្មវិធី Excel ដើម្បីកែប្រែ">
-          📂 បើកហ្វាល់ Excel (H:)
-        </button>
-        <button type="button" onclick="resetPrintCustomizer()" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:600" title="កំណត់ទម្រង់ដើម">↺ ទម្រង់ដើម</button>
       </div>
     </div>
     <div id="printModalBody" class="modal-body"></div>
@@ -6108,12 +6021,7 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
-            '<div class="a4-footer-block signature-block" style="display:flex;flex-direction:column;gap:4px;margin-top:auto">' +
-                '<!-- MOUSE DRAG HANDLE FOR FOOTER -->' +
-                '<div id="footerDragHandle" class="footer-drag-handle no-print" title="💡 ចុច Mouse ជាប់រួចអូសឡើង/ចុះ (Drag) ដើម្បីរំកិលជើងទំព័រហត្ថលេខាតាមចិត្ត">' +
-                    '<span>⠿ ចុច Mouse អូសរំកិលជើងទំព័រឡើង/ចុះ (Drag Footer ↕)</span>' +
-                '</div>' +
-                '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;width:100%">' +
+            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
                 '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;text-align:center;font-size:0.85rem;color:#334155;padding-bottom:4px">' +
                     '<div>' +
@@ -6135,9 +6043,7 @@ function openPrintModal(custName) {
 
                 '<!-- QR CARD BESIDE CUSTOMER (ក្បែរអតិថិជន) -->' +
                 '<div id="statementQrWrapper" style="flex:0 0 auto;display:' + ((PRINT_PREFS && PRINT_PREFS.showQr === false) ? 'none' : 'flex') + ';align-items:flex-end">' +
-                    '<div id="statementQrCard" style="cursor:grab;position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 164) + 'px;transform:translate(' + ((PRINT_PREFS && PRINT_PREFS.qrMarginLeft != null) ? PRINT_PREFS.qrMarginLeft : 0) + 'px,' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 0) + 'px);padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)" title="💡 ចុច Mouse ជាប់រួចអូស (Drag) ដើម្បីរំកិល QR តាមចិត្ត">' +
-                        '<!-- DRAG HANDLE FOR QR -->' +
-                        '<div class="qr-drag-handle no-print" title="ចុច Mouse ជាប់រួចអូស (Drag) ដើម្បីរំកិល QR">⠿ អូស QR</div>' +
+                    '<div id="statementQrCard" style="cursor:grab;position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 164) + 'px;transform:translate(' + ((PRINT_PREFS && PRINT_PREFS.qrMarginLeft != null) ? PRINT_PREFS.qrMarginLeft : 0) + 'px,' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 0) + 'px);padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)" title="💡 ចុច Mouse លើផ្ទាំង QR ជាប់រួចអូស (Drag) ដើម្បីរំកិលទីតាំងតាមចិត្ត">' +
                         '<!-- SCAN TO PAY BADGE -->' +
                         '<div contenteditable="true" style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#f8fafc;padding:0 6px;font-size:0.62rem;font-weight:800;letter-spacing:0.8px;color:#0f172a;white-space:nowrap;line-height:1;-webkit-print-color-adjust:exact;print-color-adjust:exact">SCAN TO PAY</div>' +
                         '<!-- QR CODE IMAGE -->' +
@@ -6158,7 +6064,6 @@ function openPrintModal(custName) {
                             '</div>' +
                         '</div>' +
                     '</div>' +
-                '</div>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -6185,89 +6090,42 @@ function adjustMultiPageFooter() {
     var sig = doc.querySelector('.signature-block');
     if (!sig) return;
 
-    var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
-    if ($('dispPrintFooterOffset')) {
-        $('dispPrintFooterOffset').textContent = (footerOffset > 0 ? '+' : '') + footerOffset + 'mm';
-    }
-
-    // Count table data rows (excluding the total balance row)
     var allRows = Array.from(doc.querySelectorAll('.print-table tbody tr'));
     var dataRows = allRows.filter(r => !r.textContent.includes('Total Balance'));
 
-    // CASE 1: 1-PAGE DOCUMENT (11 rows or fewer fits comfortably on 1 page)
-    // GUARANTEE STRICT 1-PAGE LAYOUT: NO 2nd PAGE POSSIBLE!
+    // Single-page (<= 11 rows): pin footer flush at bottom of 277mm A4 container
     if (dataRows.length <= 11) {
         doc.classList.add('single-page');
-        sig.style.position = 'relative';
-        sig.style.marginTop = 'auto';
-        sig.style.marginBottom = (footerOffset ? (footerOffset + 'mm') : '0mm');
-        sig.style.transform = footerOffset ? ('translateY(' + (-footerOffset) + 'mm)') : '';
+        sig.style.position = '';
+        sig.style.bottom = '';
+        sig.style.left = '';
+        sig.style.right = '';
+        sig.style.width = '';
+        sig.style.marginTop = '';
+        sig.style.marginBottom = '';
         return;
     }
 
-    // CASE 2: MULTI-PAGE DOCUMENT (> 11 rows)
+    // Multi-page (> 11 rows): normal flow
     doc.classList.remove('single-page');
-    sig.style.transform = '';
-
-    // Calculate actual pixel scaling for A4 (210mm wide)
-    var docWidth = doc.offsetWidth || 794;
-    var pxPerMm = docWidth / 210;
-    var pageHeightPx = 277 * pxPerMm;
-
-    var table = doc.querySelector('.print-table');
-    if (!table) {
-        sig.style.marginTop = '24px';
-        return;
-    }
-
-    var tableBottom = table.offsetTop + table.offsetHeight;
-    var thead = table.querySelector('thead');
-    var theadHeight = thead ? thead.offsetHeight : 0;
-    var sigHeight = sig.offsetHeight || Math.round(46 * pxPerMm);
-
-    // Initial page count
-    var numPages = Math.ceil(tableBottom / pageHeightPx);
-    if (numPages < 1) numPages = 1;
-
-    // Account for thead repeating on each subsequent print page
-    var repeatedTheadHeight = (numPages - 1) * theadHeight;
-    var effectiveBottom = tableBottom + repeatedTheadHeight;
-    numPages = Math.ceil(effectiveBottom / pageHeightPx);
-    if (numPages < 1) numPages = 1;
-
-    var targetPageBottom = numPages * pageHeightPx;
-    var gapPx = (targetPageBottom - sigHeight) - effectiveBottom;
-
-    // If gap is too tight (less than 16px), Chrome will break signature block to next page
-    if (gapPx < 16 * pxPerMm) {
-        numPages += 1;
-        targetPageBottom = numPages * pageHeightPx;
-        var startOfNewPage = (numPages - 1) * pageHeightPx + theadHeight;
-        gapPx = (targetPageBottom - sigHeight) - startOfNewPage;
-    }
-
-    var gapMm = gapPx / pxPerMm;
-    // Generous 16mm safety buffer ensures multi-page NEVER accidentally spills onto an extra blank page
-    var finalMarginTopMm = Math.max(16, Math.round(((gapMm - 16) - footerOffset) * 10) / 10);
-
-    sig.style.position = 'relative';
+    sig.style.position = '';
     sig.style.bottom = '';
     sig.style.left = '';
     sig.style.right = '';
-    sig.style.width = '100%';
-    sig.style.marginTop = finalMarginTopMm + 'mm';
-    sig.style.marginBottom = '0mm';
+    sig.style.width = '';
+    sig.style.marginTop = '24px';
+    sig.style.marginBottom = '';
 }
 
 function initDraggableElements() {
-    // 1. MOUSE DRAG FOR QR CARD (យកម៉ៅចាប់រំកិល QR តាមចិត្ត)
+    // MOUSE DRAG FOR QR CARD (យកម៉ៅចាប់រំកិល QR តាមចិត្ត)
     var qrCard = document.getElementById('statementQrCard');
     if (qrCard) {
         var isDraggingQr = false;
         var startX = 0, startY = 0;
         var origLeft = 0, origTop = 0;
 
-        function onQrMouseDown(e) {
+        qrCard.onmousedown = function(e) {
             // Do not drag if user is typing inside an editable field
             if (e.target && e.target.getAttribute && e.target.getAttribute('contenteditable') === 'true') {
                 return;
@@ -6287,7 +6145,6 @@ function initDraggableElements() {
                 PRINT_PREFS.qrMarginLeft = Math.round(origLeft + diffX);
                 PRINT_PREFS.qrMarginTop = Math.round(origTop + diffY);
                 qrCard.style.transform = 'translate(' + PRINT_PREFS.qrMarginLeft + 'px, ' + PRINT_PREFS.qrMarginTop + 'px)';
-                if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = PRINT_PREFS.qrMarginTop + 'px';
             }
 
             function onQrMouseUp() {
@@ -6302,53 +6159,6 @@ function initDraggableElements() {
 
             document.addEventListener('mousemove', onQrMouseMove);
             document.addEventListener('mouseup', onQrMouseUp);
-        }
-
-        qrCard.onmousedown = onQrMouseDown;
-    }
-
-    // 2. MOUSE DRAG FOR FOOTER (យកម៉ៅចាប់រំកិលជើងទំព័រឡើង/ចុះតាមចិត្ត)
-    var footerHandle = document.getElementById('footerDragHandle');
-    var sig = document.querySelector('.signature-block');
-    var doc = document.getElementById('printDocument');
-    if (footerHandle && sig && doc) {
-        var isDraggingFooter = false;
-        var startFooterY = 0;
-        var origOffset = 0;
-        var pxPerMm = (doc.offsetWidth || 794) / 210;
-
-        footerHandle.onmousedown = function(e) {
-            e.preventDefault();
-            isDraggingFooter = true;
-            startFooterY = e.clientY;
-            origOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
-            footerHandle.classList.add('dragging');
-            document.body.style.userSelect = 'none';
-
-            function onFooterMouseMove(ev) {
-                if (!isDraggingFooter) return;
-                var diffY = ev.clientY - startFooterY;
-                var diffMm = diffY / pxPerMm;
-                var newOffset = Math.round((origOffset - diffMm) * 10) / 10;
-                PRINT_PREFS.footerOffsetMm = Math.max(-30, Math.min(100, newOffset));
-                if ($('dispPrintFooterOffset')) {
-                    $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm > 0 ? '+' : '') + PRINT_PREFS.footerOffsetMm + 'mm';
-                }
-                adjustMultiPageFooter();
-            }
-
-            function onFooterMouseUp() {
-                if (!isDraggingFooter) return;
-                isDraggingFooter = false;
-                footerHandle.classList.remove('dragging');
-                document.body.style.userSelect = '';
-                document.removeEventListener('mousemove', onFooterMouseMove);
-                document.removeEventListener('mouseup', onFooterMouseUp);
-                savePrintPrefs();
-            }
-
-            document.addEventListener('mousemove', onFooterMouseMove);
-            document.addEventListener('mouseup', onFooterMouseUp);
         };
     }
 }
