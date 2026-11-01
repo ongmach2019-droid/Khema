@@ -39,7 +39,35 @@
 .modal-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 #printModalBody.modal-body{padding:24px 16px;overflow-y:auto;flex:1;background:#e2e8f0;display:flex;justify-content:center;align-items:flex-start}
 
-/* Standard A4 Document Paper: 210mm x 297mm */
+/* Fullscreen Preview Mode for Statement Modal */
+#printModal.fullscreen-mode {
+  padding: 0 !important;
+}
+#printModal.fullscreen-mode .modal-card {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+#printModal.fullscreen-mode .modal-header {
+  flex: 0 0 auto !important;
+  border-radius: 0 !important;
+}
+#printModal.fullscreen-mode .modal-body,
+#printModal.fullscreen-mode #printModalBody {
+  flex: 1 1 auto !important;
+  max-height: none !important;
+  height: calc(100vh - 58px) !important;
+  overflow-y: auto !important;
+  padding: 20px 10px !important;
+  background: #64748b !important;
+}
+
+/* Standard A4 Document Paper: 210mm x 297mm (Screen and Print 100% Identical) */
 .print-paper, #printDocument{
   background:#ffffff;
   color:#0f172a;
@@ -49,7 +77,7 @@
   width:210mm;
   min-height:297mm;
   max-width:100%;
-  padding:16mm 16mm 14mm 16mm;
+  padding:12mm 14mm 12mm 14mm;
   margin:0 auto;
   box-sizing:border-box;
   box-shadow:0 6px 25px rgba(0,0,0,0.12),0 1px 3px rgba(0,0,0,0.08);
@@ -57,10 +85,10 @@
   position:relative;
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
 }
-.a4-content{flex:1;display:flex;flex-direction:column}
-.a4-footer-block{margin-top:auto;padding-top:20px;page-break-inside:avoid;break-inside:avoid}
+.a4-content{width:100%;display:flex;flex-direction:column}
+#statementFooterSpacer{display:block;width:100%;box-sizing:border-box}
+.a4-footer-block, .signature-block{width:100%;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;box-sizing:border-box;page-break-inside:avoid;break-inside:avoid}
 
 .print-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
 .print-table th,.print-table td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left;position:relative}
@@ -86,7 +114,7 @@
 @media print{
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
+    margin: 0;
   }
   html, body{
     width:210mm !important;
@@ -100,66 +128,49 @@
   }
   main > *:not(#printModal){display:none !important}
   #printModal{position:static !important;display:block !important;background:none !important;padding:0 !important;margin:0 !important;box-shadow:none !important;backdrop-filter:none !important;width:100% !important;height:auto !important;overflow:visible !important}
-  #printModal .modal-card{box-shadow:none !important;border:none !important;max-width:100% !important;max-height:none !important;overflow:visible !important;background:none !important}
-  #printModal .modal-header, #printCustomizerToolbar{display:none !important}
-  #printModal .modal-body{padding:0 !important;margin:0 !important;overflow:visible !important;background:none !important;display:block !important}
+  #printModal .modal-card{box-shadow:none !important;border:none !important;max-width:100% !important;max-height:none !important;overflow:visible !important;background:none !important;padding:0 !important;margin:0 !important}
+  #printModal .modal-header, #btnToggleFullscreen, #printCustomizerToolbar{display:none !important}
+  #printModal .modal-body, #printModalBody{padding:0 !important;margin:0 !important;overflow:visible !important;background:none !important;display:block !important;height:auto !important;max-height:none !important}
   [contenteditable="true"]{outline:none !important;background-color:transparent !important}
   .print-paper, #printDocument{
-    width:100% !important;
-    max-width:100% !important;
+    width:210mm !important;
+    max-width:210mm !important;
+    min-height:297mm !important;
     display:block !important;
-    margin:0 !important;
-    padding:0 !important;
+    margin:0 auto !important;
+    padding:12mm 14mm 12mm 14mm !important;
     box-shadow:none !important;
     border:none !important;
     border-radius:0 !important;
-    page-break-after:auto;
+    background:#fff !important;
+    position:relative !important;
     box-sizing:border-box !important;
   }
   .a4-content{
+    width:100% !important;
     display:block !important;
   }
   .col-resizer{display:none !important;}
-  .print-paper.single-page, #printDocument.single-page{
-    position:relative !important;
-    height:277mm !important;
-    min-height:277mm !important;
-    max-height:277mm !important;
-    overflow:hidden !important;
-    display:block !important;
-    page-break-after:avoid !important;
-    break-after:avoid !important;
-  }
-  .print-paper.single-page .signature-block, #printDocument.single-page .signature-block{
-    position:absolute !important;
-    bottom:var(--sig-bottom, 4mm) !important;
-    left:0 !important;
-    right:0 !important;
-    width:100% !important;
-    display:flex !important;
-    align-items:flex-end !important;
-    justify-content:space-between !important;
-    gap:14px !important;
-    margin:0 !important;
-    padding:0 !important;
-  }
   .print-table{
     width:100% !important;
-    page-break-inside:auto;
+    page-break-inside:auto !important;
   }
   .print-table thead{display:table-header-group !important}
   .print-table tfoot{display:table-row-group !important}
-  .print-table tr{page-break-inside:avoid !important;page-break-after:auto}
+  .print-table tr{page-break-inside:avoid !important;page-break-after:auto;break-inside:avoid !important}
   .print-table th,.print-table td{border:1px solid #cbd5e1 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .print-table th{background:#f1f5f9 !important;color:#0f172a !important}
   .print-table tfoot td{background:#f8fafc !important}
+  #statementFooterSpacer{
+    display:block !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+  }
   .a4-footer-block, .signature-block{
     display:flex !important;
     align-items:flex-end !important;
     justify-content:space-between !important;
     gap:14px !important;
-    padding-top:12px !important;
-    padding-bottom:0 !important;
     page-break-inside:avoid !important;
     break-inside:avoid !important;
   }
@@ -2074,7 +2085,7 @@ var DEFAULT_PRINT_PREFS = {
     qrCardWidth: 164,
     qrMarginTop: 0,
     qrMarginLeft: 0,
-    footerOffsetMm: 4,
+    footerOffsetMm: 0,
     tableFontSize: 12,
     tableCellPadding: 5,
     customQrUrl: '',
@@ -5876,7 +5887,10 @@ function openPrintModal(custName) {
     var custEn = cleanCustomerDisplayName(rawEn);
     var cleanTitleName = cleanCustomerDisplayName(custEn || custKh || custName);
     var safeTitleName = String(cleanTitleName).replace(/[\\/:*?"<>|]/g, '').trim();
-    document.title = 'customer statement ' + (safeTitleName || 'Document');
+    var pdfInitialTitle = 'customer statement-' + (safeTitleName || 'Document');
+    document.title = pdfInitialTitle;
+    try { if (window.parent && window.parent.document) window.parent.document.title = pdfInitialTitle; } catch(e) {}
+    try { if (window.top && window.top.document) window.top.document.title = pdfInitialTitle; } catch(e) {}
     var phone = (prof && prof.phone) || meta.phone || '-';
     var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
@@ -6021,6 +6035,8 @@ function openPrintModal(custName) {
                 '</table>' +
             '</div>' +
 
+            '<!-- DYNAMIC SPACER THAT PUSHES FOOTER TO BOTTOM OF LAST PAGE -->' +
+            '<div id="statementFooterSpacer" style="display:block;width:100%;min-height:0;box-sizing:border-box"></div>' +
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
             '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto;cursor:grab" title="💡 ចុច Mouse លើជើងទំព័រឱ្យជាប់ រួចអូសឡើង/ចុះ (Drag) ដើម្បីរំកិលទីតាំងតាមចិត្ត">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
@@ -6085,38 +6101,75 @@ function openPrintModal(custName) {
     }, 150);
 }
 
+function toggleStatementFullscreen() {
+    var modal = document.getElementById('printModal');
+    if (!modal) return;
+    var isFs = modal.classList.toggle('fullscreen-mode');
+    var fsIcon = document.getElementById('fsIcon');
+    var fsText = document.getElementById('fsText');
+    if (isFs) {
+        if (fsIcon) fsIcon.textContent = '🗗';
+        if (fsText) fsText.textContent = 'បង្រួមតូច';
+    } else {
+        if (fsIcon) fsIcon.textContent = '⛶';
+        if (fsText) fsText.textContent = 'ពេញអេក្រង់';
+    }
+    setTimeout(adjustMultiPageFooter, 60);
+}
+
 function adjustMultiPageFooter() {
     var doc = document.getElementById('printDocument');
     if (!doc) return;
     var sig = doc.querySelector('.signature-block');
-    if (!sig) return;
+    var spacer = document.getElementById('statementFooterSpacer');
+    var table = doc.querySelector('.print-table');
+    if (!sig || !table) return;
 
-    var allRows = Array.from(doc.querySelectorAll('.print-table tbody tr'));
-    var dataRows = allRows.filter(r => !r.textContent.includes('Total Balance'));
-    var offsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 4;
+    // Temporarily reset spacer to 0 to measure natural layout
+    if (spacer) spacer.style.height = '0px';
 
-    // Single-page (<= 11 rows): pin footer at bottom of 277mm A4 container
-    if (dataRows.length <= 11) {
-        doc.classList.add('single-page');
-        sig.style.position = 'absolute';
-        sig.style.bottom = offsetMm + 'mm';
-        sig.style.left = '16mm';
-        sig.style.right = '16mm';
-        sig.style.width = 'calc(100% - 32mm)';
-        sig.style.marginTop = '0';
-        sig.style.marginBottom = '0';
-        sig.style.setProperty('--sig-bottom', offsetMm + 'mm');
-        return;
+    var pxPerMm = (doc.offsetWidth || 794) / 210;
+    if (pxPerMm <= 0) pxPerMm = 3.78;
+
+    var a4PageHeightPx = 297 * pxPerMm;
+    var bottomPaddingPx = 12 * pxPerMm;
+
+    // Measure distance from top of doc to bottom of table
+    var tableRect = table.getBoundingClientRect();
+    var docRect = doc.getBoundingClientRect();
+    var tableBottomPx = tableRect.bottom - docRect.top;
+
+    var sigHeightPx = sig.offsetHeight || 170;
+
+    // Calculate pages required
+    var minSigBottomPx = tableBottomPx + sigHeightPx + bottomPaddingPx;
+    var pagesCount = Math.ceil(minSigBottomPx / a4PageHeightPx);
+    if (pagesCount < 1) pagesCount = 1;
+
+    // Target top of signature block on the last page so it sits exactly at the bottom
+    var targetSigTopPx = (pagesCount * a4PageHeightPx) - bottomPaddingPx - sigHeightPx;
+    var naturalSpacerPx = Math.max(0, targetSigTopPx - tableBottomPx);
+
+    // Apply user offset (-10mm to +180mm)
+    var userOffsetMm = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
+    var userOffsetPx = userOffsetMm * pxPerMm;
+    var finalSpacerPx = Math.max(0, naturalSpacerPx - userOffsetPx);
+    var finalSpacerMm = finalSpacerPx / pxPerMm;
+
+    if (spacer) {
+        spacer.style.height = finalSpacerMm.toFixed(1) + 'mm';
     }
 
-    // Multi-page (> 11 rows): normal flow
-    doc.classList.remove('single-page');
+    doc.style.setProperty('--num-pages', pagesCount);
+    doc.style.minHeight = (pagesCount * 297) + 'mm';
+
+    // Reset sig inline styles to flow cleanly after spacer
     sig.style.position = 'relative';
     sig.style.bottom = '';
     sig.style.left = '';
     sig.style.right = '';
     sig.style.width = '100%';
-    sig.style.marginTop = '24px';
+    sig.style.marginTop = '0';
     sig.style.marginBottom = '';
 }
 
@@ -6188,12 +6241,11 @@ function initDraggableElements() {
                 if (!isDraggingSig) return;
                 var diffY = ev.clientY - startSigY;
                 // Dragging UP (diffY < 0) moves footer HIGHER (increases bottom distance)
-                // Dragging DOWN (diffY > 0) moves footer LOWER (decreases bottom distance)
+                // Dragging DOWN (diffY > 0) moves footer LOWER (decreases bottom distance down to -10mm)
                 var diffMm = diffY / pxPerMm;
-                var newOffset = Math.max(0, Math.min(180, Math.round((startOffsetMm - diffMm) * 10) / 10));
+                var newOffset = Math.max(-10, Math.min(180, Math.round((startOffsetMm - diffMm) * 10) / 10));
                 PRINT_PREFS.footerOffsetMm = newOffset;
-                sig.style.setProperty('--sig-bottom', newOffset + 'mm');
-                sig.style.bottom = newOffset + 'mm';
+                adjustMultiPageFooter();
             }
 
             function onSigMouseUp() {
@@ -6325,7 +6377,14 @@ function resetStatementTableFormatting() {
 
 function closePrintModal() {
     $('printModal').classList.remove('active');
+    $('printModal').classList.remove('fullscreen-mode');
+    var fsIcon = document.getElementById('fsIcon');
+    var fsText = document.getElementById('fsText');
+    if (fsIcon) fsIcon.textContent = '⛶';
+    if (fsText) fsText.textContent = 'ពេញអេក្រង់';
     document.title = 'ខេមា Khema Dental - សៀវភៅកត់ត្រា AI';
+    try { if (window.parent && window.parent.document) window.parent.document.title = 'ខេមា Khema Dental - សៀវភៅកត់ត្រា AI'; } catch(e) {}
+    try { if (window.top && window.top.document) window.top.document.title = 'ខេមា Khema Dental - សៀវភៅកត់ត្រា AI'; } catch(e) {}
 }
 
 function showToast(msg) {
@@ -7221,7 +7280,11 @@ function prepareStatementPrintTitle() {
     var rawName = rawCust || (prof && (prof.nameEn || prof.nameKh)) || meta.custEn || meta.custKh;
     var cName = (typeof cleanCustomerDisplayName === 'function') ? cleanCustomerDisplayName(rawName) : rawName;
     var safeCName = String(cName).replace(/[\\/:*?"<>|]/g, '').trim();
-    return 'customer statement ' + (safeCName || 'Document');
+    var pdfTitle = 'customer statement-' + (safeCName || 'Document');
+        document.title = pdfTitle;
+        try { if (window.parent && window.parent.document) window.parent.document.title = pdfTitle; } catch(e) {}
+        try { if (window.top && window.top.document) window.top.document.title = pdfTitle; } catch(e) {}
+        return pdfTitle;
 }
 
 $('btnPrintNow').onclick = () => {
