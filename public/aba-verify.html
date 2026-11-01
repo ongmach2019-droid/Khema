@@ -67,6 +67,12 @@
 .print-table th{background:#f1f5f9;font-weight:600;color:#0f172a;position:relative}
 .col-resizer{position:absolute;top:0;right:0;width:7px;bottom:0;cursor:col-resize;user-select:none;z-index:25;background:transparent;transition:background 0.15s}
 .col-resizer:hover, .col-resizer.resizing{background:#0284c7;width:8px}
+.footer-drag-handle{cursor:ns-resize;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:3px 0;margin-bottom:8px;font-size:0.72rem;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;user-select:none;transition:all 0.15s}
+.footer-drag-handle:hover, .footer-drag-handle.dragging{color:#0284c7;border-color:#0284c7;background:#f0f9ff}
+#statementQrCard{cursor:grab;transition:box-shadow 0.15s}
+#statementQrCard:hover{box-shadow:0 0 0 1.5px #38bdf8, 0 2px 6px rgba(0,0,0,0.06)}
+.qr-drag-handle{cursor:grab;position:absolute;top:-20px;right:0;background:#0284c7;color:#fff;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,0.15);transition:background 0.15s}
+.qr-drag-handle:hover{background:#0369a1}
 .print-table th.n,.print-table td.n{text-align:right}
 .print-table tfoot td{font-weight:bold;background:#f8fafc}
 
@@ -2153,6 +2159,7 @@ var DEFAULT_PRINT_PREFS = {
     qrSize: 90,
     qrCardWidth: 164,
     qrMarginTop: 0,
+    qrMarginLeft: 0,
     footerOffsetMm: 0,
     tableFontSize: 12,
     tableCellPadding: 5,
@@ -2249,9 +2256,9 @@ function applyPrintPrefs() {
     var card = document.getElementById('statementQrCard');
     if (card) {
         if (PRINT_PREFS.qrCardWidth) card.style.width = PRINT_PREFS.qrCardWidth + 'px';
-        if (PRINT_PREFS.qrMarginTop != null) {
-            card.style.transform = 'translateY(' + PRINT_PREFS.qrMarginTop + 'px)';
-        }
+        var qLeft = (PRINT_PREFS.qrMarginLeft != null ? PRINT_PREFS.qrMarginLeft : 0);
+        var qTop = (PRINT_PREFS.qrMarginTop != null ? PRINT_PREFS.qrMarginTop : 0);
+        card.style.transform = 'translate(' + qLeft + 'px, ' + qTop + 'px)';
     }
     var wrapper = document.getElementById('statementQrWrapper');
     if (wrapper) {
@@ -6101,7 +6108,12 @@ function openPrintModal(custName) {
             '</div>' +
 
             '<!-- 5. SIGNATURE & QR FOOTER (ជើងទំព័រហត្ថលេខា និង QR CODE) -->' +
-            '<div class="a4-footer-block signature-block" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto">' +
+            '<div class="a4-footer-block signature-block" style="display:flex;flex-direction:column;gap:4px;margin-top:auto">' +
+                '<!-- MOUSE DRAG HANDLE FOR FOOTER -->' +
+                '<div id="footerDragHandle" class="footer-drag-handle no-print" title="💡 ចុច Mouse ជាប់រួចអូសឡើង/ចុះ (Drag) ដើម្បីរំកិលជើងទំព័រហត្ថលេខាតាមចិត្ត">' +
+                    '<span>⠿ ចុច Mouse អូសរំកិលជើងទំព័រឡើង/ចុះ (Drag Footer ↕)</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;width:100%">' +
                 '<!-- 3 SIGNATURE COLUMNS (រៀបចំដោយ, ត្រួតពិនិត្យដោយ, អតិថិជន) -->' +
                 '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;text-align:center;font-size:0.85rem;color:#334155;padding-bottom:4px">' +
                     '<div>' +
@@ -6123,7 +6135,9 @@ function openPrintModal(custName) {
 
                 '<!-- QR CARD BESIDE CUSTOMER (ក្បែរអតិថិជន) -->' +
                 '<div id="statementQrWrapper" style="flex:0 0 auto;display:' + ((PRINT_PREFS && PRINT_PREFS.showQr === false) ? 'none' : 'flex') + ';align-items:flex-end">' +
-                    '<div id="statementQrCard" style="position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 164) + 'px;transform:translateY(' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 0) + 'px);padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)">' +
+                    '<div id="statementQrCard" style="cursor:grab;position:relative;width:' + ((PRINT_PREFS && PRINT_PREFS.qrCardWidth) || 164) + 'px;transform:translate(' + ((PRINT_PREFS && PRINT_PREFS.qrMarginLeft != null) ? PRINT_PREFS.qrMarginLeft : 0) + 'px,' + ((PRINT_PREFS && PRINT_PREFS.qrMarginTop != null) ? PRINT_PREFS.qrMarginTop : 0) + 'px);padding:8px 8px 6px 8px;border:1.5px solid #94a3b8;border-radius:10px;background:#f8fafc;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)" title="💡 ចុច Mouse ជាប់រួចអូស (Drag) ដើម្បីរំកិល QR តាមចិត្ត">' +
+                        '<!-- DRAG HANDLE FOR QR -->' +
+                        '<div class="qr-drag-handle no-print" title="ចុច Mouse ជាប់រួចអូស (Drag) ដើម្បីរំកិល QR">⠿ អូស QR</div>' +
                         '<!-- SCAN TO PAY BADGE -->' +
                         '<div contenteditable="true" style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#f8fafc;padding:0 6px;font-size:0.62rem;font-weight:800;letter-spacing:0.8px;color:#0f172a;white-space:nowrap;line-height:1;-webkit-print-color-adjust:exact;print-color-adjust:exact">SCAN TO PAY</div>' +
                         '<!-- QR CODE IMAGE -->' +
@@ -6145,6 +6159,7 @@ function openPrintModal(custName) {
                         '</div>' +
                     '</div>' +
                 '</div>' +
+                '</div>' +
             '</div>' +
         '</div>';
 
@@ -6152,6 +6167,7 @@ function openPrintModal(custName) {
     $('printModal').classList.add('active');
     applyPrintPrefs();
     initTableColumnResizing();
+    initDraggableElements();
     adjustMultiPageFooter();
     requestAnimationFrame(() => {
         applyPrintPrefs();
@@ -6241,6 +6257,100 @@ function adjustMultiPageFooter() {
     sig.style.width = '100%';
     sig.style.marginTop = finalMarginTopMm + 'mm';
     sig.style.marginBottom = '0mm';
+}
+
+function initDraggableElements() {
+    // 1. MOUSE DRAG FOR QR CARD (យកម៉ៅចាប់រំកិល QR តាមចិត្ត)
+    var qrCard = document.getElementById('statementQrCard');
+    if (qrCard) {
+        var isDraggingQr = false;
+        var startX = 0, startY = 0;
+        var origLeft = 0, origTop = 0;
+
+        function onQrMouseDown(e) {
+            // Do not drag if user is typing inside an editable field
+            if (e.target && e.target.getAttribute && e.target.getAttribute('contenteditable') === 'true') {
+                return;
+            }
+            isDraggingQr = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            origLeft = PRINT_PREFS.qrMarginLeft || 0;
+            origTop = PRINT_PREFS.qrMarginTop || 0;
+            qrCard.style.cursor = 'grabbing';
+            document.body.style.userSelect = 'none';
+
+            function onQrMouseMove(ev) {
+                if (!isDraggingQr) return;
+                var diffX = ev.clientX - startX;
+                var diffY = ev.clientY - startY;
+                PRINT_PREFS.qrMarginLeft = Math.round(origLeft + diffX);
+                PRINT_PREFS.qrMarginTop = Math.round(origTop + diffY);
+                qrCard.style.transform = 'translate(' + PRINT_PREFS.qrMarginLeft + 'px, ' + PRINT_PREFS.qrMarginTop + 'px)';
+                if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = PRINT_PREFS.qrMarginTop + 'px';
+            }
+
+            function onQrMouseUp() {
+                if (!isDraggingQr) return;
+                isDraggingQr = false;
+                qrCard.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onQrMouseMove);
+                document.removeEventListener('mouseup', onQrMouseUp);
+                savePrintPrefs();
+            }
+
+            document.addEventListener('mousemove', onQrMouseMove);
+            document.addEventListener('mouseup', onQrMouseUp);
+        }
+
+        qrCard.onmousedown = onQrMouseDown;
+    }
+
+    // 2. MOUSE DRAG FOR FOOTER (យកម៉ៅចាប់រំកិលជើងទំព័រឡើង/ចុះតាមចិត្ត)
+    var footerHandle = document.getElementById('footerDragHandle');
+    var sig = document.querySelector('.signature-block');
+    var doc = document.getElementById('printDocument');
+    if (footerHandle && sig && doc) {
+        var isDraggingFooter = false;
+        var startFooterY = 0;
+        var origOffset = 0;
+        var pxPerMm = (doc.offsetWidth || 794) / 210;
+
+        footerHandle.onmousedown = function(e) {
+            e.preventDefault();
+            isDraggingFooter = true;
+            startFooterY = e.clientY;
+            origOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
+            footerHandle.classList.add('dragging');
+            document.body.style.userSelect = 'none';
+
+            function onFooterMouseMove(ev) {
+                if (!isDraggingFooter) return;
+                var diffY = ev.clientY - startFooterY;
+                var diffMm = diffY / pxPerMm;
+                var newOffset = Math.round((origOffset - diffMm) * 10) / 10;
+                PRINT_PREFS.footerOffsetMm = Math.max(-30, Math.min(100, newOffset));
+                if ($('dispPrintFooterOffset')) {
+                    $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm > 0 ? '+' : '') + PRINT_PREFS.footerOffsetMm + 'mm';
+                }
+                adjustMultiPageFooter();
+            }
+
+            function onFooterMouseUp() {
+                if (!isDraggingFooter) return;
+                isDraggingFooter = false;
+                footerHandle.classList.remove('dragging');
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onFooterMouseMove);
+                document.removeEventListener('mouseup', onFooterMouseUp);
+                savePrintPrefs();
+            }
+
+            document.addEventListener('mousemove', onFooterMouseMove);
+            document.addEventListener('mouseup', onFooterMouseUp);
+        };
+    }
 }
 
 function initTableColumnResizing() {
