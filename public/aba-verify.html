@@ -63,8 +63,10 @@
 .a4-footer-block{margin-top:auto;padding-top:20px;page-break-inside:avoid;break-inside:avoid}
 
 .print-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
-.print-table th,.print-table td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}
-.print-table th{background:#f1f5f9;font-weight:600;color:#0f172a}
+.print-table th,.print-table td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left;position:relative}
+.print-table th{background:#f1f5f9;font-weight:600;color:#0f172a;position:relative}
+.col-resizer{position:absolute;top:0;right:0;width:7px;bottom:0;cursor:col-resize;user-select:none;z-index:25;background:transparent;transition:background 0.15s}
+.col-resizer:hover, .col-resizer.resizing{background:#0284c7;width:8px}
 .print-table th.n,.print-table td.n{text-align:right}
 .print-table tfoot td{font-weight:bold;background:#f8fafc}
 
@@ -113,23 +115,7 @@
   .a4-content{
     display:block !important;
   }
-  .print-paper.single-page, #printDocument.single-page{
-    position:relative !important;
-    height:277mm !important;
-    min-height:277mm !important;
-    max-height:277mm !important;
-    overflow:hidden !important;
-    display:block !important;
-  }
-  .print-paper.single-page .signature-block,
-  #printDocument.single-page .signature-block{
-    position:absolute !important;
-    bottom:4mm !important;
-    left:0 !important;
-    right:0 !important;
-    width:100% !important;
-    margin-top:0 !important;
-  }
+  .col-resizer{display:none !important;}
   .print-table{
     width:100% !important;
     page-break-inside:auto;
@@ -704,12 +690,32 @@ summary:hover{background:var(--bg)}
           <button type="button" onclick="adjustPrintQrTop(4)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិល QR ចុះក្រោម">⬇️</button>
         </div>
 
-        <!-- Footer Vertical Offset Control -->
-        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px">
+        <!-- Footer Vertical Offset Control (អាចបន្ថយរហូតដល់ -10mm ឬ -20mm) -->
+        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px" title="រំកិលហត្ថលេខាឡើង/ចុះ (អាចបន្ថយរហូតដល់ -10mm ឬទាបជាង)">
           <span style="color:#475569;font-weight:600">⬇️ ជើងទំព័រ:</span>
-          <button type="button" onclick="adjustPrintFooterOffset(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាឡើងលើ">⬆️</button>
-          <span id="dispPrintFooterOffset" style="font-weight:700;color:#0f172a;min-width:34px;text-align:center">0.5mm</span>
-          <button type="button" onclick="adjustPrintFooterOffset(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាចុះក្រោម">⬇️</button>
+          <button type="button" onclick="adjustPrintFooterOffset(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាចុះក្រោម (-)">⬇️</button>
+          <span id="dispPrintFooterOffset" style="font-weight:700;color:#0f172a;min-width:44px;text-align:center">0mm</span>
+          <button type="button" onclick="adjustPrintFooterOffset(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:26px;height:24px;cursor:pointer;font-weight:bold;line-height:1" title="រំកិលហត្ថលេខាឡើងលើ (+)">⬆️</button>
+        </div>
+
+        <!-- Table Formatting Controls (សារេក្រឡាតារាង) -->
+        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px" title="សារេទំហំអក្សរក្នុងតារាង">
+          <span style="color:#475569;font-weight:600">🔤 អក្សរតារាង:</span>
+          <button type="button" onclick="adjustTableFontSize(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">-</button>
+          <span id="dispTableFontSize" style="font-weight:700;color:#0f172a;min-width:32px;text-align:center">12px</span>
+          <button type="button" onclick="adjustTableFontSize(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">+</button>
+        </div>
+
+        <div style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px" title="សារេកម្ពស់ក្រឡា/គម្លាតចន្លោះជួរ (Padding)">
+          <span style="color:#475569;font-weight:600">↕️ គម្លាតក្រឡា:</span>
+          <button type="button" onclick="adjustTableCellPadding(-1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">-</button>
+          <span id="dispTableCellPadding" style="font-weight:700;color:#0f172a;min-width:28px;text-align:center">5px</span>
+          <button type="button" onclick="adjustTableCellPadding(1)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;width:24px;height:24px;cursor:pointer;font-weight:bold;line-height:1">+</button>
+        </div>
+
+        <div style="display:inline-flex;align-items:center;gap:4px">
+          <button type="button" onclick="addStatementTableRow()" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem" title="បន្ថែមជួរទិន្នន័យថ្មីមួយក្នុងតារាង">➕ បន្ថែមជួរ</button>
+          <button type="button" onclick="deleteStatementTableLastRow()" style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:4px 8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem" title="លុបជួរទិន្នន័យចុងក្រោយ">➖ លុបជួរ</button>
         </div>
       </div>
 
@@ -2124,7 +2130,9 @@ var DEFAULT_PRINT_PREFS = {
     qrSize: 90,
     qrCardWidth: 164,
     qrMarginTop: 0,
-    footerOffsetMm: 0.5,
+    footerOffsetMm: 0,
+    tableFontSize: 12,
+    tableCellPadding: 5,
     customQrUrl: '',
     customLogoUrl: '',
     liveEditActive: true,
@@ -2188,8 +2196,23 @@ function adjustPrintQrTop(delta) {
 }
 
 function adjustPrintFooterOffset(delta) {
-    var cur = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5);
-    PRINT_PREFS.footerOffsetMm = Math.max(0, Math.min(100, Math.round((cur + delta) * 10) / 10));
+    var cur = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0);
+    // Allow decreasing down to -20mm (specifically enables -5mm, -10mm as requested)
+    PRINT_PREFS.footerOffsetMm = Math.max(-20, Math.min(100, Math.round((cur + delta) * 10) / 10));
+    applyPrintPrefs();
+    savePrintPrefs();
+}
+
+function adjustTableFontSize(delta) {
+    var cur = (PRINT_PREFS.tableFontSize != null ? PRINT_PREFS.tableFontSize : 12);
+    PRINT_PREFS.tableFontSize = Math.max(9, Math.min(18, cur + delta));
+    applyPrintPrefs();
+    savePrintPrefs();
+}
+
+function adjustTableCellPadding(delta) {
+    var cur = (PRINT_PREFS.tableCellPadding != null ? PRINT_PREFS.tableCellPadding : 5);
+    PRINT_PREFS.tableCellPadding = Math.max(2, Math.min(14, cur + delta));
     applyPrintPrefs();
     savePrintPrefs();
 }
@@ -2217,10 +2240,25 @@ function applyPrintPrefs() {
     }
     if ($('dispPrintQrSize')) $('dispPrintQrSize').textContent = (PRINT_PREFS.qrSize || 90) + 'px';
     if ($('dispPrintQrTop')) $('dispPrintQrTop').textContent = (PRINT_PREFS.qrMarginTop || 0) + 'px';
-    if ($('dispPrintFooterOffset')) $('dispPrintFooterOffset').textContent = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm';
-    var sig = document.querySelector('.signature-block');
-    if (sig) {
-        sig.style.marginBottom = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0.5) + 'mm';
+    if ($('dispPrintFooterOffset')) {
+        var fo = (PRINT_PREFS.footerOffsetMm != null ? PRINT_PREFS.footerOffsetMm : 0);
+        $('dispPrintFooterOffset').textContent = (fo > 0 ? '+' : '') + fo + 'mm';
+    }
+    if ($('dispTableFontSize')) $('dispTableFontSize').textContent = (PRINT_PREFS.tableFontSize || 12) + 'px';
+    if ($('dispTableCellPadding')) $('dispTableCellPadding').textContent = (PRINT_PREFS.tableCellPadding || 5) + 'px';
+
+    var table = document.querySelector('.print-table');
+    if (table) {
+        if (PRINT_PREFS.tableFontSize) {
+            table.style.fontSize = PRINT_PREFS.tableFontSize + 'px';
+        }
+        var cells = table.querySelectorAll('th, td');
+        if (PRINT_PREFS.tableCellPadding != null) {
+            cells.forEach(c => {
+                c.style.paddingTop = PRINT_PREFS.tableCellPadding + 'px';
+                c.style.paddingBottom = PRINT_PREFS.tableCellPadding + 'px';
+            });
+        }
     }
     var btnQrVis = document.getElementById('btnToggleQrVisibility');
     if (btnQrVis) {
@@ -5894,7 +5932,7 @@ function openPrintModal(custName) {
     var custEn = cleanCustomerDisplayName(rawEn);
     var cleanTitleName = cleanCustomerDisplayName(custEn || custKh || custName);
     var safeTitleName = String(cleanTitleName).replace(/[\\/:*?"<>|]/g, '').trim();
-    document.title = 'Customer Statement-' + (safeTitleName || 'Document');
+    document.title = 'customer statement ' + (safeTitleName || 'Document');
     var phone = (prof && prof.phone) || meta.phone || '-';
     var address = (prof && prof.address) || meta.address || '-';
     var curDateStr = dmy(new Date());
@@ -6018,14 +6056,14 @@ function openPrintModal(custName) {
                 '<table class="print-table" style="width:100%;border-collapse:collapse;margin-top:10px;font-size:0.82rem">' +
                     '<thead>' +
                         '<tr style="background:#f1f5f9">' +
-                            '<th style="width:38px;text-align:center;border:1px solid #cbd5e1;padding:6px 4px">ល.រ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Nº</span></th>' +
-                            '<th style="width:65px;border:1px solid #cbd5e1;padding:6px 4px">ប្រភព<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Source</span></th>' +
-                            '<th style="width:100px;border:1px solid #cbd5e1;padding:6px 6px">លេខឯកសារ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Document No.</span></th>' +
-                            '<th style="width:100px;border:1px solid #cbd5e1;padding:6px 6px">លេខយោង<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Reference</span></th>' +
-                            '<th style="width:90px;text-align:center;border:1px solid #cbd5e1;padding:6px 4px">កាលបរិច្ឆេទ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Date</span></th>' +
-                            '<th style="border:1px solid #cbd5e1;padding:6px 6px">បរិយាយ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Description</span></th>' +
-                            '<th style="width:90px;text-align:right;border:1px solid #cbd5e1;padding:6px 6px">ចំនួនទឹកប្រាក់<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Amount</span></th>' +
-                            '<th style="width:95px;text-align:right;border:1px solid #cbd5e1;padding:6px 6px">សមតុល្យ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Running Balance</span></th>' +
+                            '<th style="width:38px;text-align:center;border:1px solid #cbd5e1;padding:6px 4px;position:relative" contenteditable="true">ល.រ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Nº</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="width:65px;border:1px solid #cbd5e1;padding:6px 4px;position:relative" contenteditable="true">ប្រភព<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Source</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="width:100px;border:1px solid #cbd5e1;padding:6px 6px;position:relative" contenteditable="true">លេខឯកសារ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Document No.</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="width:100px;border:1px solid #cbd5e1;padding:6px 6px;position:relative" contenteditable="true">លេខយោង<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Reference</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="width:90px;text-align:center;border:1px solid #cbd5e1;padding:6px 4px;position:relative" contenteditable="true">កាលបរិច្ឆេទ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Date</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="border:1px solid #cbd5e1;padding:6px 6px;position:relative" contenteditable="true">បរិយាយ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Description</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="width:90px;text-align:right;border:1px solid #cbd5e1;padding:6px 6px;position:relative" contenteditable="true">ចំនួនទឹកប្រាក់<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Amount</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
+                            '<th style="width:95px;text-align:right;border:1px solid #cbd5e1;padding:6px 6px;position:relative" contenteditable="true">សមតុល្យ<br><span style="font-size:0.7rem;font-weight:normal;color:#64748b">Running Balance</span><div class="col-resizer no-print" contenteditable="false"></div></th>' +
                         '</tr>' +
                     '</thead>' +
                     '<tbody>' +
@@ -6090,6 +6128,7 @@ function openPrintModal(custName) {
     $('printModalBody').innerHTML = docHtml;
     $('printModal').classList.add('active');
     applyPrintPrefs();
+    initTableColumnResizing();
     adjustMultiPageFooter();
     requestAnimationFrame(() => {
         applyPrintPrefs();
@@ -6103,36 +6142,176 @@ function openPrintModal(custName) {
 
 function adjustMultiPageFooter() {
     var doc = document.getElementById('printDocument');
-    if(!doc) return;
+    if (!doc) return;
     var sig = doc.querySelector('.signature-block');
-    if(!sig) return;
+    if (!sig) return;
 
-    var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0.5;
+    var footerOffset = (PRINT_PREFS && PRINT_PREFS.footerOffsetMm != null) ? PRINT_PREFS.footerOffsetMm : 0;
+    if ($('dispPrintFooterOffset')) {
+        $('dispPrintFooterOffset').textContent = (footerOffset > 0 ? '+' : '') + footerOffset + 'mm';
+    }
 
-    // Count data rows (excluding header and tfoot)
-    var rows = doc.querySelectorAll('.print-table tbody tr');
+    // Calculate actual pixel scaling for A4 (210mm wide)
+    var docWidth = doc.offsetWidth || 794;
+    var pxPerMm = docWidth / 210;
+    // Printable page height on A4 (297mm - 20mm margin = 277mm)
+    var pageHeightPx = 277 * pxPerMm;
 
-    if(rows.length <= 11) {
-        // Single-page: absolute-pin footer to bottom of 277mm container
-        doc.classList.add('single-page');
-        sig.style.position = 'absolute';
-        sig.style.bottom = footerOffset + 'mm';
-        sig.style.left = '0';
-        sig.style.right = '0';
-        sig.style.width = '100%';
-        sig.style.marginTop = '0';
+    var table = doc.querySelector('.print-table');
+    if (!table) {
+        sig.style.marginTop = '24px';
         return;
     }
 
-    // Multi-page: remove single-page, restore normal flow
-    doc.classList.remove('single-page');
-    sig.style.position = '';
+    var tableBottom = table.offsetTop + table.offsetHeight;
+    var thead = table.querySelector('thead');
+    var theadHeight = thead ? thead.offsetHeight : 0;
+    var sigHeight = sig.offsetHeight || Math.round(46 * pxPerMm);
+
+    // Initial page count
+    var numPages = Math.ceil(tableBottom / pageHeightPx);
+    if (numPages < 1) numPages = 1;
+
+    // Account for thead repeating on each subsequent print page
+    var repeatedTheadHeight = (numPages - 1) * theadHeight;
+    var effectiveBottom = tableBottom + repeatedTheadHeight;
+    numPages = Math.ceil(effectiveBottom / pageHeightPx);
+    if (numPages < 1) numPages = 1;
+
+    var targetPageBottom = numPages * pageHeightPx;
+    var gapPx = (targetPageBottom - sigHeight) - effectiveBottom;
+
+    // If gap is too small, Chrome print pushes signature block to next page
+    if (gapPx < 12 * pxPerMm) {
+        numPages += 1;
+        targetPageBottom = numPages * pageHeightPx;
+        var startOfNewPage = (numPages - 1) * pageHeightPx + theadHeight;
+        gapPx = (targetPageBottom - sigHeight) - startOfNewPage;
+    }
+
+    var gapMm = gapPx / pxPerMm;
+    // 6mm safety margin ensures it never spills to an extra blank page
+    // footerOffset: negative (-5, -10) pushes lower towards bottom margin; positive pulls up
+    var finalMarginTopMm = Math.max(10, Math.round(((gapMm - 6) - footerOffset) * 10) / 10);
+
+    sig.style.position = 'relative';
     sig.style.bottom = '';
     sig.style.left = '';
     sig.style.right = '';
-    sig.style.width = '';
-    sig.style.marginTop = '24px';
-    sig.style.marginBottom = footerOffset + 'mm';
+    sig.style.width = '100%';
+    sig.style.marginTop = finalMarginTopMm + 'mm';
+    sig.style.marginBottom = '0mm';
+}
+
+function initTableColumnResizing() {
+    var table = document.querySelector('.print-table');
+    if (!table) return;
+
+    var cols = table.querySelectorAll('th');
+    cols.forEach(th => {
+        var resizer = th.querySelector('.col-resizer');
+        if (!resizer) return;
+
+        var startX = 0;
+        var startWidth = 0;
+
+        function onMouseMove(e) {
+            var diff = e.pageX - startX;
+            var newW = Math.max(30, startWidth + diff);
+            th.style.width = newW + 'px';
+            th.style.minWidth = newW + 'px';
+            adjustMultiPageFooter();
+        }
+
+        function onMouseUp() {
+            resizer.classList.remove('resizing');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            adjustMultiPageFooter();
+        }
+
+        resizer.onmousedown = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            startX = e.pageX;
+            startWidth = th.offsetWidth;
+            resizer.classList.add('resizing');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        };
+    });
+
+    // Auto-recalculate footer if any cell text changes
+    table.oninput = function() {
+        if (window._footerAdjustTimer) clearTimeout(window._footerAdjustTimer);
+        window._footerAdjustTimer = setTimeout(() => {
+            adjustMultiPageFooter();
+        }, 120);
+    };
+}
+
+function addStatementTableRow() {
+    var table = document.querySelector('.print-table');
+    if (!table) return;
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = tbody.querySelectorAll('tr');
+    var nextIdx = rows.length;
+
+    var newTr = document.createElement('tr');
+    newTr.innerHTML = 
+        '<td contenteditable="true" style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + nextIdx + '</td>' +
+        '<td contenteditable="true" style="border:1px solid #cbd5e1;padding:5px 6px">AR-IN</td>' +
+        '<td contenteditable="true" style="border:1px solid #cbd5e1;padding:5px 6px"><b>INV</b></td>' +
+        '<td contenteditable="true" style="border:1px solid #cbd5e1;padding:5px 6px">LF:</td>' +
+        '<td contenteditable="true" style="text-align:center;border:1px solid #cbd5e1;padding:5px 4px">' + dmy(new Date()) + '</td>' +
+        '<td contenteditable="true" style="max-width:280px;white-space:normal;word-break:break-word;border:1px solid #cbd5e1;padding:5px 6px">សេវាកម្ម / Service</td>' +
+        '<td contenteditable="true" class="n" style="text-align:right;border:1px solid #cbd5e1;padding:5px 6px">0</td>' +
+        '<td contenteditable="true" class="n" style="text-align:right;font-weight:600;border:1px solid #cbd5e1;padding:5px 6px">0</td>';
+    
+    // Insert before total row if last row is total balance
+    var lastRow = rows[rows.length - 1];
+    if (lastRow && lastRow.textContent.includes('Total Balance')) {
+        tbody.insertBefore(newTr, lastRow);
+    } else {
+        tbody.appendChild(newTr);
+    }
+    applyPrintPrefs();
+    adjustMultiPageFooter();
+    if (typeof showToast === 'function') showToast('បានបន្ថែមជួរថ្មីក្នុងតារាង');
+}
+
+function deleteStatementTableLastRow() {
+    var table = document.querySelector('.print-table');
+    if (!table) return;
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    // Find data rows (exclude total balance row)
+    var dataRows = rows.filter(r => !r.textContent.includes('Total Balance'));
+    if (dataRows.length <= 1) {
+        if (typeof showToast === 'function') showToast('មិនអាចលុបជួរចុងក្រោយបានទេ');
+        return;
+    }
+    dataRows[dataRows.length - 1].remove();
+    applyPrintPrefs();
+    adjustMultiPageFooter();
+    if (typeof showToast === 'function') showToast('បានលុបជួរចុងក្រោយ');
+}
+
+function resetStatementTableFormatting() {
+    PRINT_PREFS.tableFontSize = 12;
+    PRINT_PREFS.tableCellPadding = 5;
+    var table = document.querySelector('.print-table');
+    if (table) {
+        table.querySelectorAll('th').forEach(th => {
+            th.style.width = '';
+            th.style.minWidth = '';
+        });
+    }
+    applyPrintPrefs();
+    savePrintPrefs();
+    if (typeof showToast === 'function') showToast('បានកំណត់តារាងទៅទម្រង់ដើម');
 }
 
 function closePrintModal() {
@@ -7033,7 +7212,7 @@ function prepareStatementPrintTitle() {
     var rawName = rawCust || (prof && (prof.nameEn || prof.nameKh)) || meta.custEn || meta.custKh;
     var cName = (typeof cleanCustomerDisplayName === 'function') ? cleanCustomerDisplayName(rawName) : rawName;
     var safeCName = String(cName).replace(/[\\/:*?"<>|]/g, '').trim();
-    return 'Customer Statement-' + (safeCName || 'Document');
+    return 'customer statement ' + (safeCName || 'Document');
 }
 
 $('btnPrintNow').onclick = () => {
