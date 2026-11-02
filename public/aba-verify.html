@@ -3717,6 +3717,10 @@ function isTelegramSent(custName, custNo) {
             if(TG_SENT[cCode]) return TG_SENT[cCode];
         }
     }
+    if(typeof res !== 'undefined' && res && res.docs) {
+        var d = res.docs[custName] || (custNo ? res.docs[custNo] : null);
+        if(d && d.tgSent && d.tgSent.sentAt) return d.tgSent;
+    }
     return null;
 }
 
@@ -4393,9 +4397,25 @@ function applyServerState(state) {
         return true;
     }
 
+    if(state.tgSent && typeof state.tgSent === 'object') {
+        Object.assign(TG_SENT, state.tgSent);
+    }
     var docs = {};
     var names = [];
     state.doctors.forEach(d => {
+        d.name = getCanonicalDocName(d.customerId || d.id, d.name);
+        if(d.tgSent && d.tgSent.sentAt) {
+            if(d.name) TG_SENT[d.name] = d.tgSent;
+            if(d.customerId) {
+                TG_SENT[d.customerId] = d.tgSent;
+                TG_SENT[String(d.customerId).toUpperCase()] = d.tgSent;
+            }
+            var mC = String(d.name).match(/^([A-Z]\d+)/i);
+            if(mC) {
+                TG_SENT[mC[1]] = d.tgSent;
+                TG_SENT[mC[1].toUpperCase()] = d.tgSent;
+            }
+        }
         d.inv = d.invoices || d.inv || [];
         d.pay = d.payments || d.pay || [];
         var maxPayDate = null;
@@ -4454,6 +4474,11 @@ function applyServerState(state) {
         if(ra !== rb) return ra - rb;
         return (a || '').localeCompare(b || '');
     });
+
+    try {
+        localStorage.setItem('aba_tg_sent', JSON.stringify(TG_SENT));
+        if(typeof dbSet === 'function') dbSet('aba_tg_sent', TG_SENT);
+    } catch(e) {}
 
     res = {
         docs: docs,
@@ -5136,11 +5161,12 @@ function allocateDoctorPayments(D, forceAuto) {
     var totalAbaPay = D.totalAbaPay != null ? D.totalAbaPay : (Math.round(per * 100) / 100);
     D.totalAbaPay = totalAbaPay;
 
-    // Total debt owed (after subtracting any discounts on the invoices)
-    D.owed = D.inv.reduce((s, v) => {
+    // Total debt strictly captures Balance from file (matches Excel row 3479 Total Balance: 117,713.15)
+    D.owed = Math.round(D.inv.reduce((s, v) => {
         var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
-        return s + Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
-    }, 0);
+        return s + bAmt;
+    }, 0) * 100) / 100;
+    D.discountTotal = Math.round(D.inv.reduce((s, v) => s + (v.discount || 0), 0) * 100) / 100;
 
     // If forceAuto is true or no manual adjustments have been made for this doctor yet:
     if(forceAuto || !D.hasManualAlloc) {
@@ -5224,7 +5250,7 @@ function allocateDoctorPayments(D, forceAuto) {
     D.origTotal = D.inv.reduce((s, v) => s + (v.origAmt || v.amt || 0), 0);
     D.paidTotal = Math.round(D.paidCurrent * 100) / 100;
     D.extra = Math.max(0, Math.round((totalAbaPay - D.paidTotal) * 100) / 100);
-    D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+    D.rem = Math.max(0, Math.round((D.owed - (D.discountTotal || 0) - D.paidTotal) * 100) / 100);
     D.remToAlloc = D.extra;
 
     // Doctor status
@@ -5287,7 +5313,7 @@ function run() {
         if(c === 'C00168' || rawName.toLowerCase().includes('ong mach')) {
             return 'C00168 - Chheung Eng Hong Dental Clinic';
         }
-        var clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–]\s*)+/gi, '').trim();
+        var clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–:]\s*)+/gi, '').trim();
         if(c && clean) {
             return c + ' - ' + clean;
         }
@@ -5309,7 +5335,13 @@ function run() {
 
         var profMatch = getCustomerProfile(rawName, cIdRaw);
         var englishFromFile = rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
-        var docEnName = (profMatch && profMatch.nameEn) || englishFromFile || (accMatch && (accMatch.nameEn || accMatch.name)) || rawName;
+        var hasLatin = /[a-zA-Z]/.test(englishFromFile);
+        var englishClean = hasLatin ? englishFromFile : '';
+        var docEnName = (profMatch && profMatch.nameEn && /[a-zA-Z]/.test(profMatch.nameEn) ? profMatch.nameEn : '') ||
+                        englishClean ||
+                        (accMatch && accMatch.nameEn && /[a-zA-Z]/.test(accMatch.nameEn) ? accMatch.nameEn : '') ||
+                        (accMatch && accMatch.name && !/[\u1780-\u17FF]/.test(accMatch.name) ? accMatch.name : '') ||
+                        rawName;
         var pName = getCanonicalDocName(cIdRaw || (profMatch && profMatch.code), docEnName);
         d.party = pName;
         if(cIdRaw) d.custId = cIdRaw;

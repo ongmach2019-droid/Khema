@@ -2,7 +2,7 @@
   {
     "entry": "C00001",
     "customerId": "C00001",
-    "name": "ពេទ្យធ្មេញ  បឹងបៃតង",
+    "name": "​Beung Bai Tong Dental Clinic",
     "rawAcct": "123445667/000111222/000000000",
     "acct": "123445667",
     "accounts": [
@@ -16,12 +16,14 @@
       "000000000"
     ],
     "accountHolder": "",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "​Beung Bai Tong Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ  បឹងបៃតង"
   },
   {
     "entry": "C00007",
     "customerId": "C00007",
-    "name": "ពេទ្យធ្មេញ អេស្តេទិច",
+    "name": "Aesthetic Dental Clinic",
     "rawAcct": "000 566 234",
     "acct": "000566234",
     "accounts": [
@@ -31,12 +33,14 @@
       "000 566 234"
     ],
     "accountHolder": "LEANG CHHENGKIM",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Aesthetic Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អេស្តេទិច"
   },
   {
     "entry": "C00012",
     "customerId": "C00012",
-    "name": "គ្លីនិកធ្មេញ​ អាមេរិកាំង",
+    "name": "American Dental Clinic",
     "rawAcct": "000 373 611",
     "acct": "000373611",
     "accounts": [
@@ -46,12 +50,14 @@
       "000 373 611"
     ],
     "accountHolder": "MAK MAKARA AND CHEN PAGNA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "American Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ​ អាមេរិកាំង"
   },
   {
     "entry": "C00013",
     "customerId": "C00013",
-    "name": "ពេទ្យធ្មេញ ណារុន",
+    "name": "Narun Dental Clinic",
     "rawAcct": "010 898 900",
     "acct": "010898900",
     "accounts": [
@@ -61,12 +67,14 @@
       "010 898 900"
     ],
     "accountHolder": "CHENG CHANNARUN",
-    "telegram": "@Ziinea0024"
+    "telegram": "@Ziinea0024",
+    "nameEn": "Narun Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ណារុន"
   },
   {
     "entry": "C00037",
     "customerId": "C00037",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ចតុមុខ",
+    "name": "Chaktomok Digital Dental Lab",
     "rawAcct": "005 400 922",
     "acct": "005400922",
     "accounts": [
@@ -76,12 +84,14 @@
       "005 400 922"
     ],
     "accountHolder": "Chhay Vannara and Chea Sor",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Chaktomok Digital Dental Lab",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ចតុមុខ"
   },
   {
     "entry": "C00045",
     "customerId": "C00045",
-    "name": "គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍",
+    "name": "Beauty Smile Dental Clinic",
     "rawAcct": "001 654 720",
     "acct": "001654720",
     "accounts": [
@@ -91,12 +101,14 @@
       "001 654 720"
     ],
     "accountHolder": "SEAM SINIT",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Beauty Smile Dental Clinic",
+    "nameKh": "គ្លីនិចធ្មេញ ប៊ីយូធី ស្មាលយ៍"
   },
   {
     "entry": "C00050",
     "customerId": "C00050",
-    "name": "គ្លីនិកធ្មេញ ប្លីជប្រាយថ៏",
+    "name": "Bleach Bright Dental Clinic",
     "rawAcct": "001 269 962",
     "acct": "001269962",
     "accounts": [
@@ -106,12 +118,14 @@
       "001 269 962"
     ],
     "accountHolder": "HUON PHALLA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Bleach Bright Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ប្លីជប្រាយថ៏"
   },
   {
     "entry": "C00051",
     "customerId": "C00051",
-    "name": "គ្លីនិកធ្មេញ បន្ទាយស្រី",
+    "name": "Bonteay Srey Dental Clinic",
     "rawAcct": "000 717 200",
     "acct": "000717200",
     "accounts": [
@@ -121,12 +135,14 @@
       "000 717 200"
     ],
     "accountHolder": "UY HORNG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Bonteay Srey Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ បន្ទាយស្រី"
   },
   {
     "entry": "C00076",
     "customerId": "C00076",
-    "name": "ពេទ្យធ្មេញ ប៊ុន សុបញ្ញា",
+    "name": "Bun Sopanha Dental Clinic",
     "rawAcct": "260 001 378 900 18",
     "acct": "26000137890018",
     "accounts": [
@@ -136,12 +152,14 @@
       "260 001 378 900 18"
     ],
     "accountHolder": "Roeun Davy",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Bun Sopanha Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ប៊ុន សុបញ្ញា"
   },
   {
     "entry": "C00084",
     "customerId": "C00084",
-    "name": "គ្លីនិកធ្មេញ ខេមដេន",
+    "name": "Camdent Dental Clinic",
     "rawAcct": "000 351 852",
     "acct": "000351852",
     "accounts": [
@@ -151,12 +169,14 @@
       "000 351 852"
     ],
     "accountHolder": "NHIN VOUCHLEANG / Nhin Vouch Leang",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Camdent Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ខេមដេន"
   },
   {
     "entry": "C00107",
     "customerId": "C00107",
-    "name": "ពេទ្យធ្មេញ​ ចន្ទ័រះ-ផ្លូវមនីរេត",
+    "name": "Chan Reah Dental Clinic-Moniret",
     "rawAcct": "001 691 201",
     "acct": "001691201",
     "accounts": [
@@ -166,12 +186,14 @@
       "001 691 201"
     ],
     "accountHolder": "PECH SOVANNARAK",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Chan Reah Dental Clinic-Moniret",
+    "nameKh": "ពេទ្យធ្មេញ​ ចន្ទ័រះ-ផ្លូវមនីរេត"
   },
   {
     "entry": "C00140",
     "customerId": "C00140",
-    "name": "ពេទ្យធ្មេញ​ ចែវ​ សំអាន",
+    "name": "Cheav Som An Dental Clinic",
     "rawAcct": "000 497 514",
     "acct": "000497514",
     "accounts": [
@@ -181,7 +203,9 @@
       "000 497 514"
     ],
     "accountHolder": "CHOUP DENA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Cheav Som An Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ​ ចែវ​ សំអាន"
   },
   {
     "entry": "C00168",
@@ -201,7 +225,7 @@
   {
     "entry": "C00232",
     "customerId": "C00232",
-    "name": "គ្លីនិកធ្មេញ ឌី ឃែរ",
+    "name": "D-Care Dental Clinic",
     "rawAcct": "000 046 959",
     "acct": "000046959",
     "accounts": [
@@ -211,12 +235,14 @@
       "000 046 959"
     ],
     "accountHolder": "NOU RATANA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "D-Care Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ឌី ឃែរ"
   },
   {
     "entry": "C00254",
     "customerId": "C00254",
-    "name": "គ្លីនិកធ្មេញ ដុកទ័រ ឃែរ",
+    "name": "Doctor Care Dental Clinic",
     "rawAcct": "001 779 000 / 001 779 008",
     "acct": "001779000",
     "accounts": [
@@ -228,12 +254,14 @@
       "001 779 008"
     ],
     "accountHolder": "EUNG KIMTENG AND EUNG KIMCHHAY / EUNG KIMTENG AND EUNG KIM CHHAY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Doctor Care Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ដុកទ័រ ឃែរ"
   },
   {
     "entry": "C00275",
     "customerId": "C00275",
-    "name": "គ្លីនិកព្យាបាលធ្មេញ អេដេណ",
+    "name": "Eden Dental Clinic",
     "rawAcct": "000 783 783",
     "acct": "000783783",
     "accounts": [
@@ -243,12 +271,14 @@
       "000 783 783"
     ],
     "accountHolder": "HOEUNG HONGSEANG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Eden Dental Clinic",
+    "nameKh": "គ្លីនិកព្យាបាលធ្មេញ អេដេណ"
   },
   {
     "entry": "C00298",
     "customerId": "C00298",
-    "name": "គ្លីនិកធ្មេញ អេវើ ប្រាយ",
+    "name": "Everbrite Dental & Implant Clinic",
     "rawAcct": "007 261 222",
     "acct": "007261222",
     "accounts": [
@@ -258,12 +288,14 @@
       "007 261 222"
     ],
     "accountHolder": "KANG MOUYKHIM",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Everbrite Dental & Implant Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ អេវើ ប្រាយ"
   },
   {
     "entry": "C00303",
     "customerId": "C00303",
-    "name": "គ្លីនិកធ្មេញ ប្រេស៊ីដង់",
+    "name": "President Dental Clinic",
     "rawAcct": "000 113 691",
     "acct": "000113691",
     "accounts": [
@@ -273,12 +305,14 @@
       "000 113 691"
     ],
     "accountHolder": "IENG PISETH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "President Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ប្រេស៊ីដង់"
   },
   {
     "entry": "C00328",
     "customerId": "C00328",
-    "name": "គ្លីនិកធ្មេញ ហេបភី ស្មាយល៍",
+    "name": "Happy Smile Dental Clinic",
     "rawAcct": "006 455 825",
     "acct": "006455825",
     "accounts": [
@@ -288,12 +322,14 @@
       "006 455 825"
     ],
     "accountHolder": "Keo Ratha",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Happy Smile Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ហេបភី ស្មាយល៍"
   },
   {
     "entry": "C00428",
     "customerId": "C00428",
-    "name": "គ្លីនិកធ្មេញ អាយ ដេន៏",
+    "name": "i-Dent Dental Clinic",
     "rawAcct": "001 244 195",
     "acct": "001244195",
     "accounts": [
@@ -303,12 +339,14 @@
       "001 244 195"
     ],
     "accountHolder": "LY MENGLAY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "i-Dent Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ អាយ ដេន៏"
   },
   {
     "entry": "C00439",
     "customerId": "C00439",
-    "name": "គ្លីនីកធ្មេញ ចាស្មីន",
+    "name": "Jasmine Dental Clinic",
     "rawAcct": "898 999 988",
     "acct": "898999988",
     "accounts": [
@@ -318,12 +356,14 @@
       "898 999 988"
     ],
     "accountHolder": "SOUN SATTYA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Jasmine Dental Clinic",
+    "nameKh": "គ្លីនីកធ្មេញ ចាស្មីន"
   },
   {
     "entry": "C00485",
     "customerId": "C00485",
-    "name": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា-វិមានឯករាជ្យ",
+    "name": "AKARA DENTAL CLINIC-Vimean Ekreach",
     "rawAcct": "014 598 524",
     "acct": "014598524",
     "accounts": [
@@ -333,12 +373,14 @@
       "014 598 524"
     ],
     "accountHolder": "CHOUR SEAKMEY AND TOEURN SREY NICH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "AKARA DENTAL CLINIC-Vimean Ekreach",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា-វិមានឯករាជ្យ"
   },
   {
     "entry": "C00491",
     "customerId": "C00491",
-    "name": "ពេទ្យធ្មេញ​ ខ្មែរ ឌិន",
+    "name": "Khmer Dent Dental Clinic",
     "rawAcct": "000 918 982",
     "acct": "000918982",
     "accounts": [
@@ -348,12 +390,14 @@
       "000 918 982"
     ],
     "accountHolder": "LY SONGY / Ly Songy",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Khmer Dent Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ​ ខ្មែរ ឌិន"
   },
   {
     "entry": "C00507",
     "customerId": "C00507",
-    "name": "ពេទ្យធ្មេញ គឺម ចំរើន",
+    "name": "Kim Chamroeun Dental Clinic",
     "rawAcct": "300 003 981 902 10",
     "acct": "30000398190210",
     "accounts": [
@@ -363,12 +407,14 @@
       "300 003 981 902 10"
     ],
     "accountHolder": "MICH RAMI",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Kim Chamroeun Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ គឺម ចំរើន"
   },
   {
     "entry": "C00519",
     "customerId": "C00519",
-    "name": "ទន្តបណ្ឌិត គីមឡុង",
+    "name": "Dr. Kim Long Student's Norton University",
     "rawAcct": "001 146 425",
     "acct": "001146425",
     "accounts": [
@@ -378,12 +424,14 @@
       "001 146 425"
     ],
     "accountHolder": "POV KIMLONG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Dr. Kim Long Student's Norton University",
+    "nameKh": "ទន្តបណ្ឌិត គីមឡុង"
   },
   {
     "entry": "C00535",
     "customerId": "C00535",
-    "name": "ពេទ្យធ្មេញ គឹម ស៊",
+    "name": "Kim Sor Dental Clinic",
     "rawAcct": "350 001 339 283 18",
     "acct": "35000133928318",
     "accounts": [
@@ -393,12 +441,14 @@
       "350 001 339 283 18"
     ],
     "accountHolder": "Bo Kimsor",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Kim Sor Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ គឹម ស៊"
   },
   {
     "entry": "C00548",
     "customerId": "C00548",
-    "name": "ពេទ្យធ្មេញ កុក ហេង ២",
+    "name": "Kok Heng II Dental Clinic-Orussei 3",
     "rawAcct": "012 320 530",
     "acct": "012320530",
     "accounts": [
@@ -408,12 +458,14 @@
       "012 320 530"
     ],
     "accountHolder": "សុខ ជា",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Kok Heng II Dental Clinic-Orussei 3",
+    "nameKh": "ពេទ្យធ្មេញ កុក ហេង ២"
   },
   {
     "entry": "C00695",
     "customerId": "C00695",
-    "name": "មន្ទីព្យាបាលធ្មេញ ម៉ាស្ទ័រឃែរ",
+    "name": "Master Care Dental Clinic",
     "rawAcct": "Check Deposite",
     "acct": "",
     "accounts": [],
@@ -421,12 +473,14 @@
       "Check Deposite"
     ],
     "accountHolder": "Check Deposite",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Master Care Dental Clinic",
+    "nameKh": "មន្ទីព្យាបាលធ្មេញ ម៉ាស្ទ័រឃែរ"
   },
   {
     "entry": "C00696",
     "customerId": "C00696",
-    "name": "ពេទ្យធ្មេញ ម៉ាស្ទ័រ",
+    "name": "Master Dental Clinic",
     "rawAcct": "018 609 299",
     "acct": "018609299",
     "accounts": [
@@ -436,12 +490,14 @@
       "018 609 299"
     ],
     "accountHolder": "THAI SEIHA AND HUN KIMVOUCH / Thai Seiha and Hun Kimvouch",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Master Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ម៉ាស្ទ័រ"
   },
   {
     "entry": "C00703",
     "customerId": "C00703",
-    "name": "ពេទ្យធ្មេញ មេហ្គា",
+    "name": "MEGA Dental Clinic",
     "rawAcct": "008 840 754",
     "acct": "008840754",
     "accounts": [
@@ -451,12 +507,14 @@
       "008 840 754"
     ],
     "accountHolder": "CHEN LIFEN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "MEGA Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ មេហ្គា"
   },
   {
     "entry": "C00717",
     "customerId": "C00717",
-    "name": "គ្លីនិកធ្មេញ អមរា",
+    "name": "Amara Dental Clinic",
     "rawAcct": "271 120 211",
     "acct": "271120211",
     "accounts": [
@@ -466,12 +524,14 @@
       "271 120 211"
     ],
     "accountHolder": "EM LEKHENA AND CHHAY MANITH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Amara Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ អមរា"
   },
   {
     "entry": "C00729",
     "customerId": "C00729",
-    "name": "ពេទ្យធ្មេញ ម័រដីន ស្មាយល៏",
+    "name": "Modern Smile Dental Clinic",
     "rawAcct": "000 755 553",
     "acct": "000755553",
     "accounts": [
@@ -481,12 +541,14 @@
       "000 755 553"
     ],
     "accountHolder": "CHOU BUN SIM",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Modern Smile Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ម័រដីន ស្មាយល៏"
   },
   {
     "entry": "C00751",
     "customerId": "C00751",
-    "name": "ពេទ្យធ្មេញ ម៉ាយ ស្មាយ",
+    "name": "MY SMILE Dental Clinic",
     "rawAcct": "002 595 685",
     "acct": "002595685",
     "accounts": [
@@ -496,12 +558,14 @@
       "002 595 685"
     ],
     "accountHolder": "UL NARITH / Ul Narith",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "MY SMILE Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ម៉ាយ ស្មាយ"
   },
   {
     "entry": "C00752",
     "customerId": "C00752",
-    "name": "ពេទ្យធ្មេញ ម៉ាយធីស",
+    "name": "My Teeth Dental Clinic",
     "rawAcct": "347 300 538 757 21",
     "acct": "34730053875721",
     "accounts": [
@@ -511,12 +575,14 @@
       "347 300 538 757 21"
     ],
     "accountHolder": "You Leangkoing",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "My Teeth Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ម៉ាយធីស"
   },
   {
     "entry": "C00776",
     "customerId": "C00776",
-    "name": "ពេទ្យធ្មេញ ញឹម សុភាព",
+    "name": "Nhim Sopheap Dental Clinic",
     "rawAcct": "012 456 759",
     "acct": "012456759",
     "accounts": [
@@ -526,12 +592,14 @@
       "012 456 759"
     ],
     "accountHolder": "Nhim Pheap",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Nhim Sopheap Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ញឹម សុភាព"
   },
   {
     "entry": "C00781",
     "customerId": "C00781",
-    "name": "ពេទ្យធ្មេញ នគរភ្នំ",
+    "name": "Nokor Phnom Dental Clinic",
     "rawAcct": "095 989 833",
     "acct": "095989833",
     "accounts": [
@@ -541,12 +609,14 @@
       "095 989 833"
     ],
     "accountHolder": "CHHUN SOKCHENG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Nokor Phnom Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ នគរភ្នំ"
   },
   {
     "entry": "C00788",
     "customerId": "C00788",
-    "name": "គ្លីនិកធ្មេញ ណូវា",
+    "name": "NOVA Dental Clinic",
     "rawAcct": "000 771 131",
     "acct": "000771131",
     "accounts": [
@@ -556,12 +626,14 @@
       "000 771 131"
     ],
     "accountHolder": "KRY DARA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "NOVA Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ណូវា"
   },
   {
     "entry": "C00789",
     "customerId": "C00789",
-    "name": "គ្លីនិកធ្មេញ នួន វឿន",
+    "name": "Nuon Voeun Dental Clinic",
     "rawAcct": "002 009 123",
     "acct": "002009123",
     "accounts": [
@@ -571,12 +643,14 @@
       "002 009 123"
     ],
     "accountHolder": "NUON VOEUN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Nuon Voeun Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ នួន វឿន"
   },
   {
     "entry": "C00799",
     "customerId": "C00799",
-    "name": "គ្លីនិកធ្មេញ ឳរ៉ាល់ ឃែរ",
+    "name": "Oral Care Dental Clinic",
     "rawAcct": "000 752 604",
     "acct": "000752604",
     "accounts": [
@@ -586,12 +660,14 @@
       "000 752 604"
     ],
     "accountHolder": "KHAT SOPHAL",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Oral Care Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ឳរ៉ាល់ ឃែរ"
   },
   {
     "entry": "C00840",
     "customerId": "C00840",
-    "name": "ពេទ្យធ្មេញ ពេញចិត្ត-ផ្សារឈូកមាស",
+    "name": "Penh Chet Dental Clinic-Chouk Meas",
     "rawAcct": "000 950 987",
     "acct": "000950987",
     "accounts": [
@@ -601,12 +677,14 @@
       "000 950 987"
     ],
     "accountHolder": "SAT SEILA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Penh Chet Dental Clinic-Chouk Meas",
+    "nameKh": "ពេទ្យធ្មេញ ពេញចិត្ត-ផ្សារឈូកមាស"
   },
   {
     "entry": "C00916",
     "customerId": "C00916",
-    "name": "គ្លីនិកធ្មេញ ប្រាក់ ស្រ៊ុន",
+    "name": "Prak Srun Dental Clinic",
     "rawAcct": "111 261 528 / 000 329 222",
     "acct": "111261528",
     "accounts": [
@@ -618,12 +696,14 @@
       "000 329 222"
     ],
     "accountHolder": "TOUCH SOTHOUN / Touch Sothoun",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Prak Srun Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ប្រាក់ ស្រ៊ុន"
   },
   {
     "entry": "C00935",
     "customerId": "C00935",
-    "name": "មន្ទីរព្យាបាលមាត់ធ្មេញ ព្រហ្មបាយ័ន",
+    "name": "Prum Bayon Dental Clinic",
     "rawAcct": "015 382 057",
     "acct": "015382057",
     "accounts": [
@@ -633,12 +713,14 @@
       "015 382 057"
     ],
     "accountHolder": "NOP SOPAGNA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Prum Bayon Dental Clinic",
+    "nameKh": "មន្ទីរព្យាបាលមាត់ធ្មេញ ព្រហ្មបាយ័ន"
   },
   {
     "entry": "C00940",
     "customerId": "C00940",
-    "name": "ពេទ្យធ្មេញ ពីរ៉ាមីត",
+    "name": "Pyramid Dental Clinic",
     "rawAcct": "000 200 918",
     "acct": "000200918",
     "accounts": [
@@ -648,12 +730,14 @@
       "000 200 918"
     ],
     "accountHolder": "HAY NARIN AND KHLAING NIRAN / Hay Narin and Klaing Niron",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Pyramid Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ពីរ៉ាមីត"
   },
   {
     "entry": "C01000",
     "customerId": "C01000",
-    "name": "ឡាបូ សំណាង",
+    "name": "Samnang Dental Lab",
     "rawAcct": "001 657 428",
     "acct": "001657428",
     "accounts": [
@@ -663,12 +747,14 @@
       "001 657 428"
     ],
     "accountHolder": "LORNG SOKHA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Samnang Dental Lab",
+    "nameKh": "ឡាបូ សំណាង"
   },
   {
     "entry": "C01008",
     "customerId": "C01008",
-    "name": "ពេទ្យធ្មេញ សារៈ",
+    "name": "Sarac Dental Clinic",
     "rawAcct": "037 005 650 001",
     "acct": "037005650001",
     "accounts": [
@@ -678,12 +764,14 @@
       "037 005 650 001"
     ],
     "accountHolder": "Vatt Sarak and Ut Kunthy",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Sarac Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ សារៈ"
   },
   {
     "entry": "C01025",
     "customerId": "C01025",
-    "name": "ពេទ្យធ្មេញ ឃឿត បណ្ឌិត",
+    "name": "Khoeut Bandeth Dental Clinic",
     "rawAcct": "012 931 526",
     "acct": "012931526",
     "accounts": [
@@ -693,12 +781,14 @@
       "012 931 526"
     ],
     "accountHolder": "Tout Nich",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Khoeut Bandeth Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ឃឿត បណ្ឌិត"
   },
   {
     "entry": "C01043",
     "customerId": "C01043",
-    "name": "ពេទ្យធ្មេញ សេអ៊ូល អិមផ្លេន​",
+    "name": "Seoul Implant Dental Clinic",
     "rawAcct": "007 765 777",
     "acct": "007765777",
     "accounts": [
@@ -708,12 +798,14 @@
       "007 765 777"
     ],
     "accountHolder": "KEO HONGPHENG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Seoul Implant Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ សេអ៊ូល អិមផ្លេន​"
   },
   {
     "entry": "C01054",
     "customerId": "C01054",
-    "name": "ពេទ្យធ្មេញ សៀង ហៃ",
+    "name": "Shang Hai Dental Clinic",
     "rawAcct": "000 254 380",
     "acct": "000254380",
     "accounts": [
@@ -723,12 +815,14 @@
       "000 254 380"
     ],
     "accountHolder": "HAN HONG",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Shang Hai Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ សៀង ហៃ"
   },
   {
     "entry": "C01055",
     "customerId": "C01055",
-    "name": "ឯកទេសព្យាបាលធ្មេញ អូរីដា",
+    "name": "OREDA Dental Clinic",
     "rawAcct": "096 441 100",
     "acct": "096441100",
     "accounts": [
@@ -738,12 +832,14 @@
       "096 441 100"
     ],
     "accountHolder": "PREAP DINA AND KANG SOPHEAK",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "OREDA Dental Clinic",
+    "nameKh": "ឯកទេសព្យាបាលធ្មេញ អូរីដា"
   },
   {
     "entry": "C01057",
     "customerId": "C01057",
-    "name": "ពេទ្យធ្មេញ និមិត្ត",
+    "name": "Nimit Dental Clinic",
     "rawAcct": "019 227 299",
     "acct": "019227299",
     "accounts": [
@@ -753,12 +849,14 @@
       "019 227 299"
     ],
     "accountHolder": "TEP RATHNA AND CHHORN SOPHEAKTRA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Nimit Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ និមិត្ត"
   },
   {
     "entry": "C01071",
     "customerId": "C01071",
-    "name": "ពេទ្យធ្មេញ ធីអិលស្មាយ",
+    "name": "TL Smile Dental Clinic",
     "rawAcct": "011 528 597",
     "acct": "011528597",
     "accounts": [
@@ -768,12 +866,14 @@
       "011 528 597"
     ],
     "accountHolder": "TL smile dental clinic",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "TL Smile Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ធីអិលស្មាយ"
   },
   {
     "entry": "C01075",
     "customerId": "C01075",
-    "name": "ពេទ្យធ្មេញ ឯករាជ្យ",
+    "name": "Eak Reach Dental Clinic-KPS",
     "rawAcct": "370 025 500 001 41",
     "acct": "37002550000141",
     "accounts": [
@@ -783,12 +883,14 @@
       "370 025 500 001 41"
     ],
     "accountHolder": "SUN SIMEY, MRS",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Eak Reach Dental Clinic-KPS",
+    "nameKh": "ពេទ្យធ្មេញ ឯករាជ្យ"
   },
   {
     "entry": "C01090",
     "customerId": "C01090",
-    "name": "ពេទ្យធ្មេញ សឹង ពិសិដ្ឋ",
+    "name": "Soeng Piseth Dental Clinic",
     "rawAcct": "001 157 510",
     "acct": "001157510",
     "accounts": [
@@ -798,12 +900,14 @@
       "001 157 510"
     ],
     "accountHolder": "SOENG PISETH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Soeng Piseth Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ សឹង ពិសិដ្ឋ"
   },
   {
     "entry": "C01142",
     "customerId": "C01142",
-    "name": "ពេទ្យធ្មេញ សុខឌែន",
+    "name": "Sokden Dental Clinic",
     "rawAcct": "001 176 922",
     "acct": "001176922",
     "accounts": [
@@ -813,12 +917,14 @@
       "001 176 922"
     ],
     "accountHolder": "YOM MAKARA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Sokden Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ សុខឌែន"
   },
   {
     "entry": "C01149",
     "customerId": "C01149",
-    "name": "គ្លីនិកធ្មេញ សុខភាព-កំពង់ឆ្នាំង",
+    "name": "Sokpheap Dental Clinic-KPC",
     "rawAcct": "120 000 370 791 23",
     "acct": "12000037079123",
     "accounts": [
@@ -828,12 +934,14 @@
       "120 000 370 791 23"
     ],
     "accountHolder": "Ngov Seng Vannak",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Sokpheap Dental Clinic-KPC",
+    "nameKh": "គ្លីនិកធ្មេញ សុខភាព-កំពង់ឆ្នាំង"
   },
   {
     "entry": "C01247",
     "customerId": "C01247",
-    "name": "គ្លីនិកធ្មេញ ធេក ឃែរ",
+    "name": "Take Care Dental Clinic",
     "rawAcct": "000 643 535",
     "acct": "000643535",
     "accounts": [
@@ -843,12 +951,14 @@
       "000 643 535"
     ],
     "accountHolder": "HEANG MAKARA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Take Care Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ធេក ឃែរ"
   },
   {
     "entry": "C01310",
     "customerId": "C01310",
-    "name": "ពេទ្យធ្មេញ ត្រៃ ម៉េងហួរ",
+    "name": "Trai Menghour Dental Clinic",
     "rawAcct": "001 746 626",
     "acct": "001746626",
     "accounts": [
@@ -858,12 +968,14 @@
       "001 746 626"
     ],
     "accountHolder": "TREY MENGHUO",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Trai Menghour Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ត្រៃ ម៉េងហួរ"
   },
   {
     "entry": "C01387",
     "customerId": "C01387",
-    "name": "គ្លីនិកធ្មេញ យាំង ម៉េន",
+    "name": "Young Man Dental Clinic",
     "rawAcct": "000 387 536",
     "acct": "000387536",
     "accounts": [
@@ -873,12 +985,14 @@
       "000 387 536"
     ],
     "accountHolder": "SOEUR KIMHUN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Young Man Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ យាំង ម៉េន"
   },
   {
     "entry": "C01388",
     "customerId": "C01388",
-    "name": "ពេទ្យធ្មេញ យុំាង ម៉ែន 2",
+    "name": "Young Man II Dental Clinic",
     "rawAcct": "000 387 536",
     "acct": "000387536",
     "accounts": [
@@ -888,12 +1002,14 @@
       "000 387 536"
     ],
     "accountHolder": "SOEUR KIMHUN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Young Man II Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ យុំាង ម៉ែន 2"
   },
   {
     "entry": "C01405",
     "customerId": "C01405",
-    "name": "ពេទ្យធ្មេញ បៃតង",
+    "name": "BaiTorngDental Clinic",
     "rawAcct": "001 018 376",
     "acct": "001018376",
     "accounts": [
@@ -903,7 +1019,9 @@
       "001 018 376"
     ],
     "accountHolder": "OUNG SAMNANG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "BaiTorngDental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ បៃតង"
   },
   {
     "entry": "C01408",
@@ -938,7 +1056,7 @@
   {
     "entry": "C01429",
     "customerId": "C01429",
-    "name": "គ្លីនិកធ្មេញ ដុកទ័រ ហូម",
+    "name": "Dr.Home Dental Clinic",
     "rawAcct": "731 322 600 130 01",
     "acct": "73132260013001",
     "accounts": [
@@ -948,12 +1066,14 @@
       "731 322 600 130 01"
     ],
     "accountHolder": "Hour Sopornita",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Dr.Home Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ដុកទ័រ ហូម"
   },
   {
     "entry": "C01446",
     "customerId": "C01446",
-    "name": "គ្លីនិកធ្មេញ ដេនរិច អេស៊ាន បឹងកេងកង",
+    "name": "Denriche Asia Dental Clinic (BKK)",
     "rawAcct": "004 976 118 / 013 533 095",
     "acct": "004976118",
     "accounts": [
@@ -965,12 +1085,14 @@
       "013 533 095"
     ],
     "accountHolder": "LACH SREYMETH / Lach Sreymeth",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Denriche Asia Dental Clinic (BKK)",
+    "nameKh": "គ្លីនិកធ្មេញ ដេនរិច អេស៊ាន បឹងកេងកង"
   },
   {
     "entry": "C01451",
     "customerId": "C01451",
-    "name": "ពេទ្យធ្មេញ អារីស",
+    "name": "Aries Dental Clinic",
     "rawAcct": "001 572 737 / 003 410 718",
     "acct": "001572737",
     "accounts": [
@@ -982,12 +1104,14 @@
       "003 410 718"
     ],
     "accountHolder": "UN KONNGA / SENG TEKEANG AND SAR SEREIBOTH AND SRENG RATANAK",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Aries Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អារីស"
   },
   {
     "entry": "C01510",
     "customerId": "C01510",
-    "name": "ពេទ្យធ្មេញ អ៊ិច ស៊ីឡិន",
+    "name": "Excellent Dental Clinic",
     "rawAcct": "000 753 717",
     "acct": "000753717",
     "accounts": [
@@ -997,12 +1121,14 @@
       "000 753 717"
     ],
     "accountHolder": "KE SITHA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Excellent Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អ៊ិច ស៊ីឡិន"
   },
   {
     "entry": "C01539",
     "customerId": "C01539",
-    "name": "បន្ទប់ពិគ្រោះ និង ព្យាបាលជំងឺ មាត់-ធ្មេញ",
+    "name": "Khiev Sokhey Dental CLinic",
     "rawAcct": "087 999 897",
     "acct": "087999897",
     "accounts": [
@@ -1012,12 +1138,14 @@
       "087 999 897"
     ],
     "accountHolder": "KHIEV SOKHEY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Khiev Sokhey Dental CLinic",
+    "nameKh": "បន្ទប់ពិគ្រោះ និង ព្យាបាលជំងឺ មាត់-ធ្មេញ"
   },
   {
     "entry": "C01559",
     "customerId": "C01559",
-    "name": "គ្លីនិកធ្មេញ បឹងឈូក",
+    "name": "Boeung Chhouk Dental Clinic-CBA",
     "rawAcct": "035 466 760 001",
     "acct": "035466760001",
     "accounts": [
@@ -1027,12 +1155,14 @@
       "035 466 760 001"
     ],
     "accountHolder": "Oeng Siengkang and Net Noreak and In Darapin",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Boeung Chhouk Dental Clinic-CBA",
+    "nameKh": "គ្លីនិកធ្មេញ បឹងឈូក"
   },
   {
     "entry": "C01602",
     "customerId": "C01602",
-    "name": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា សាខាច្បារអំពៅ",
+    "name": "Akara Dental Clinic-Chbar Ampov",
     "rawAcct": "014 598 524",
     "acct": "014598524",
     "accounts": [
@@ -1042,12 +1172,14 @@
       "014 598 524"
     ],
     "accountHolder": "CHOUR SEAKMEY AND TOEURN SREY NICH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Akara Dental Clinic-Chbar Ampov",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា សាខាច្បារអំពៅ"
   },
   {
     "entry": "C01660",
     "customerId": "C01660",
-    "name": "ពេទ្យធ្មេញ ប្រាយឌិន",
+    "name": "Bright Dent Dental Clinic",
     "rawAcct": "010 705 766",
     "acct": "010705766",
     "accounts": [
@@ -1057,7 +1189,9 @@
       "010 705 766"
     ],
     "accountHolder": "SRENG CHANNY AND KRUY LOEM ENG AND SAN PISETH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Bright Dent Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ប្រាយឌិន"
   },
   {
     "entry": "C01679",
@@ -1077,7 +1211,7 @@
   {
     "entry": "C01683",
     "customerId": "C01683",
-    "name": "ខេម ឡេប",
+    "name": "Cam Lab",
     "rawAcct": "500 328 522",
     "acct": "500328522",
     "accounts": [
@@ -1087,12 +1221,14 @@
       "500 328 522"
     ],
     "accountHolder": "",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Cam Lab",
+    "nameKh": "ខេម ឡេប"
   },
   {
     "entry": "C01691",
     "customerId": "C01691",
-    "name": "គ្លីនិកធ្មេញ លម្អ",
+    "name": "Lum Or Dental Clinic-PUC",
     "rawAcct": "000 697 004",
     "acct": "000697004",
     "accounts": [
@@ -1102,12 +1238,14 @@
       "000 697 004"
     ],
     "accountHolder": "SENG OUNNANG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Lum Or Dental Clinic-PUC",
+    "nameKh": "គ្លីនិកធ្មេញ លម្អ"
   },
   {
     "entry": "C01696",
     "customerId": "C01696",
-    "name": "ពេទ្យធ្មេញ ចរណៃ",
+    "name": "Choronai Dental Clinic",
     "rawAcct": "001 686 661",
     "acct": "001686661",
     "accounts": [
@@ -1117,12 +1255,14 @@
       "001 686 661"
     ],
     "accountHolder": "HOK VANSENG / Hok Vanseng",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Choronai Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ចរណៃ"
   },
   {
     "entry": "C01703",
     "customerId": "C01703",
-    "name": "ពេទ្យធ្មេញ ភីសែល",
+    "name": "Pixel Dental Clinic",
     "rawAcct": "000 913 603",
     "acct": "000913603",
     "accounts": [
@@ -1132,12 +1272,14 @@
       "000 913 603"
     ],
     "accountHolder": "KONG VILIN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Pixel Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ភីសែល"
   },
   {
     "entry": "C01717",
     "customerId": "C01717",
-    "name": "គ្លីនិកធ្មេញ បាត់ដំបង គ្លរី",
+    "name": "BATTAMBANG GLORY DENTAL CINIC",
     "rawAcct": "052 123 456",
     "acct": "052123456",
     "accounts": [
@@ -1147,12 +1289,14 @@
       "052 123 456"
     ],
     "accountHolder": "KUN CHHAIKHIM",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "BATTAMBANG GLORY DENTAL CINIC",
+    "nameKh": "គ្លីនិកធ្មេញ បាត់ដំបង គ្លរី"
   },
   {
     "entry": "C01727",
     "customerId": "C01727",
-    "name": "គ្លីនិកធ្មេញ ស្មាយ ឌីហ្សាញ",
+    "name": "Smile Design Dental Clinic",
     "rawAcct": "001 250 934",
     "acct": "001250934",
     "accounts": [
@@ -1162,12 +1306,14 @@
       "001 250 934"
     ],
     "accountHolder": "MONG THIDA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Smile Design Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ស្មាយ ឌីហ្សាញ"
   },
   {
     "entry": "C01750",
     "customerId": "C01750",
-    "name": "ពេទ្យធ្មេញ ឌី អ៊ិច",
+    "name": "DX Dental Clinic",
     "rawAcct": "010 782 603",
     "acct": "010782603",
     "accounts": [
@@ -1177,12 +1323,14 @@
       "010 782 603"
     ],
     "accountHolder": "CHHUN DINA AND CHHUN XKHAING",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "DX Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ឌី អ៊ិច"
   },
   {
     "entry": "C01759",
     "customerId": "C01759",
-    "name": "C01759 - MEGA'GEN Cambodia",
+    "name": "MEGA'GEN Cambodia",
     "rawAcct": "000 417 838",
     "acct": "000417838",
     "accounts": [
@@ -1192,12 +1340,14 @@
       "000 417 838"
     ],
     "accountHolder": "CHHENG SOVANNARY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "MEGA'GEN Cambodia",
+    "nameKh": "C01759 - MEGA'GEN Cambodia"
   },
   {
     "entry": "C01762",
     "customerId": "C01762",
-    "name": "ពេទ្យធ្មេញ គូលែន",
+    "name": "Kulen Dental Clinic",
     "rawAcct": "008 145 959",
     "acct": "008145959",
     "accounts": [
@@ -1207,12 +1357,14 @@
       "008 145 959"
     ],
     "accountHolder": "SUN KIMTOENG / Sun Kimtoeng",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Kulen Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ គូលែន"
   },
   {
     "entry": "C01772",
     "customerId": "C01772",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ សុភ័ក្រ្ត",
+    "name": "Sopheak Dental Laboratory",
     "rawAcct": "001 277 637",
     "acct": "001277637",
     "accounts": [
@@ -1222,12 +1374,14 @@
       "001 277 637"
     ],
     "accountHolder": "Pin Poly",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Sopheak Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ សុភ័ក្រ្ត"
   },
   {
     "entry": "C01777",
     "customerId": "C01777",
-    "name": "គ្លីនិកធ្មេញ ស្មាយ ឃែរ",
+    "name": "Smile Care Dental Clinic",
     "rawAcct": "000 614 343",
     "acct": "000614343",
     "accounts": [
@@ -1237,12 +1391,14 @@
       "000 614 343"
     ],
     "accountHolder": "KEO SARUN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Smile Care Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ស្មាយ ឃែរ"
   },
   {
     "entry": "C01790",
     "customerId": "C01790",
-    "name": "គ្លីនិកធ្មេញ មីន័រ៉ល",
+    "name": "Mineral Dental Clinic",
     "rawAcct": "003 424 411",
     "acct": "003424411",
     "accounts": [
@@ -1252,12 +1408,14 @@
       "003 424 411"
     ],
     "accountHolder": "ROTH LINDA AND DAM SOPHITA AND KOY PANHARONGRYTH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Mineral Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ មីន័រ៉ល"
   },
   {
     "entry": "C01801",
     "customerId": "C01801",
-    "name": "ឡាបូទន្តសាស្រ្ត សង់ត្រាល់",
+    "name": "Central Dental Laboratory",
     "rawAcct": "000 533 008",
     "acct": "000533008",
     "accounts": [
@@ -1267,12 +1425,14 @@
       "000 533 008"
     ],
     "accountHolder": "EAN TANG / Ean Tang",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Central Dental Laboratory",
+    "nameKh": "ឡាបូទន្តសាស្រ្ត សង់ត្រាល់"
   },
   {
     "entry": "C01837",
     "customerId": "C01837",
-    "name": "ពេទ្យធ្មេញុកែប",
+    "name": "K.E.P Dental Clinic",
     "rawAcct": "005 108 038",
     "acct": "005108038",
     "accounts": [
@@ -1282,12 +1442,14 @@
       "005 108 038"
     ],
     "accountHolder": "CHHIN SOVANNDANETH AND MONY CHANSEREY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "K.E.P Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញុកែប"
   },
   {
     "entry": "C01840",
     "customerId": "C01840",
-    "name": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា​ (ក្រុងតាខ្មៅ)",
+    "name": "AKARA Dental Clinic-Takmao",
     "rawAcct": "014 598 524",
     "acct": "014598524",
     "accounts": [
@@ -1297,12 +1459,14 @@
       "014 598 524"
     ],
     "accountHolder": "CHOUR SEAKMEY AND TOEURN SREY NICH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "AKARA Dental Clinic-Takmao",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញ អក្ខរា​ (ក្រុងតាខ្មៅ)"
   },
   {
     "entry": "C01844",
     "customerId": "C01844",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ អេឌីអេស",
+    "name": "ADS Dental Laboratory",
     "rawAcct": "000 024 924",
     "acct": "000024924",
     "accounts": [
@@ -1312,12 +1476,14 @@
       "000 024 924"
     ],
     "accountHolder": "REUN SEYHA / Sir (USD) Reun Seyha",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "ADS Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ អេឌីអេស"
   },
   {
     "entry": "C01849",
     "customerId": "C01849",
-    "name": "គ្លីនិកធ្មេញ យូ ស្មាយ",
+    "name": "U Smile Dental Clinic",
     "rawAcct": "069 388 849",
     "acct": "069388849",
     "accounts": [
@@ -1327,12 +1493,14 @@
       "069 388 849"
     ],
     "accountHolder": "BUN HUY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "U Smile Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ យូ ស្មាយ"
   },
   {
     "entry": "C01850",
     "customerId": "C01850",
-    "name": "ពេទ្យធ្មេញ មាស​ ចន្នី",
+    "name": "Meas Channy Dental Clinic",
     "rawAcct": "003 287 365",
     "acct": "003287365",
     "accounts": [
@@ -1342,12 +1510,14 @@
       "003 287 365"
     ],
     "accountHolder": "MEAS CHANNY / Meas Channy",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Meas Channy Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ មាស​ ចន្នី"
   },
   {
     "entry": "C01851",
     "customerId": "C01851",
-    "name": "ពេទ្យធ្មេញ ឈូកមាស",
+    "name": "ChhukMeas Dental Clinic-KD",
     "rawAcct": "013 479 524",
     "acct": "013479524",
     "accounts": [
@@ -1357,12 +1527,14 @@
       "013 479 524"
     ],
     "accountHolder": "MENG SIVCHHENG AND LEAP HOUR",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "ChhukMeas Dental Clinic-KD",
+    "nameKh": "ពេទ្យធ្មេញ ឈូកមាស"
   },
   {
     "entry": "C01852",
     "customerId": "C01852",
-    "name": "ពេទ្យធ្មេញ ប្រពៃ",
+    "name": "Propey Dental Clinic",
     "rawAcct": "010 570 333",
     "acct": "010570333",
     "accounts": [
@@ -1372,12 +1544,14 @@
       "010 570 333"
     ],
     "accountHolder": "CHEAM SOVICHET AND CHEAM SOPHANNA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Propey Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ប្រពៃ"
   },
   {
     "entry": "C01857",
     "customerId": "C01857",
-    "name": "គ្លីនិកធ្មេញ រតនៈ",
+    "name": "Ratanak Dental Clinic",
     "rawAcct": "556 356 249",
     "acct": "556356249",
     "accounts": [
@@ -1387,12 +1561,14 @@
       "556 356 249"
     ],
     "accountHolder": "KONG ROTHAROTH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Ratanak Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ រតនៈ"
   },
   {
     "entry": "C01858",
     "customerId": "C01858",
-    "name": "ពេទ្យធ្មេញ រដ្ឋា",
+    "name": "Ratha Dental Clinic-CSR",
     "rawAcct": "089 909 709",
     "acct": "089909709",
     "accounts": [
@@ -1402,12 +1578,14 @@
       "089 909 709"
     ],
     "accountHolder": "LIM RATHA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Ratha Dental Clinic-CSR",
+    "nameKh": "ពេទ្យធ្មេញ រដ្ឋា"
   },
   {
     "entry": "C01878",
     "customerId": "C01878",
-    "name": "ពេទ្យធ្មេញ ម្លិះ",
+    "name": "Malis Dental Clinic",
     "rawAcct": "015 774 409",
     "acct": "015774409",
     "accounts": [
@@ -1417,12 +1595,14 @@
       "015 774 409"
     ],
     "accountHolder": "ថុន មឿន",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Malis Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ម្លិះ"
   },
   {
     "entry": "C01879",
     "customerId": "C01879",
-    "name": "គ្លីនិកធ្មេញ ប្រេស្ទីហ្ស៍",
+    "name": "Prestige Dental Clinic",
     "rawAcct": "012 758 109",
     "acct": "012758109",
     "accounts": [
@@ -1432,12 +1612,14 @@
       "012 758 109"
     ],
     "accountHolder": "OUK DARIN AND ODOM NIKA",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Prestige Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ប្រេស្ទីហ្ស៍"
   },
   {
     "entry": "C01882",
     "customerId": "C01882",
-    "name": "ពេទ្យធ្មេញ អេរ៉ា",
+    "name": "ERA Dental Clinic",
     "rawAcct": "002 912 900",
     "acct": "002912900",
     "accounts": [
@@ -1447,12 +1629,14 @@
       "002 912 900"
     ],
     "accountHolder": "MICH KOEMCHHENG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "ERA Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អេរ៉ា"
   },
   {
     "entry": "C01883",
     "customerId": "C01883",
-    "name": "ពេទ្យធ្មេញ ខូរ៉ល",
+    "name": "Coral Dental Clinic",
     "rawAcct": "013 105 487",
     "acct": "013105487",
     "accounts": [
@@ -1462,12 +1646,14 @@
       "013 105 487"
     ],
     "accountHolder": "TE SOKCHAN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Coral Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ខូរ៉ល"
   },
   {
     "entry": "C01888",
     "customerId": "C01888",
-    "name": "អេសធីឌីជីថល ខាដខាមលែប",
+    "name": "ST Digital CAD CAM LAB",
     "rawAcct": "001 098 894",
     "acct": "001098894",
     "accounts": [
@@ -1477,12 +1663,14 @@
       "001 098 894"
     ],
     "accountHolder": "VANNY VUTHY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "ST Digital CAD CAM LAB",
+    "nameKh": "អេសធីឌីជីថល ខាដខាមលែប"
   },
   {
     "entry": "C01890",
     "customerId": "C01890",
-    "name": "គ្លីនិកធ្មេញកេសរ",
+    "name": "Kesara Dental Clinic",
     "rawAcct": "005 278 366",
     "acct": "005278366",
     "accounts": [
@@ -1492,12 +1680,14 @@
       "005 278 366"
     ],
     "accountHolder": "SAN CHENDA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Kesara Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញកេសរ"
   },
   {
     "entry": "C01892",
     "customerId": "C01892",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ គ្រីស្តាល់",
+    "name": "Crystal Dental Laboratroy",
     "rawAcct": "003 348 938",
     "acct": "003348938",
     "accounts": [
@@ -1507,12 +1697,14 @@
       "003 348 938"
     ],
     "accountHolder": "Kol Theara",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Crystal Dental Laboratroy",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ គ្រីស្តាល់"
   },
   {
     "entry": "C01896",
     "customerId": "C01896",
-    "name": "ពេទ្យធ្មេញ ហ៊ាង លាងហ៊",
+    "name": "Heang Leanghor Dental Clinic",
     "rawAcct": "037 402 650 001",
     "acct": "037402650001",
     "accounts": [
@@ -1522,12 +1714,14 @@
       "037 402 650 001"
     ],
     "accountHolder": "Proeung Leanghor",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Heang Leanghor Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ហ៊ាង លាងហ៊"
   },
   {
     "entry": "C01898",
     "customerId": "C01898",
-    "name": "ពេទ្យធ្មេញ អូ ប៊ី អាយ",
+    "name": "OBI Dental Clinic",
     "rawAcct": "344 806 589 324 28",
     "acct": "34480658932428",
     "accounts": [
@@ -1537,12 +1731,14 @@
       "344 806 589 324 28"
     ],
     "accountHolder": "Im Daren",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "OBI Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អូ ប៊ី អាយ"
   },
   {
     "entry": "C01899",
     "customerId": "C01899",
-    "name": "ពេទ្យធ្មេញ អូរ៉លវ៉ែល",
+    "name": "Oral Well Dental Clinic",
     "rawAcct": "000 922 488",
     "acct": "000922488",
     "accounts": [
@@ -1552,12 +1748,14 @@
       "000 922 488"
     ],
     "accountHolder": "PHAL SOPANHA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Oral Well Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អូរ៉លវ៉ែល"
   },
   {
     "entry": "C01905",
     "customerId": "C01905",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ស៊ឺន ហ៊ុន",
+    "name": "Soen Hon Dental Laboratory",
     "rawAcct": "968 844 994",
     "acct": "968844994",
     "accounts": [
@@ -1567,12 +1765,14 @@
       "968 844 994"
     ],
     "accountHolder": "THOEURN SOENGHON / Thoeurn Soenghon",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Soen Hon Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ស៊ឺន ហ៊ុន"
   },
   {
     "entry": "C01906",
     "customerId": "C01906",
-    "name": "ពេទ្យធ្មេញ ម៉េង ដាលីន",
+    "name": "Meng Dalin Dental Clinic",
     "rawAcct": "010 997 971",
     "acct": "010997971",
     "accounts": [
@@ -1582,12 +1782,14 @@
       "010 997 971"
     ],
     "accountHolder": "MENG DALIN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Meng Dalin Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ម៉េង ដាលីន"
   },
   {
     "entry": "C01907",
     "customerId": "C01907",
-    "name": "ពេទ្យធ្មេញ ឡឹក វណ្ណា",
+    "name": "Loeuk Vanna Dental Clinic",
     "rawAcct": "000 270 813",
     "acct": "000270813",
     "accounts": [
@@ -1597,12 +1799,14 @@
       "000 270 813"
     ],
     "accountHolder": "LOEUK VANNA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Loeuk Vanna Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ឡឹក វណ្ណា"
   },
   {
     "entry": "C01911",
     "customerId": "C01911",
-    "name": "មន្ទីរព្យាបាលធ្មេញ ឌ្រីម ឌេនធល ប៊ីយ៉ូធី",
+    "name": "Dream Dental Beauty Clinic",
     "rawAcct": "009 125 755",
     "acct": "009125755",
     "accounts": [
@@ -1612,12 +1816,14 @@
       "009 125 755"
     ],
     "accountHolder": "YIM THAVON AND THANN THAMM AND PENG LYKHIM / Yimthavon and Thann Thamm and Penh Lykim",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Dream Dental Beauty Clinic",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញ ឌ្រីម ឌេនធល ប៊ីយ៉ូធី"
   },
   {
     "entry": "C01915",
     "customerId": "C01915",
-    "name": "ពេទ្យធ្មេញ ភីសែល-ចម្ការដូង",
+    "name": "Pixel Dental Clinic-CKD",
     "rawAcct": "000 913 603",
     "acct": "000913603",
     "accounts": [
@@ -1627,12 +1833,14 @@
       "000 913 603"
     ],
     "accountHolder": "KONG VILIN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Pixel Dental Clinic-CKD",
+    "nameKh": "ពេទ្យធ្មេញ ភីសែល-ចម្ការដូង"
   },
   {
     "entry": "C01921",
     "customerId": "C01921",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ម៉ាយ ឡេប",
+    "name": "My Lab Dental Laboratory",
     "rawAcct": "077 781 188",
     "acct": "077781188",
     "accounts": [
@@ -1642,12 +1850,14 @@
       "077 781 188"
     ],
     "accountHolder": "METH SOVANN / Meth Sovann",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "My Lab Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ម៉ាយ ឡេប"
   },
   {
     "entry": "C01925",
     "customerId": "C01925",
-    "name": "ពេទ្យធ្មេញ ឌីអរ",
+    "name": "DR. Dental Clinic",
     "rawAcct": "004 543 113",
     "acct": "004543113",
     "accounts": [
@@ -1657,12 +1867,14 @@
       "004 543 113"
     ],
     "accountHolder": "SIM SELACHESDA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "DR. Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ឌីអរ"
   },
   {
     "entry": "C01943",
     "customerId": "C01943",
-    "name": "គ្លីនិកទន្តសាស្រ្ត ដុកទ័រ 33",
+    "name": "Dr. 33 Dental Clinic",
     "rawAcct": "347 304 006 303 43",
     "acct": "34730400630343",
     "accounts": [
@@ -1672,7 +1884,9 @@
       "347 304 006 303 43"
     ],
     "accountHolder": "Mon Huylin",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Dr. 33 Dental Clinic",
+    "nameKh": "គ្លីនិកទន្តសាស្រ្ត ដុកទ័រ 33"
   },
   {
     "entry": "C01945",
@@ -1692,7 +1906,7 @@
   {
     "entry": "C01949",
     "customerId": "C01949",
-    "name": "ឌីអាយអូ ខេមបូឌា ខូ អិល ធី ឌី",
+    "name": "DIO Cambodia Co.,LTD",
     "rawAcct": "019 463 426",
     "acct": "019463426",
     "accounts": [
@@ -1702,7 +1916,9 @@
       "019 463 426"
     ],
     "accountHolder": "Sam Lyly",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "DIO Cambodia Co.,LTD",
+    "nameKh": "ឌីអាយអូ ខេមបូឌា ខូ អិល ធី ឌី"
   },
   {
     "entry": "C01952",
@@ -1722,7 +1938,7 @@
   {
     "entry": "C01958",
     "customerId": "C01958",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ព្រីមៀម",
+    "name": "Premium Dental Laboratory",
     "rawAcct": "001 498 485",
     "acct": "001498485",
     "accounts": [
@@ -1732,12 +1948,14 @@
       "001 498 485"
     ],
     "accountHolder": "KOUL RATHANA / Koul Rathana",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Premium Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ព្រីមៀម"
   },
   {
     "entry": "C01966",
     "customerId": "C01966",
-    "name": "គ្លីនិកធ្មេញ ដេស៊ី",
+    "name": "Daisy Dental Clinic",
     "rawAcct": "004 707 435",
     "acct": "004707435",
     "accounts": [
@@ -1747,12 +1965,14 @@
       "004 707 435"
     ],
     "accountHolder": "LY KANHALINTA AND SEM BUNNY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Daisy Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ដេស៊ី"
   },
   {
     "entry": "C01968",
     "customerId": "C01968",
-    "name": "មន្ទីរព្យាបាលធ្មេញឯកទេស ម៉ាស្ទ័រភីស",
+    "name": "MASTERPIECE Dental Specialist Center",
     "rawAcct": "001 854 040",
     "acct": "001854040",
     "accounts": [
@@ -1762,12 +1982,14 @@
       "001 854 040"
     ],
     "accountHolder": "Sreng Rithy",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "MASTERPIECE Dental Specialist Center",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញឯកទេស ម៉ាស្ទ័រភីស"
   },
   {
     "entry": "C01975",
     "customerId": "C01975",
-    "name": "ពេទ្យធ្មេញ ដងទង់ថ្មី២",
+    "name": "Dang Tong Thmey II Dental Clinic-PP",
     "rawAcct": "500 579 127",
     "acct": "500579127",
     "accounts": [
@@ -1777,12 +1999,14 @@
       "500 579 127"
     ],
     "accountHolder": "THANN CHANTHOU",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Dang Tong Thmey II Dental Clinic-PP",
+    "nameKh": "ពេទ្យធ្មេញ ដងទង់ថ្មី២"
   },
   {
     "entry": "C01980",
     "customerId": "C01980",
-    "name": "គ្លីនិកធ្មេញ មូន",
+    "name": "Moon TK Dental Clinic",
     "rawAcct": "015 532 195",
     "acct": "015532195",
     "accounts": [
@@ -1792,12 +2016,14 @@
       "015 532 195"
     ],
     "accountHolder": "Sam Lyly and Kim Dypraktong and Sem Makara and Chhon Thida",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Moon TK Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ មូន"
   },
   {
     "entry": "C01981",
     "customerId": "C01981",
-    "name": "គ្លីនិចធ្មេញ ប្រាយឡាញ",
+    "name": "Brightline Dental Clinic",
     "rawAcct": "077 333 309",
     "acct": "077333309",
     "accounts": [
@@ -1807,12 +2033,14 @@
       "077 333 309"
     ],
     "accountHolder": "SOMRIT CHAN SOPHEAK",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Brightline Dental Clinic",
+    "nameKh": "គ្លីនិចធ្មេញ ប្រាយឡាញ"
   },
   {
     "entry": "C01995",
     "customerId": "C01995",
-    "name": "មន្ទីរព្យាបាលធ្មេញ អាយដល",
+    "name": "Idol Dental Clinic",
     "rawAcct": "099 600 055",
     "acct": "099600055",
     "accounts": [
@@ -1822,12 +2050,14 @@
       "099 600 055"
     ],
     "accountHolder": "NIN BUNNANG AND KORN SOKUNTHEA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Idol Dental Clinic",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញ អាយដល"
   },
   {
     "entry": "C02004",
     "customerId": "C02004",
-    "name": "គ្លីនិចធ្មេញ សុងហាក់",
+    "name": "Songhak Dental Clinic",
     "rawAcct": "010 646 999",
     "acct": "010646999",
     "accounts": [
@@ -1837,12 +2067,14 @@
       "010 646 999"
     ],
     "accountHolder": "Mok SongHak",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Songhak Dental Clinic",
+    "nameKh": "គ្លីនិចធ្មេញ សុងហាក់"
   },
   {
     "entry": "C02015",
     "customerId": "C02015",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ដារ៉ូ",
+    "name": "Daro Dental Laboratory",
     "rawAcct": "002 630 082",
     "acct": "002630082",
     "accounts": [
@@ -1852,12 +2084,14 @@
       "002 630 082"
     ],
     "accountHolder": "RITH CHANDARO / Rith Chandaro",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Daro Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ដារ៉ូ"
   },
   {
     "entry": "C02017",
     "customerId": "C02017",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ​ ប្រូធិក",
+    "name": "Protect Dental Laboratory",
     "rawAcct": "000 965 848",
     "acct": "000965848",
     "accounts": [
@@ -1867,12 +2101,14 @@
       "000 965 848"
     ],
     "accountHolder": "Un Chantha",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Protect Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ​ ប្រូធិក"
   },
   {
     "entry": "C02022",
     "customerId": "C02022",
-    "name": "ពេទ្យធ្មេញ វុទ្ធី សិទ្ធី",
+    "name": "Vuthy Seth Dental Clinic",
     "rawAcct": "000 514 461",
     "acct": "000514461",
     "accounts": [
@@ -1882,12 +2118,14 @@
       "000 514 461"
     ],
     "accountHolder": "LAY SOPHANNA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Vuthy Seth Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ វុទ្ធី សិទ្ធី"
   },
   {
     "entry": "C02023",
     "customerId": "C02023",
-    "name": "ពេទ្យធ្មេញ សុជាតា",
+    "name": "Socheata Dental Clinic",
     "rawAcct": "014 950 749",
     "acct": "014950749",
     "accounts": [
@@ -1897,12 +2135,14 @@
       "014 950 749"
     ],
     "accountHolder": "SENG OUNNANG AND JOHN SAMBATH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Socheata Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ សុជាតា"
   },
   {
     "entry": "C02026",
     "customerId": "C02026",
-    "name": "ពេទ្យធ្មេញ ថាម៍",
+    "name": "Time Dental Clinic",
     "rawAcct": "001 140 432",
     "acct": "001140432",
     "accounts": [
@@ -1912,12 +2152,14 @@
       "001 140 432"
     ],
     "accountHolder": "CHHAY YOUMENG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Time Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ ថាម៍"
   },
   {
     "entry": "C02029",
     "customerId": "C02029",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ហ្សឺកូនៀម",
+    "name": "Zirconia Dental laboratory",
     "rawAcct": "105 469 341 / 018 397 509",
     "acct": "105469341",
     "accounts": [
@@ -1929,12 +2171,14 @@
       "018 397 509"
     ],
     "accountHolder": "TAUCH SOKUNTHEA / CHHEANG SEIRIROTH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Zirconia Dental laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ហ្សឺកូនៀម"
   },
   {
     "entry": "C02036",
     "customerId": "C02036",
-    "name": "ពេទ្យធ្មេញ M25",
+    "name": "M25 Dental Clinic",
     "rawAcct": "000 598 739",
     "acct": "000598739",
     "accounts": [
@@ -1944,12 +2188,14 @@
       "000 598 739"
     ],
     "accountHolder": "MUOY YUTH SAMNANG AND TOUCH KOUNG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "M25 Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ M25"
   },
   {
     "entry": "C02039",
     "customerId": "C02039",
-    "name": "ពេទ្យធ្មេញ អាន ណារ៉េ",
+    "name": "An Nare Dental Clinic",
     "rawAcct": "424 656 999",
     "acct": "424656999",
     "accounts": [
@@ -1959,12 +2205,14 @@
       "424 656 999"
     ],
     "accountHolder": "OUK NE",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "An Nare Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ អាន ណារ៉េ"
   },
   {
     "entry": "C02040",
     "customerId": "C02040",
-    "name": "គ្លីនិកធ្មេញ រ៉ូយ៉ាល់",
+    "name": "Royal Dental Cabinet",
     "rawAcct": "500 483 628",
     "acct": "500483628",
     "accounts": [
@@ -1974,12 +2222,14 @@
       "500 483 628"
     ],
     "accountHolder": "HENG KIMTEANG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Royal Dental Cabinet",
+    "nameKh": "គ្លីនិកធ្មេញ រ៉ូយ៉ាល់"
   },
   {
     "entry": "C02041",
     "customerId": "C02041",
-    "name": "គ្លិនិកធ្មេញ មុនិ",
+    "name": "MUNI DENTAL CLINIC",
     "rawAcct": "011 361 433",
     "acct": "011361433",
     "accounts": [
@@ -1989,12 +2239,14 @@
       "011 361 433"
     ],
     "accountHolder": "PHOM THANY AND PHOM CHANTHY AND HAN PITOU",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "MUNI DENTAL CLINIC",
+    "nameKh": "គ្លិនិកធ្មេញ មុនិ"
   },
   {
     "entry": "C02048",
     "customerId": "C02048",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ ខេ អេក",
+    "name": "KH Dental Laboratory",
     "rawAcct": "012 666 454",
     "acct": "012666454",
     "accounts": [
@@ -2004,12 +2256,14 @@
       "012 666 454"
     ],
     "accountHolder": "SREY SOKHENG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "KH Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ ខេ អេក"
   },
   {
     "entry": "C02052",
     "customerId": "C02052",
-    "name": "មន្ទីរព្យាបាលធ្មេញ អមរា-ទួលគោក",
+    "name": "Amara Dental Clinic-TK",
     "rawAcct": "130 620 244",
     "acct": "130620244",
     "accounts": [
@@ -2019,12 +2273,14 @@
       "130 620 244"
     ],
     "accountHolder": "EM LEKHENA AND CHHAY MANITH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Amara Dental Clinic-TK",
+    "nameKh": "មន្ទីរព្យាបាលធ្មេញ អមរា-ទួលគោក"
   },
   {
     "entry": "C02054",
     "customerId": "C02054",
-    "name": "ពេទ្យធ្មេញ​ ចាន់ ដាវិដ",
+    "name": "Chan Davin Dental Clinic",
     "rawAcct": "002 359 434",
     "acct": "002359434",
     "accounts": [
@@ -2034,12 +2290,14 @@
       "002 359 434"
     ],
     "accountHolder": "CHAN DAVIN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Chan Davin Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ​ ចាន់ ដាវិដ"
   },
   {
     "entry": "C02058",
     "customerId": "C02058",
-    "name": "គ្លីនិកធ្មេញ លំអង",
+    "name": "Lumorng Dental Clinic",
     "rawAcct": "016 298 777 / 078 896 800",
     "acct": "016298777",
     "accounts": [
@@ -2051,12 +2309,14 @@
       "078 896 800"
     ],
     "accountHolder": "HORN SARATHPANHA AND KANG WATANA / Sarath Panha",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Lumorng Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ លំអង"
   },
   {
     "entry": "C02064",
     "customerId": "C02064",
-    "name": "មន្ទីផលិតគ្រាប់ធ្មេញ ភឺហ្វិក ស្មាយ",
+    "name": "Perfect Smile Aesthetic Dental Laboratory",
     "rawAcct": "077 333 309",
     "acct": "077333309",
     "accounts": [
@@ -2066,12 +2326,14 @@
       "077 333 309"
     ],
     "accountHolder": "SOMRIT CHAN SOPHEAK",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Perfect Smile Aesthetic Dental Laboratory",
+    "nameKh": "មន្ទីផលិតគ្រាប់ធ្មេញ ភឺហ្វិក ស្មាយ"
   },
   {
     "entry": "C02065",
     "customerId": "C02065",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ អេលីត",
+    "name": "Elite Dental Laboratory",
     "rawAcct": "016 220 210",
     "acct": "016220210",
     "accounts": [
@@ -2081,12 +2343,14 @@
       "016 220 210"
     ],
     "accountHolder": "CHOUR SEAKMEY AND SAO SOKSAN AND EAM KONGKEA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Elite Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ អេលីត"
   },
   {
     "entry": "C02068",
     "customerId": "C02068",
-    "name": "គ្លីនិកធ្មេញ​ ពិសិដ្ខ-ព្រះវិហារ",
+    "name": "Piseth Dental Clinic-Preah Vihea",
     "rawAcct": "900 007 577 4919",
     "acct": "9000075774919",
     "accounts": [
@@ -2096,12 +2360,14 @@
       "900 007 577 4919"
     ],
     "accountHolder": "Srey Piseth",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Piseth Dental Clinic-Preah Vihea",
+    "nameKh": "គ្លីនិកធ្មេញ​ ពិសិដ្ខ-ព្រះវិហារ"
   },
   {
     "entry": "C02076",
     "customerId": "C02076",
-    "name": "បន្ទប់ពិគ្រោះជម្ងឺ មាត់ធ្មេញ អ អិន អ៊ី",
+    "name": "R&E Dental Clinic",
     "rawAcct": "000 534 947",
     "acct": "000534947",
     "accounts": [
@@ -2111,12 +2377,14 @@
       "000 534 947"
     ],
     "accountHolder": "TAK RANUCH",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "R&E Dental Clinic",
+    "nameKh": "បន្ទប់ពិគ្រោះជម្ងឺ មាត់ធ្មេញ អ អិន អ៊ី"
   },
   {
     "entry": "C02086",
     "customerId": "C02086",
-    "name": "គ្លីនិកធ្មេញ មុនិ-ភ្នំពេញ",
+    "name": "MUNI Dental Clinic-PP",
     "rawAcct": "015 428 900",
     "acct": "015428900",
     "accounts": [
@@ -2126,12 +2394,14 @@
       "015 428 900"
     ],
     "accountHolder": "PHOM CHANTHY AND HAN PITOU AND OU VONGPISEY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "MUNI Dental Clinic-PP",
+    "nameKh": "គ្លីនិកធ្មេញ មុនិ-ភ្នំពេញ"
   },
   {
     "entry": "C02087",
     "customerId": "C02087",
-    "name": "គ្លីនិកធ្មេញ ស៊ាន ផេង",
+    "name": "Seang Pheng Dental Clinic",
     "rawAcct": "092 056 295 122 001 02",
     "acct": "09205629512200102",
     "accounts": [
@@ -2141,12 +2411,14 @@
       "092 056 295 122 001 02"
     ],
     "accountHolder": "OUCH VITA",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Seang Pheng Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ស៊ាន ផេង"
   },
   {
     "entry": "C02090",
     "customerId": "C02090",
-    "name": "បន្ទប់ពិគ្រោះព្យាបាលជម្ងឺមាត់ធ្មេញ ប្រេស ស្តូឌីយោ",
+    "name": "Brace Studio Dental Clinic",
     "rawAcct": "096 363 3333",
     "acct": "0963633333",
     "accounts": [
@@ -2156,7 +2428,9 @@
       "096 363 3333"
     ],
     "accountHolder": "Ly Mengkheang",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Brace Studio Dental Clinic",
+    "nameKh": "បន្ទប់ពិគ្រោះព្យាបាលជម្ងឺមាត់ធ្មេញ ប្រេស ស្តូឌីយោ"
   },
   {
     "entry": "C02093",
@@ -2176,7 +2450,7 @@
   {
     "entry": "C02096",
     "customerId": "C02096",
-    "name": "ពេទ្យធ្មេញ គីម សាន",
+    "name": "Kim San Dental Clinic - DK",
     "rawAcct": "006 319 998",
     "acct": "006319998",
     "accounts": [
@@ -2186,12 +2460,14 @@
       "006 319 998"
     ],
     "accountHolder": "OEURN SAN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Kim San Dental Clinic - DK",
+    "nameKh": "ពេទ្យធ្មេញ គីម សាន"
   },
   {
     "entry": "C02097",
     "customerId": "C02097",
-    "name": "ពេទ្យធេ្មញ អាយ ដៀល",
+    "name": "I Deal Dental Clinic",
     "rawAcct": "343 706 309 233 23",
     "acct": "34370630923323",
     "accounts": [
@@ -2201,12 +2477,14 @@
       "343 706 309 233 23"
     ],
     "accountHolder": "Korn Chheang Hy",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "I Deal Dental Clinic",
+    "nameKh": "ពេទ្យធេ្មញ អាយ ដៀល"
   },
   {
     "entry": "C02098",
     "customerId": "C02098",
-    "name": "គ្លីនិកធ្មេញ រៀម",
+    "name": "Ream Dental Studio",
     "rawAcct": "003 450 767",
     "acct": "003450767",
     "accounts": [
@@ -2216,12 +2494,14 @@
       "003 450 767"
     ],
     "accountHolder": "TUY DAWIN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Ream Dental Studio",
+    "nameKh": "គ្លីនិកធ្មេញ រៀម"
   },
   {
     "entry": "C02099",
     "customerId": "C02099",
-    "name": "គ្លីនិកធ្មេញ ឡា មករា",
+    "name": "La Makara Dental Clinic",
     "rawAcct": "345 905 828 084 17",
     "acct": "34590582808417",
     "accounts": [
@@ -2231,12 +2511,14 @@
       "345 905 828 084 17"
     ],
     "accountHolder": "La Makara",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "La Makara Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ឡា មករា"
   },
   {
     "entry": "C02107",
     "customerId": "C02107",
-    "name": "មន្ទីរពេទ្យធ្មេញ វចនា",
+    "name": "Vachana Dental Clinic",
     "rawAcct": "090---717",
     "acct": "090717",
     "accounts": [
@@ -2246,12 +2528,14 @@
       "090---717"
     ],
     "accountHolder": "SREAN BUNSRUNG",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Vachana Dental Clinic",
+    "nameKh": "មន្ទីរពេទ្យធ្មេញ វចនា"
   },
   {
     "entry": "C02114",
     "customerId": "C02114",
-    "name": "គ្លីនិកធ្មេញ ស៊ាង ហេង",
+    "name": "Seang Heng Dental Clinic",
     "rawAcct": "360 003 812 399 28",
     "acct": "36000381239928",
     "accounts": [
@@ -2261,12 +2545,14 @@
       "360 003 812 399 28"
     ],
     "accountHolder": "Loem Lisang",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Seang Heng Dental Clinic",
+    "nameKh": "គ្លីនិកធ្មេញ ស៊ាង ហេង"
   },
   {
     "entry": "C02116",
     "customerId": "C02116",
-    "name": "បន្ទប់ពិគ្រោះព្យាបាលជម្ងឺមាត់ធ្មេញ ឃែរ ផ្លឹស",
+    "name": "Care Plus Dental Clinic",
     "rawAcct": "001 526 428",
     "acct": "001526428",
     "accounts": [
@@ -2276,12 +2562,14 @@
       "001 526 428"
     ],
     "accountHolder": "SONG SREYLAK",
-    "telegram": "@OngMach2026"
+    "telegram": "@OngMach2026",
+    "nameEn": "Care Plus Dental Clinic",
+    "nameKh": "បន្ទប់ពិគ្រោះព្យាបាលជម្ងឺមាត់ធ្មេញ ឃែរ ផ្លឹស"
   },
   {
     "entry": "C02117",
     "customerId": "C02117",
-    "name": "គ្លីនិកព្យាបាលធ្មេញ ពន្លឺដួងច័ន្ទ",
+    "name": "Ponleu Doung Chan Dental Clinic",
     "rawAcct": "000 276 902",
     "acct": "000276902",
     "accounts": [
@@ -2291,12 +2579,14 @@
       "000 276 902"
     ],
     "accountHolder": "CHAN PHIRUN",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Ponleu Doung Chan Dental Clinic",
+    "nameKh": "គ្លីនិកព្យាបាលធ្មេញ ពន្លឺដួងច័ន្ទ"
   },
   {
     "entry": "C02120",
     "customerId": "C02120",
-    "name": "គ្លីនិកសម្ផស្សមាត់-ធ្មេញ ផ្កា",
+    "name": "PKA Dental Aesthetic",
     "rawAcct": "014 658 421",
     "acct": "014658421",
     "accounts": [
@@ -2306,12 +2596,14 @@
       "014 658 421"
     ],
     "accountHolder": "NUON SREYKIM AND CHEA PHUMPHALLEAP",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "PKA Dental Aesthetic",
+    "nameKh": "គ្លីនិកសម្ផស្សមាត់-ធ្មេញ ផ្កា"
   },
   {
     "entry": "C02122",
     "customerId": "C02122",
-    "name": "គ្លីនិកធ្មេញ ដេនធីកា",
+    "name": "Dentica Dental Care",
     "rawAcct": "018 178 207",
     "acct": "018178207",
     "accounts": [
@@ -2321,12 +2613,14 @@
       "018 178 207"
     ],
     "accountHolder": "HUY SOPHEAVY AND SEM BUNNY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Dentica Dental Care",
+    "nameKh": "គ្លីនិកធ្មេញ ដេនធីកា"
   },
   {
     "entry": "C02124",
     "customerId": "C02124",
-    "name": "ឡាបូផលិតគ្រាប់ធ្មេញ សាន់ អិន ម៉ូន",
+    "name": "Sun and Moon Dental Laboratory",
     "rawAcct": "000 228 256",
     "acct": "000228256",
     "accounts": [
@@ -2336,12 +2630,14 @@
       "000 228 256"
     ],
     "accountHolder": "UY SOTHAROTH / Uy Sotharoth",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Sun and Moon Dental Laboratory",
+    "nameKh": "ឡាបូផលិតគ្រាប់ធ្មេញ សាន់ អិន ម៉ូន"
   },
   {
     "entry": "C02133",
     "customerId": "C02133",
-    "name": "បន្ទប់ពិគ្រោះព្យាបាលជំហឺមាត់-ធ្មេញ  ហ្វឺសស្មាយ",
+    "name": "First Smile Dental Clinic",
     "rawAcct": "005 195 589",
     "acct": "005195589",
     "accounts": [
@@ -2351,12 +2647,14 @@
       "005 195 589"
     ],
     "accountHolder": "HONG HENGCHAY",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "First Smile Dental Clinic",
+    "nameKh": "បន្ទប់ពិគ្រោះព្យាបាលជំហឺមាត់-ធ្មេញ  ហ្វឺសស្មាយ"
   },
   {
     "entry": "C02134",
     "customerId": "C02134",
-    "name": "ពេទ្យធ្មេញ វ៉ាត សារាក់",
+    "name": "Wat Sarac Dental Clinic",
     "rawAcct": "037 005 650 001",
     "acct": "037005650001",
     "accounts": [
@@ -2366,6 +2664,8 @@
       "037 005 650 001"
     ],
     "accountHolder": "Vatt Sarak and Ut Kunthy",
-    "telegram": ""
+    "telegram": "",
+    "nameEn": "Wat Sarac Dental Clinic",
+    "nameKh": "ពេទ្យធ្មេញ វ៉ាត សារាក់"
   }
 ]

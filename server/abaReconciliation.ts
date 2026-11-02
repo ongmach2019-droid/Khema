@@ -104,6 +104,7 @@ export interface AbaState {
     acc?: string;
     name?: string;
   }>;
+  tgSent?: Record<string, any>;
   profiles?: Record<string, any>;
   printPrefs?: any;
   discounts?: Record<string, any>;
@@ -210,6 +211,13 @@ export function getAbaStateStatus(): { success: boolean; updatedAt: string; summ
   let latestTs = cached?.updatedAt || '';
   if (shared?.updatedAt && (!latestTs || shared.updatedAt > latestTs)) {
     latestTs = shared.updatedAt;
+  }
+  const tgSentPath = path.join(dataDir, 'tg_sent.json');
+  if (fs.existsSync(tgSentPath)) {
+    try {
+      const tgMtime = fs.statSync(tgSentPath).mtime.toISOString();
+      if (!latestTs || tgMtime > latestTs) latestTs = tgMtime;
+    } catch {}
   }
   if (!latestTs) latestTs = new Date().toISOString();
   return {
@@ -407,7 +415,8 @@ export function getCanonicalCustomerName(code: string, name: string): string {
   if (c === 'C00168' || rawName.toLowerCase().includes('ong mach')) {
     return 'C00168 - Chheung Eng Hong Dental Clinic';
   }
-  const clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–]\s*)+/gi, '').trim();
+  // Strip any existing repeated code prefixes (e.g. "C00007 - ", "C00007 - C00007 - ")
+  const clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–:]\s*)+/gi, '').trim();
   if (c && clean) {
     return `${c} - ${clean}`;
   }
@@ -784,7 +793,13 @@ export function computeAbaReconciliation(): AbaState {
           );
 
           const englishFromFile = rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
-          const baseName = prof.nameEn || englishFromFile || (matchedAcc && (matchedAcc.nameEn || matchedAcc.name)) || rawName;
+          const hasLatin = /[a-zA-Z]/.test(englishFromFile);
+          const englishClean = hasLatin ? englishFromFile : '';
+          const baseName = (prof.nameEn && /[a-zA-Z]/.test(prof.nameEn) ? prof.nameEn : '') ||
+                           englishClean ||
+                           (matchedAcc?.nameEn && /[a-zA-Z]/.test(matchedAcc.nameEn) ? matchedAcc.nameEn : '') ||
+                           (matchedAcc?.name && !/[\u1780-\u17FF]/.test(matchedAcc.name) ? matchedAcc.name : '') ||
+                           rawName;
           const displayName = getCanonicalCustomerName(custId, baseName);
           const uniqueKey = `${slot}_${displayName}`;
 
@@ -793,7 +808,10 @@ export function computeAbaReconciliation(): AbaState {
             continue;
           }
 
-          let custEn = prof.nameEn || englishFromFile || (matchedAcc?.nameEn || matchedAcc?.name || englishFromFile);
+          let custEn = (prof.nameEn && /[a-zA-Z]/.test(prof.nameEn) ? prof.nameEn : '') ||
+                       englishClean ||
+                       (matchedAcc?.nameEn && /[a-zA-Z]/.test(matchedAcc.nameEn) ? matchedAcc.nameEn : '') ||
+                       displayName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
           let custKh = prof.nameKh || (matchedAcc?.nameKh || matchedAcc?.name || custEn);
           if (custId === 'C00168' || custKh.toLowerCase().includes('ong mach') || custEn.toLowerCase().includes('ong mach')) {
             custKh = 'ពេទ្យធ្មេញ ឈឿង អេងហុង';
@@ -1093,14 +1111,15 @@ export function computeAbaReconciliation(): AbaState {
     let running = 0;
     D.invoices.forEach((v, idx) => {
       v.no = idx + 1;
-      running += v.amt;
+      running += (v.bal != null ? v.bal : v.amt);
       v.runBal = Math.round(running * 100) / 100;
     });
 
     let availablePay = D.payments.reduce((s, p) => s + p.amt, 0);
-    D.owed = D.invoices.reduce((s, v) => s + v.amt, 0);
-    D.discountTotal = D.invoices.reduce((s, v) => s + (v.discount || 0), 0);
-    D.paidBeforeTotal = D.invoices.reduce((s, v) => s + (v.paidBefore || 0), 0);
+    // Total Debt captures strictly Balance from file (matches Excel row 3479 Total Balance: 117,713.15)
+    D.owed = Math.round(D.invoices.reduce((s, v) => s + (v.bal != null ? v.bal : v.amt), 0) * 100) / 100;
+    D.discountTotal = Math.round(D.invoices.reduce((s, v) => s + (v.discount || 0), 0) * 100) / 100;
+    D.paidBeforeTotal = Math.round(D.invoices.reduce((s, v) => s + (v.paidBefore || 0), 0) * 100) / 100;
 
     D.invoices.forEach(v => {
       const initPb = Math.max(0, (v.origAmt || 0) - (v.bal || 0));
@@ -1154,7 +1173,7 @@ export function computeAbaReconciliation(): AbaState {
 
     D.paidTotal = D.invoices.reduce((s, v) => s + (v.paidNow || 0), 0);
     D.paidCurrent = D.paidTotal;
-    D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+    D.rem = Math.max(0, Math.round((D.owed - (D.discountTotal || 0) - D.paidTotal) * 100) / 100);
     D.extra = Math.round(availablePay * 100) / 100;
 
     if (D.owed > 0 && D.rem <= 0.005) {
@@ -1220,6 +1239,7 @@ export function computeAbaReconciliation(): AbaState {
     activeBankKey,
     doctors: resultDoctors,
     unmatched,
+    tgSent: parseTgSent(),
     updatedAt: new Date().toISOString()
   };
 
@@ -1242,6 +1262,23 @@ export function getAbaState(force = false): AbaState {
         cached.profiles = cached.profiles || parseCustomerProfiles();
         cached.printPrefs = shared.printPrefs;
         cached.discounts = shared.discounts;
+        cached.tgSent = parseTgSent();
+        let sentCnt = 0;
+        if (cached.doctors) {
+          cached.doctors.forEach(d => {
+            const isSent = cached.tgSent?.[d.name] || cached.tgSent?.[d.customerId] || (d.meta?.custNo && cached.tgSent?.[d.meta.custNo]);
+            if (isSent) {
+              d.tgSent = isSent;
+              sentCnt++;
+            } else {
+              d.tgSent = null;
+            }
+          });
+          if (cached.summary) {
+            cached.summary.tgSentCount = sentCnt;
+            cached.summary.tgNotSentCount = cached.doctors.length - sentCnt;
+          }
+        }
         return cached;
       }
     }
@@ -1572,6 +1609,24 @@ export function markAbaTelegramSent(name: string, custId?: string, target?: stri
     }
   }
   writeJsonFile('tg_sent.json', tgSent);
+
+  // Synchronously mirror tg_sent.json to all network drives
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'tg_sent.json'), JSON.stringify(tgSent, null, 2), 'utf-8');
+    } catch {}
+  });
+
+  // Touch cached state.json so pollServerUpdates sees immediate change
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    cached.tgSent = tgSent;
+    cached.updatedAt = new Date().toISOString();
+    writeJsonFile('state.json', cached);
+  }
+
   return computeAbaReconciliation();
 }
 
@@ -1586,6 +1641,12 @@ export function resetAbaTelegramSent(): AbaState {
       if (fs.existsSync(netTg)) { fs.unlinkSync(netTg); }
     } catch {}
   });
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    cached.tgSent = {};
+    cached.updatedAt = new Date().toISOString();
+    writeJsonFile('state.json', cached);
+  }
   return computeAbaReconciliation();
 }
 
@@ -1803,9 +1864,8 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
               address: prof.address || (d.meta && d.meta.address),
               currency: prof.currency || (d.meta && d.meta.currency)
             });
-            if (prof.nameKh || prof.nameEn) {
-              const codePrefix = d.id ? `${d.id} - ` : '';
-              d.name = codePrefix + (prof.nameEn || prof.nameKh || d.name);
+            if (prof.nameEn) {
+              d.name = getCanonicalCustomerName(d.id, prof.nameEn);
             }
           }
         });

@@ -2326,6 +2326,25 @@ app.get('/api/download-excel', (req, res) => {
       ? `ABA_Transactions_${safeSheetName}${periodSuffix}.xlsx`
       : `GL_${safeSheetName}${periodSuffix}.xlsx`;
 
+    // Automatically preserve downloaded file copy to H:\ drive and ame_exports
+    try {
+      const candidateDrives = ['H:\\', 'Z:\\'];
+      for (const d of candidateDrives) {
+        if (fs.existsSync(d)) {
+          const exportDir = path.join(d, 'InvoiceAI', 'ame_exports');
+          if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+          fs.writeFileSync(path.join(exportDir, downloadFilename), buf);
+          console.log(`✓ Preserved downloaded Excel copy to network drive: ${path.join(exportDir, downloadFilename)}`);
+          break;
+        }
+      }
+      const localAme = path.join(process.cwd(), 'data', 'aba', 'ame_exports');
+      if (!fs.existsSync(localAme)) fs.mkdirSync(localAme, { recursive: true });
+      fs.writeFileSync(path.join(localAme, downloadFilename), buf);
+    } catch (saveErr) {
+      console.warn('Could not auto-save download copy to Drive H:', saveErr);
+    }
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
     res.setHeader('Content-Length', buf.length);
@@ -2394,6 +2413,22 @@ app.get('/api/download-gl-csv', (req, res) => {
 
     const safeSheetName = targetSheet.replace(/[^a-zA-Z0-9_\-]/g, '_');
     const downloadFilename = `GL_${safeSheetName}${periodSuffix}.csv`;
+
+    // Automatically preserve downloaded CSV copy to H:\ drive and ame_exports
+    try {
+      const candidateDrives = ['H:\\', 'Z:\\'];
+      for (const d of candidateDrives) {
+        if (fs.existsSync(d)) {
+          const exportDir = path.join(d, 'InvoiceAI', 'ame_exports');
+          if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+          fs.writeFileSync(path.join(exportDir, downloadFilename), csvContent, 'utf8');
+          break;
+        }
+      }
+      const localAme = path.join(process.cwd(), 'data', 'aba', 'ame_exports');
+      if (!fs.existsSync(localAme)) fs.mkdirSync(localAme, { recursive: true });
+      fs.writeFileSync(path.join(localAme, downloadFilename), csvContent, 'utf8');
+    } catch {}
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
