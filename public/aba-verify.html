@@ -905,7 +905,7 @@ summary:hover{background:var(--bg)}
         <div style="display:grid;grid-template-columns:180px 1.2fr 1.6fr auto;gap:8px;align-items:flex-end">
           <div>
             <label style="font-size:0.75rem;color:#0284c7;display:block;font-weight:700">Telegram (@username ឬ ID):</label>
-            <input type="text" id="newCustTg" placeholder="@OngMach2026" style="width:100%;height:32px;padding:3px 6px;border:1.5px solid #38bdf8;border-radius:4px;color:#0369a1">
+            <input type="text" id="newCustTg" placeholder="@username ឬ Chat ID..." style="width:100%;height:32px;padding:3px 6px;border:1.5px solid #38bdf8;border-radius:4px;color:#0369a1">
           </div>
           <div>
             <label style="font-size:0.75rem;color:#475569;display:block">ទូរស័ព្ទ / Telephone:</label>
@@ -2522,12 +2522,7 @@ if(!localStorage.getItem('aba_tg_bot_token') || !localStorage.getItem('aba_tg_bo
 
 var ACC = (typeof ACC !== 'undefined' && Array.isArray(ACC)) ? ACC : [];
 var TG_DIRECTORY = (typeof TG_DIRECTORY !== 'undefined' && Array.isArray(TG_DIRECTORY)) ? TG_DIRECTORY : [];
-var TG_MAP = {
-    'C00007': '@OngMach2026',
-    'C00013': '@Ziinea0024',
-    '8805554075': '@OngMach2026',
-    '727477829': '@OngMach2026'
-};
+var TG_MAP = {};
 var TG_CHAT_IDS = {
     'C00007': '727477829',
     '@OngMach2026': '727477829',
@@ -2786,9 +2781,7 @@ function getCustomerProfile(custName, custNo) {
             if(p.nameKh && cleanCustName.length >= 4 && (p.nameKh.includes(cleanCustName) || cleanCustName.includes(p.nameKh))) return p;
         }
     }
-    if(custNo === 'C00007' || /C00007/i.test(custName)) {
-        return { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD', bankAccounts: '000 566 234', telegram: '@OngMach2026' };
-    }
+
     return null;
 }
 
@@ -3006,7 +2999,7 @@ function renderCustManagerTable() {
     var missPhoneCount = list.length - hasPhoneCount;
     var hasAccCount = list.filter(x => (x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim())).length;
     var missAccCount = list.length - hasAccCount;
-    var hasTgCount = list.filter(x => (x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()])).length;
+    var hasTgCount = list.filter(x => (x.telegram && String(x.telegram).trim())).length;
     var missTgCount = list.length - hasTgCount;
 
     if($('custTotalCnt')) $('custTotalCnt').textContent = list.length.toLocaleString();
@@ -3027,9 +3020,9 @@ function renderCustManagerTable() {
     } else if(currentCustManagerTab === 'missingAcc') {
         list = list.filter(x => !((x.bankAccounts && String(x.bankAccounts).trim()) || (x.abaAcc && String(x.abaAcc).trim())));
     } else if(currentCustManagerTab === 'hasTg') {
-        list = list.filter(x => (x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()]));
+        list = list.filter(x => (x.telegram && String(x.telegram).trim()));
     } else if(currentCustManagerTab === 'missingTg') {
-        list = list.filter(x => !((x.telegram && String(x.telegram).trim()) || (x.code && TG_MAP[x.code.toUpperCase()])));
+        list = list.filter(x => !(x.telegram && String(x.telegram).trim()));
     }
 
     if(search) {
@@ -3056,13 +3049,7 @@ function renderCustManagerTable() {
     var html = '';
     displayList.forEach((item, idx) => {
         var rawBank = item.bankAccounts || item.abaAcc || '';
-        var rawTg = (item.telegram !== undefined && item.telegram !== null) ? item.telegram : '';
-        var cUp = String(item.code || '').trim().toUpperCase();
-        if(!rawTg && item.telegram === undefined && cUp) {
-            var tgF = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.id && String(x.id).trim().toUpperCase() === cUp);
-            if(tgF && tgF.tg) rawTg = tgF.tg;
-            else if(TG_MAP && TG_MAP[cUp]) rawTg = TG_MAP[cUp];
-        }
+        var rawTg = (item.telegram !== undefined && item.telegram !== null) ? String(item.telegram).trim() : '';
 
         html += '<tr style="border-bottom:1px solid #f1f5f9;background:' + (idx % 2 === 0 ? '#fff' : '#fafafa') + '">' +
             '<td style="text-align:center;color:#94a3b8;font-size:0.75rem">' + (idx + 1) + '</td>' +
@@ -3289,10 +3276,7 @@ function importCustomerProfilesExcel(file) {
 // ============================================================================
 // DOCTOR TELEGRAM DIRECTORY (គ្រប់គ្រងតារាង Telegram គ្រូពេទ្យ)
 // ============================================================================
-var DEFAULT_TG_DIRECTORY = [
-    { id: 'C00007', name: 'Aesthetic Dental Clinic', tg: '@OngMach2026', phone: '0975973959' },
-    { id: 'C00013', name: 'Narun Dental Clinic', tg: '@Ziinea0024', phone: '' }
-];
+var DEFAULT_TG_DIRECTORY = [];
 
 var TG_DIRECTORY = DEFAULT_TG_DIRECTORY.slice();
 try {
@@ -3304,16 +3288,31 @@ try {
 } catch(e) {}
 
 function syncTgMapFromDirectory() {
-    TG_DIRECTORY.forEach(item => {
-        if(item.id && item.tg) {
-            var idUpper = String(item.id).trim().toUpperCase();
-            TG_MAP[String(item.id).trim()] = String(item.tg).trim();
-            TG_MAP[idUpper] = String(item.tg).trim();
+    TG_MAP = {};
+    if(Array.isArray(TG_DIRECTORY)) {
+        TG_DIRECTORY.forEach(item => {
+            if(item && item.id && item.tg && String(item.tg).trim()) {
+                var idUpper = String(item.id).trim().toUpperCase();
+                TG_MAP[String(item.id).trim()] = String(item.tg).trim();
+                TG_MAP[idUpper] = String(item.tg).trim();
+            }
+            if(item && item.name && item.tg && String(item.tg).trim()) {
+                TG_MAP[String(item.name).trim()] = String(item.tg).trim();
+            }
+        });
+    }
+    if(typeof CUSTOMER_PROFILES === 'object' && CUSTOMER_PROFILES) {
+        for(var k in CUSTOMER_PROFILES) {
+            var prof = CUSTOMER_PROFILES[k];
+            if(prof && prof.telegram && String(prof.telegram).trim()) {
+                var tg = String(prof.telegram).trim();
+                var cCode = (prof.code || k).toUpperCase();
+                TG_MAP[cCode] = tg;
+                if(prof.nameEn) TG_MAP[prof.nameEn] = tg;
+                if(prof.nameKh) TG_MAP[prof.nameKh] = tg;
+            }
         }
-        if(item.name && item.tg) {
-            TG_MAP[String(item.name).trim()] = String(item.tg).trim();
-        }
-    });
+    }
     localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
     localStorage.setItem('aba_tg_directory', JSON.stringify(TG_DIRECTORY));
     if(typeof dbSet === 'function') dbSet('aba_tg_directory', TG_DIRECTORY);
@@ -3387,26 +3386,29 @@ function formatTelegramTarget(target) {
 function getTelegramForCustomer(custName, custNo) {
     if(custNo) {
         var cUpper = String(custNo).trim().toUpperCase();
-        var item1 = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cUpper);
+        if(typeof CUSTOMER_PROFILES === 'object' && CUSTOMER_PROFILES[cUpper] && CUSTOMER_PROFILES[cUpper].telegram !== undefined) {
+            return String(CUSTOMER_PROFILES[cUpper].telegram || '').trim();
+        }
+        var item1 = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.id && x.id.toUpperCase() === cUpper);
         if(item1 && item1.tg) return item1.tg;
-        if(TG_MAP[cUpper]) return TG_MAP[cUpper];
-        if(TG_MAP[custNo]) return TG_MAP[custNo];
+        if(TG_MAP && TG_MAP[cUpper]) return TG_MAP[cUpper];
     }
     if(custName) {
         var mMatch = String(custName).match(/^([A-Z]\d{4,})/i);
         if(mMatch) {
             var cCode = mMatch[1].toUpperCase();
-            var item2 = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === cCode);
+            if(typeof CUSTOMER_PROFILES === 'object' && CUSTOMER_PROFILES[cCode] && CUSTOMER_PROFILES[cCode].telegram !== undefined) {
+                return String(CUSTOMER_PROFILES[cCode].telegram || '').trim();
+            }
+            var item2 = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.id && x.id.toUpperCase() === cCode);
             if(item2 && item2.tg) return item2.tg;
-            if(TG_MAP[cCode]) return TG_MAP[cCode];
+            if(TG_MAP && TG_MAP[cCode]) return TG_MAP[cCode];
         }
         var cleanCustName = custName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
-        var item3 = TG_DIRECTORY.find(x => x.name && (x.name === custName || x.name === cleanCustName));
+        var item3 = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.name && (x.name === custName || x.name === cleanCustName));
         if(item3 && item3.tg) return item3.tg;
-        if(TG_MAP[custName]) return TG_MAP[custName];
+        if(TG_MAP && TG_MAP[custName]) return TG_MAP[custName];
     }
-    if(custNo === 'C00007' || /C00007/i.test(custName)) return '@OngMach2026';
-    if(custNo === 'C00013' || /C00013/i.test(custName)) return '@Ziinea0024';
     return '';
 }
 
@@ -3557,15 +3559,26 @@ function saveDoctorTg(id, rawVal, name) {
     if(val && !val.startsWith('@') && !/^\+?\d+$/.test(val)) {
         val = '@' + val;
     }
-    var item = TG_DIRECTORY.find(x => x.id && x.id.toUpperCase() === id.toUpperCase());
+    var idUpper = String(id).trim().toUpperCase();
+    if(!Array.isArray(TG_DIRECTORY)) TG_DIRECTORY = [];
+    var item = TG_DIRECTORY.find(x => x && x.id && x.id.toUpperCase() === idUpper);
     if(item) {
         item.tg = val;
         if(name && !item.name) item.name = name;
     } else {
-        TG_DIRECTORY.push({ id: id, name: name || id, tg: val, phone: /^\+?\d+$/.test(val) ? val : '' });
+        TG_DIRECTORY.push({ id: idUpper, name: name || id, tg: val, phone: /^\+?\d+$/.test(val) ? val : '' });
+    }
+    if(typeof CUSTOMER_PROFILES === 'object' && CUSTOMER_PROFILES) {
+        if(CUSTOMER_PROFILES[idUpper]) {
+            CUSTOMER_PROFILES[idUpper].telegram = val;
+        } else {
+            CUSTOMER_PROFILES[idUpper] = { code: idUpper, nameEn: name || idUpper, telegram: val };
+        }
+        saveCustomerProfiles();
     }
     syncTgMapFromDirectory();
     renderTgDirectoryTable();
+    if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
     if(typeof render === 'function') render();
     
     var msg = $('tgDirStatusMsg');
@@ -4532,12 +4545,11 @@ function applyServerState(state) {
                     : (v.discount || 0));
             v.discount = discVal;
             v.bal = v.bal != null ? v.bal : (v.amt || 0);
-            var netAmt = Math.max(0, Math.round((v.bal - v.discount) * 100) / 100);
-            v.amt = netAmt;
+            v.amt = Math.round(v.bal * 100) / 100; // ALWAYS RAW BALANCE FROM XLS!
             v.pp = v.paidNow != null ? v.paidNow : (v.pp != null ? v.pp : 0);
             v.paidNow = v.pp;
             v.pb = v.paidBefore != null ? v.paidBefore : (v.pb != null ? v.pb : 0);
-            v.rem = Math.max(0, Math.round((netAmt - v.pp) * 100) / 100);
+            v.rem = Math.max(0, Math.round((v.amt - (v.discount || 0) - v.pp) * 100) / 100);
             v.remaining = v.rem;
             if(v.pp > 0 || (v.paidNow != null && v.paidNow > 0) || (v.rem <= 0.005 && (v.amt || 0) > 0)) {
                 sel[v.id] = true;
@@ -5156,7 +5168,7 @@ function build() {
             var custIdVal = x['Customer ID'] || (p.match(/^([A-Z]\d{4,})/i) ? p.match(/^([A-Z]\d{4,})/i)[1] : '');
 
             var discKey = (p ? (p + '_' + (inv || (fi*100000+i))) : ('INV_' + (inv || (fi*100000+i))));
-            var savedDiscount = (typeof DISCOUNT_MAP !== 'undefined' && DISCOUNT_MAP[discKey] != null) ? DISCOUNT_MAP[discKey] : (paidBeforeVal || 0);
+            var savedDiscount = (typeof DISCOUNT_MAP !== 'undefined' && DISCOUNT_MAP[discKey] != null) ? DISCOUNT_MAP[discKey] : 0;
 
             debts.push({
                 id: fi*100000+i,
@@ -5265,12 +5277,13 @@ function allocateDoctorPayments(D, forceAuto) {
         // Reset all invoices for auto matching
         D.inv.forEach(v => {
             var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+            v.amt = Math.round(bAmt * 100) / 100; // ALWAYS RAW BALANCE FROM XLS
             var netAmt = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
             var initPaid = (v.paidBefore != null && !isNaN(v.paidBefore)) ? v.paidBefore : 0;
             v.pb = initPaid;
             v.pp = 0;
             v.paidNow = 0;
-            v.rem = netAmt;
+            v.rem = netAmt; // Remaining = Amount - discount
             v.remaining = netAmt;
             v.status = netAmt <= 0.005 ? 'Fully Paid' : 'Unpaid';
             v.statusKh = netAmt <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
@@ -5314,8 +5327,8 @@ function allocateDoctorPayments(D, forceAuto) {
                         v.pp = Math.round((v.pp + alloc) * 100) / 100;
                         v.paidNow = v.pp;
                         var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
-                        var netAmt = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
-                        v.rem = Math.max(0, Math.round((netAmt - v.pp) * 100) / 100);
+                        v.amt = Math.round(bAmt * 100) / 100; // ALWAYS RAW BALANCE FROM XLS
+                        v.rem = Math.max(0, Math.round((bAmt - (v.discount || 0) - v.pp) * 100) / 100);
                         v.remaining = v.rem;
                         var isFull = v.rem <= 0.005;
                         v.status = isFull ? 'Fully Paid' : 'Partially Paid';
@@ -7126,6 +7139,7 @@ function handleInvoiceCheckboxToggle(chk) {
     D.hasManualAlloc = true;
 
     var bAmt = (inv.bal != null && !isNaN(inv.bal)) ? inv.bal : (inv.amt || 0);
+    inv.amt = Math.round(bAmt * 100) / 100; // ALWAYS RAW BALANCE FROM XLS
     var invBal = Math.max(0, Math.round((bAmt - (inv.discount || 0)) * 100) / 100);
 
     if(!chk.checked) {
@@ -7162,7 +7176,7 @@ function handleInvoiceCheckboxToggle(chk) {
     var currentPaid = D.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
     D.paidTotal = Math.round(currentPaid * 100) / 100;
     D.extra = Math.max(0, Math.round((totalAbaPay - D.paidTotal) * 100) / 100);
-    D.rem = Math.max(0, Math.round((D.owed - D.paidTotal) * 100) / 100);
+    D.rem = Math.max(0, Math.round((D.owed - (D.discountTotal || 0) - D.paidTotal) * 100) / 100);
     D.remToAlloc = D.extra;
 
     if(D.rem <= 0.005 && D.owed > 0) {
@@ -7199,7 +7213,12 @@ function handleDiscountInput(inp) {
     val = Math.round(val * 100) / 100;
     v.discount = val;
 
-        var discKey = docName + '_' + (v.inv || v.id);
+    var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
+    v.amt = Math.round(bAmt * 100) / 100; // ALWAYS RAW BALANCE FROM XLS
+    v.rem = Math.max(0, Math.round((bAmt - v.discount - (v.pp || 0)) * 100) / 100);
+    v.remaining = v.rem;
+
+    var discKey = docName + '_' + (v.inv || v.id);
     DISCOUNT_MAP[discKey] = val;
     if (v.inv) DISCOUNT_MAP[v.inv] = val;
     try {
@@ -7705,6 +7724,8 @@ document.addEventListener('blur', e => {
             var upd = {};
             upd[fld] = e.target.value.trim();
             saveCustomerProfile(code, upd);
+            if(typeof updateCustomerCountBadge === 'function') updateCustomerCountBadge();
+            if(typeof render === 'function') render();
         }
     }
 }, true);

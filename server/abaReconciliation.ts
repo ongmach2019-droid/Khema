@@ -541,9 +541,7 @@ export function parseAccountsMap(forceReload = false): any[] {
   if (cachedAccountsMap && !forceReload && cachedAccountsMap.length > 0) {
     return cachedAccountsMap;
   }
-  let list = readJsonFile<any[]>('accounts_map.json', [
-    { entry: 'C00007', customerId: 'C00007', name: 'Aesthetic Dental Clinic', acct: '000111222', rawAcct: '000 111 222' }
-  ]);
+  let list = readJsonFile<any[]>('accounts_map.json', []);
 
   // Auto-seed accounts from customer profiles (khema_customers.json)
   const profiles = parseCustomerProfiles();
@@ -655,9 +653,7 @@ export function parseAccountsMap(forceReload = false): any[] {
 
 // Parse Telegram directory
 export function parseTgDirectory(): any[] {
-  let list = readJsonFile<any[]>('tg_directory.json', [
-    { id: 'C00007', name: 'Aesthetic Dental Clinic', tg: '727477829', phone: '077 731 777' }
-  ]);
+  let list = readJsonFile<any[]>('tg_directory.json', []);
 
   // Merge any Telegram from customer profiles
   const profiles = parseCustomerProfiles();
@@ -665,7 +661,7 @@ export function parseTgDirectory(): any[] {
     const prof = profiles[code];
     const cCode = (prof.code || code).toUpperCase();
     const existing = list.find((x: any) => x.id && x.id.toUpperCase() === cCode);
-    if (prof.telegram) {
+    if (prof.telegram && String(prof.telegram).trim()) {
       const tgVal = String(prof.telegram).trim();
       const cName = prof.nameKh || prof.nameEn || cCode;
       if (existing) {
@@ -679,7 +675,7 @@ export function parseTgDirectory(): any[] {
           phone: prof.phone || ''
         });
       }
-    } else if (existing && (prof.telegram === '' || prof.telegram === null)) {
+    } else if (existing) {
       existing.tg = '';
     }
   }
@@ -883,7 +879,7 @@ export function computeAbaReconciliation(): AbaState {
               inv: invNo,
               ref: String(r[5] || ''),
               desc: desc,
-              amt: netBal,
+              amt: bal,
               origAmt,
               bal,
               discount: discVal,
@@ -1131,10 +1127,13 @@ export function computeAbaReconciliation(): AbaState {
       v.pb = initPb;
       v.paidNow = 0;
       v.pp = 0;
-      v.remaining = v.amt;
-      v.rem = v.amt;
-      v.status = v.amt <= 0.005 ? 'Fully Paid' : 'Unpaid';
-      v.statusKh = v.amt <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
+      const bAmt = v.bal != null ? v.bal : (v.amt || 0);
+      v.amt = bAmt;
+      const netRem = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
+      v.remaining = netRem;
+      v.rem = netRem;
+      v.status = netRem <= 0.005 ? 'Fully Paid' : 'Unpaid';
+      v.statusKh = netRem <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
     });
 
     const sortedInvsDesc = D.invoices.slice().sort((a, b) => {
