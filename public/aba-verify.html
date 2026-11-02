@@ -1329,7 +1329,9 @@ function setActiveDebtFilter(filterKey, syncBank) {
     }
 
     rebuildDebtFiles();
-    if (typeof run === 'function') run();
+    if (FILES && FILES.length > 0) {
+        if (typeof run === 'function') run();
+    }
     if (typeof updateBoxUI === 'function') updateBoxUI();
 
     // Broadcast across all devices in real time and ingest fresh state
@@ -1345,7 +1347,7 @@ function setActiveDebtFilter(filterKey, syncBank) {
     }).then(r => r.json()).then(res => {
         if (res && res.updatedAt) lastServerUpdatedAt = res.updatedAt;
         if (res && res.state) applyServerState(res.state);
-        else if (typeof silentlySyncServerState === 'function') silentlySyncServerState();
+        else if (typeof silentlySyncServerState === 'function') silentlySyncServerState(true);
     }).catch(() => {});
 }
 
@@ -5318,11 +5320,33 @@ window.allocateDoctorPayments = allocateDoctorPayments;
 
 function run() {
 
-    build();
+    if (FILES && FILES.length > 0) {
+        build();
+        if(!debts.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">⚠️ រកមិនឃើញចំនួនទឹកប្រាក់ សូមពិនិត្យជួរឈរ</div>'; return; }
+    } else {
+        debts = [];
+    }
 
-    if(FILES.length && !debts.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">⚠️ រកមិនឃើញចំនួនទឹកប្រាក់ សូមពិនិត្យជួរឈរ</div>'; return; }
-
-    if(!debts.length && !aba.length && !ACC.length) { $('out').innerHTML = '<div class="card mu" style="text-align:center">សូមផ្ទុកឯកសារ ABA និង វិក័យបត្រ</div>'; return; }
+    if(!debts.length && !aba.length && !ACC.length) {
+        if (res && res.names && res.names.length > 0) {
+            render();
+            return;
+        }
+        fetch('/api/aba/state')
+            .then(r => r.json())
+            .then(data => {
+                var state = (data && data.state) ? data.state : data;
+                if (state && state.doctors && state.doctors.length > 0) {
+                    applyServerState(state);
+                } else {
+                    $('out').innerHTML = '<div class="card mu" style="text-align:center">សូមផ្ទុកឯកសារ ABA និង វិក័យបត្រ</div>';
+                }
+            })
+            .catch(() => {
+                $('out').innerHTML = '<div class="card mu" style="text-align:center">សូមផ្ទុកឯកសារ ABA និង វិក័យបត្រ</div>';
+            });
+        return;
+    }
 
     var from = $('dFrom').value ? new Date($('dFrom').value) : null, to = $('dTo').value ? new Date($('dTo').value+'T23:59:59') : new Date(8.64e15);
     var docs = {}, names = [];
@@ -7910,7 +7934,24 @@ pbs.forEach(b => {
 $('dFrom').value = '';
 $('dTo').value = '';
 
-$('go').onclick = () => run();
+$('go').onclick = () => {
+    if ((FILES && FILES.length > 0) || RAW.aba) {
+        run();
+    } else {
+        showServerLoading('កំពុងផ្ទៀងផ្ទាត់ទិន្នន័យពី Server...');
+        fetch('/api/aba/state?force=1')
+            .then(r => r.json())
+            .then(data => {
+                hideServerLoading();
+                var state = (data && data.state) ? data.state : data;
+                if (state) applyServerState(state);
+            })
+            .catch(() => {
+                hideServerLoading();
+                run();
+            });
+    }
+};
 
 
 
@@ -9159,14 +9200,14 @@ function restoreSavedData() {
 }
 
 // Multi-user collaboration auto-sync (checks for updates by other team members)
-function silentlySyncServerState() {
+function silentlySyncServerState(force = false) {
     fetch('/api/aba/state')
         .then(r => r.json())
         .then(data => {
             var state = (data && data.state) ? data.state : data;
             if(!state) return;
-            if(state.updatedAt && state.updatedAt !== lastServerUpdatedAt) {
-                lastServerUpdatedAt = state.updatedAt;
+            if(force || !lastServerUpdatedAt || (state.updatedAt && state.updatedAt !== lastServerUpdatedAt)) {
+                lastServerUpdatedAt = state.updatedAt || lastServerUpdatedAt;
                 console.log('🔄 Synced live state from network/server across all devices:', lastServerUpdatedAt);
                 applyServerState(state);
                 updateAmeBadge();

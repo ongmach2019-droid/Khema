@@ -193,7 +193,8 @@ app.get('/api/aba/shared-prefs', (_req, res) => {
 app.post('/api/aba/shared-prefs', (req, res) => {
   try {
     const saved = writeSharedPrefs(req.body);
-    res.json({ success: true, ...saved });
+    const state = getAbaState(true);
+    res.json({ success: true, ...saved, state });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
