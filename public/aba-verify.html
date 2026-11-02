@@ -4318,6 +4318,25 @@ function smart(kind, t) {
 
 // ============================================================================
 
+// Global helper to get canonical doctor name without duplicate ID prefixes
+function getCanonicalDocName(code, name) {
+    var rawName = (name || '').trim();
+    var c = (code || '').trim().toUpperCase();
+    if(!c) {
+        var m = rawName.match(/^([A-Z]\d{4,})/i);
+        if(m) c = m[1].toUpperCase();
+    }
+    if(c === 'C00168' || rawName.toLowerCase().includes('ong mach')) {
+        return 'C00168 - Chheung Eng Hong Dental Clinic';
+    }
+    var clean = rawName.replace(/^([A-Z]\d{4,}\s*[-–:]\s*)+/gi, '').trim();
+    if(c && clean) {
+        return c + ' - ' + clean;
+    }
+    return clean || c || rawName || 'គ្មានឈ្មោះ';
+}
+window.getCanonicalDocName = getCanonicalDocName;
+
 var lastServerUpdatedAt = '';
 
 function applyServerState(state) {
