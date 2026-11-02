@@ -1295,7 +1295,9 @@ function setActiveBankSlot(slotKey, syncDebt) {
     }
 
     rebuildDebtFiles();
-    if (typeof run === 'function') run();
+    if (FILES && FILES.length > 0) {
+        if (typeof run === 'function') run();
+    }
     if (typeof updateBoxUI === 'function') updateBoxUI();
 }
 
@@ -1370,6 +1372,10 @@ function uploadAbaSlotFileToServer(fileType, file, slotKey) {
                     if(data.state && data.state.updatedAt) {
                         lastServerUpdatedAt = data.state.updatedAt;
                     }
+                    if(data.state) {
+                        applyServerState(data.state);
+                    }
+                    updateBoxUI();
                 }
             })
             .catch(err => {
@@ -4337,26 +4343,45 @@ function applyServerState(state) {
         try { localStorage.setItem('aba_inv_discounts', JSON.stringify(DISCOUNT_MAP)); } catch(e) {}
     }
     
-    // Ingest slot info from server if available and not present locally
+    // Ingest slot info unconditionally from server
     if(state.bankSlots && typeof state.bankSlots === 'object') {
         Object.keys(state.bankSlots).forEach(k => {
-            if(state.bankSlots[k] && state.bankSlots[k].exists && (!BANK_SLOTS[k] || !BANK_SLOTS[k].name)) {
-                BANK_SLOTS[k] = Object.assign(BANK_SLOTS[k] || {}, {
-                    name: state.bankSlots[k].name || 'ឯកសារលើ Server',
-                    count: 1
-                });
+            var sSlot = state.bankSlots[k];
+            if(sSlot && sSlot.exists) {
+                if(!BANK_SLOTS[k]) BANK_SLOTS[k] = { name: '', raw: null, m: {}, count: 0 };
+                BANK_SLOTS[k].name = sSlot.name || BANK_SLOTS[k].name || 'ឯកសារលើ Server';
+                BANK_SLOTS[k].count = sSlot.count || BANK_SLOTS[k].count || 1;
+            } else if (sSlot && sSlot.exists === false) {
+                if(BANK_SLOTS[k] && (!BANK_SLOTS[k].raw)) {
+                    BANK_SLOTS[k] = { name: '', raw: null, m: {}, count: 0 };
+                }
             }
         });
+        saveBankSlotsToStorage();
     }
     if(state.debtSlots && typeof state.debtSlots === 'object') {
         Object.keys(state.debtSlots).forEach(k => {
-            if(state.debtSlots[k] && state.debtSlots[k].exists && (!DEBT_SLOTS[k] || !DEBT_SLOTS[k].name)) {
-                DEBT_SLOTS[k] = Object.assign(DEBT_SLOTS[k] || {}, {
-                    name: state.debtSlots[k].name || 'ឯកសារលើ Server',
-                    count: 1
-                });
+            var sSlot = state.debtSlots[k];
+            if(sSlot && sSlot.exists) {
+                if(!DEBT_SLOTS[k]) DEBT_SLOTS[k] = { name: '', files: [], hdr: {}, count: 0 };
+                DEBT_SLOTS[k].name = sSlot.name || DEBT_SLOTS[k].name || 'ឯកសារលើ Server';
+                DEBT_SLOTS[k].count = sSlot.count || DEBT_SLOTS[k].count || 1;
+            } else if (sSlot && sSlot.exists === false) {
+                if(DEBT_SLOTS[k] && (!DEBT_SLOTS[k].files || !DEBT_SLOTS[k].files.length)) {
+                    DEBT_SLOTS[k] = { name: '', files: [], hdr: {}, count: 0 };
+                }
             }
         });
+        saveDebtSlotsToStorage();
+    }
+
+    if(state.activeDebtKey && ['khema', 'rms', 'newsmile'].includes(state.activeDebtKey)) {
+        activeDebtKey = state.activeDebtKey;
+        localStorage.setItem('aba_debt_filter_key', activeDebtKey);
+    }
+    if(state.activeBankKey) {
+        activeBankKey = state.activeBankKey;
+        localStorage.setItem('aba_bank_source_key', activeBankKey);
     }
 
     if(state.fileNames) {
@@ -7896,15 +7921,15 @@ $('go').onclick = () => run();
 var zDirHandle = null;
 var currentDriveLetter = 'H:';
 
-async function initZDrive() {
-    // Immediate auto-connection to H:\ by default
-    updateZDriveUI(true, 'H:', true);
+var serverDirectConnected = false;
 
-    // 1. First check if server is already connected to H:\ or Z:\ directly
+async function initZDrive() {
+    // 1. First check if server has direct filesystem access to H:\ or Z:\ (e.g. running on local PC or LAN)
     try {
         var resp = await fetch('/api/aba/drive-status');
         var data = await resp.json();
-        if (data && data.success && (data.connected || data.autoConnected)) {
+        if (data && data.success && data.connected) {
+            serverDirectConnected = true;
             currentDriveLetter = (data.primaryDrive || 'H:').replace(/\\$/, '');
             updateZDriveUI(true, currentDriveLetter, true);
             return;
@@ -7912,8 +7937,9 @@ async function initZDrive() {
     } catch(e) {
         console.warn('Check drive-status API warning:', e);
     }
+    serverDirectConnected = false;
 
-    // 2. Fallback to browser File System Access API handle from IndexedDB
+    // 2. If running on cloud (Render), check browser File System Access API handle from IndexedDB
     try {
         var savedHandle = (await dbGet('h_drive_handle')) || (await dbGet('z_drive_handle'));
         var savedName = (await dbGet('h_drive_name')) || (await dbGet('z_drive_name')) || 'H:';
@@ -7924,12 +7950,17 @@ async function initZDrive() {
                 currentDriveLetter = savedName;
                 updateZDriveUI(true, savedName, false);
                 return;
+            } else if (permission === 'prompt') {
+                updateZDriveUI('prompt', savedName, false);
+                return;
             }
         }
     } catch (e) {
         console.warn('Init drive handle warning:', e);
     }
-    updateZDriveUI(true, 'H:', true);
+
+    // 3. Not yet connected
+    updateZDriveUI(false, 'H:', false);
 }
 
 function updateZDriveUI(connected, dirName, isServerDirect) {
@@ -7940,29 +7971,42 @@ function updateZDriveUI(connected, dirName, isServerDirect) {
     var dLetter = dirName || currentDriveLetter || 'H:';
     if(dLetter.length === 1) dLetter += ':';
 
-    if (connected !== false) {
+    if (connected === true) {
         if (icon) icon.textContent = '🟢';
-        if (text) text.textContent = dLetter + '\\ បានភ្ជាប់អូតូរួចរាល់';
+        if (text) text.textContent = dLetter + '\\ បានភ្ជាប់ (Sync ចូល ' + dLetter + '\\InvoiceAI)';
         if (btn) {
             btn.style.background = '#f0fdf4';
             btn.style.borderColor = '#86efac';
             btn.style.color = '#15803d';
-            btn.title = 'បានភ្ជាប់ជាមួយ Drive ' + dLetter + '\\InvoiceAI ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)';
+            btn.title = 'បានភ្ជាប់ជាមួយ Folder ' + dLetter + '\\InvoiceAI រួចរាល់';
         }
         if (statusText) {
-            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ ស្វ័យប្រវត្តិ (' + esc(dLetter) + '\\InvoiceAI) — រាល់ទិន្នន័យទាំងអស់រក្សាទុកក្នុង Folder នេះជាប់ជានិច្ច</b>';
+            statusText.innerHTML = '<b style="color:#15803d">🟢 បានភ្ជាប់ Drive ' + esc(dLetter) + '\\ (' + esc(dLetter) + '\\InvoiceAI) — រាល់ទិន្នន័យ upload និង export រក្សាទុកក្នុង Folder នេះជាស្វ័យប្រវត្តិ</b>';
+        }
+    } else if (connected === 'prompt') {
+        if (icon) icon.textContent = '🟡';
+        if (text) text.textContent = 'ចុចបើកសិទ្ធិ Drive ' + dLetter + '\\';
+        if (btn) {
+            btn.style.background = '#fefce8';
+            btn.style.borderColor = '#fde047';
+            btn.style.color = '#a16207';
+            btn.title = 'ចុចដើម្បីបើកសិទ្ធិរក្សាទុកឯកសារចូល Drive ' + dLetter + '\\InvoiceAI';
+        }
+        if (statusText) {
+            statusText.innerHTML = '<span style="color:#b45309">🟡 សូមចុចប៊ូតុង "<b>ចុចបើកសិទ្ធិ Drive ' + esc(dLetter) + '\\</b>" នៅខាងលើ ដើម្បីអនុញ្ញាតឱ្យ Chrome រក្សាទុកឯកសារចូល ' + esc(dLetter) + '\\InvoiceAI</span>';
         }
     } else {
-        if (icon) icon.textContent = '⚪';
-        if (text) text.textContent = 'ភ្ជាប់ H:\\ (Network Drive)';
+        if (icon) icon.textContent = '📁';
+        if (text) text.textContent = 'ចុចភ្ជាប់ Drive H:\\ (InvoiceAI)';
         if (btn) {
             btn.style.background = '#eff6ff';
-            btn.style.borderColor = '#bfdbfe';
+            btn.style.borderColor = '#3b82f6';
             btn.style.color = '#1d4ed8';
-            btn.title = 'ចុចដើម្បីជ្រើសរើស Folder H:\\ ឬ Network Drive';
+            btn.style.fontWeight = 'bold';
+            btn.title = 'ចុចដើម្បីជ្រើសរើស Folder H:\\InvoiceAI';
         }
         if (statusText) {
-            statusText.innerHTML = '<span style="color:#64748b">💾 រក្សាទុកក្នុង Drive H:\\ ៖</span> <b style="color:#0284c7">H:\\InvoiceAI</b>';
+            statusText.innerHTML = '<span style="color:#b45309;font-weight:600">📁 Drive H:\\ មិនទាន់ភ្ជាប់ ៖ សូមចុចប៊ូតុង "<b>ចុចភ្ជាប់ Drive H:\\ (InvoiceAI)</b>" ហើយជ្រើស Folder <b>H:\\InvoiceAI</b> ដើម្បីឱ្យ Browser រក្សាទុកឯកសារចូល Drive H:\\ ដោយផ្ទាល់</span>';
         }
     }
 }
@@ -8182,8 +8226,16 @@ async function mirrorCustomerFileToZDrive(showUserNotice = false) {
 }
 
 async function mirrorFileToZDrive(fileType, file, slotKey) {
-    var handle = await ensureZDriveHandle(false);
-    if (!handle) return;
+    if (serverDirectConnected) {
+        return true;
+    }
+    var handle = await ensureZDriveHandle(true);
+    if (!handle) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ សូមចុចប៊ូតុង "📁 ចុចភ្ជាប់ Drive H:\\" នៅខាងលើ ហើយជ្រើសរើស Folder <b>H:\\InvoiceAI</b> ដើម្បីឱ្យប្រព័ន្ធចម្លង ' + esc(file.name) + ' ចូល Drive H:\\!');
+        }
+        return false;
+    }
 
     try {
         var ext = file.name.substring(file.name.lastIndexOf('.')) || '.xlsx';
@@ -9088,7 +9140,7 @@ function restoreSavedData() {
             localRestorePromise.then(() => {
                 var state = (data && data.state) ? data.state : data;
                 if(state && state.updatedAt) lastServerUpdatedAt = state.updatedAt;
-                if(state && state.doctors && state.doctors.length > 0) {
+                if(state) {
                     console.log('✓ Loaded ready state from server:', state.summary);
                     applyServerState(state);
                 }

@@ -12,13 +12,15 @@
     "liveEditActive": true,
     "showQr": true
   },
-  "discounts": {},
+  "discounts": {
+    "INV41864": 10
+  },
   "activeDebtKey": "khema",
   "activeBankKey": "khema_aba",
   "bankSlotsMeta": {
     "khema_aba": {
-      "exists": false,
-      "name": ""
+      "exists": true,
+      "name": "khema_aba.xlsx"
     },
     "khema_acleda": {
       "exists": false,
@@ -35,17 +37,17 @@
   },
   "debtSlotsMeta": {
     "khema": {
-      "exists": false,
-      "name": ""
+      "exists": true,
+      "name": "Khema Aged Report 31.10.26.xls"
     },
     "rms": {
-      "exists": false,
-      "name": ""
+      "exists": true,
+      "name": "RMS Aged Report 31.10.26.xls"
     },
     "newsmile": {
       "exists": false,
       "name": ""
     }
   },
-  "updatedAt": "2026-11-01T08:10:15.702Z"
+  "updatedAt": "2026-11-02T03:39:12.760Z"
 }

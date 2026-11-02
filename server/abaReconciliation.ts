@@ -1388,10 +1388,12 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   try {
     if (fileType === 'aba' && slotKey) {
       writeSharedPrefs({
+        activeBankKey: slotKey,
         bankSlotsMeta: { [slotKey]: { exists: true, name: cleanOriginalName || targetName } } as any
       });
     } else if (fileType === 'debt' && slotKey) {
       writeSharedPrefs({
+        activeDebtKey: slotKey,
         debtSlotsMeta: { [slotKey]: { exists: true, name: cleanOriginalName || targetName } } as any
       });
     }

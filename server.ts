@@ -462,11 +462,11 @@ app.get('/api/aba/drive-status', (_req, res) => {
   res.json({
     success: true,
     connected: !!primary,
-    autoConnected: true,
-    primaryDrive: primary ? primary.drive : 'H:\\',
-    primaryPath: primary ? primary.path : 'H:\\InvoiceAI',
-    amePath: primary ? primary.amePath : 'H:\\InvoiceAI\\ame_exports',
-    uploadsPath: primary ? primary.uploadsPath : 'H:\\InvoiceAI\\uploads',
+    autoConnected: !!primary,
+    primaryDrive: primary ? primary.drive : '',
+    primaryPath: primary ? primary.path : '',
+    amePath: primary ? primary.amePath : '',
+    uploadsPath: primary ? primary.uploadsPath : '',
     availableDrives: available
   });
 });
