@@ -343,6 +343,13 @@ summary:hover{background:var(--bg)}
   <div><h1>ផ្ទៀងផ្ទាត់ ABA ជាមួយបំណុលគ្រូពេទ្យ</h1><span class="mu">ទាញយក Excel ជាទម្រង់ JV ឬ OR</span></div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 10px;font-size:0.82rem">
+      <span>👤 User:</span>
+      <b id="activeUserBadge" style="color:#0284c7;font-weight:700">sokly</b>
+      <button type="button" id="btnSwitchUser" style="margin-left:4px;background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;color:#0284c7;font-size:0.72rem;padding:2px 8px;cursor:pointer;font-weight:600" title="ប្តូរ User រវាង sokly និង meymey">
+        ⇄ ប្តូរ User
+      </button>
+    </div>
     <button type="button" id="btnConnectZDrive" style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:0.84rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05)" title="បានភ្ជាប់ជាមួយ Drive H:\InvoiceAI ស្វ័យប្រវត្តិ (មិនចាំបាច់ចុចទេ)">
       <span id="zDriveIcon">🟢</span> <span id="zDriveText">H:\ បានភ្ជាប់អូតូរួចរាល់</span>
     </button>
@@ -3830,7 +3837,8 @@ function parseAgedReport(aoa) {
     var colDate = h.findIndex(k => /^date/i.test(k));
     var colRef = h.findIndex(k => /^ref/i.test(k));
     var colMod = h.findIndex(k => /module|source/i.test(k));
-    var colDesc = h.findIndex(k => /remark|desc|particular/i.test(k));
+    var colRemark = h.findIndex(k => /^remark$/i.test(k));
+    var colDesc = colRemark >= 0 ? colRemark : h.findIndex(k => /remark|desc|particular/i.test(k));
     var colStatus = h.findIndex(k => /^status$/i.test(k));
     var colPayStatus = h.findIndex(k => /payment\s*status/i.test(k));
     var colOrigAmt = h.findIndex(k => /original\s*amount|ដើម/i.test(k));
@@ -3877,7 +3885,7 @@ function parseAgedReport(aoa) {
             custRunningBal[currentCust] = (custRunningBal[currentCust] || 0) + bal;
             custInvoiceIndex[currentCust] = (custInvoiceIndex[currentCust] || 0) + 1;
 
-            var descVal = colDesc >= 0 ? String(r[colDesc]||'').trim() : '';
+            var descVal = (colDesc >= 0 ? String(r[colDesc]||'').trim() : '') || String(r[7]||'').trim() || String(r[6]||'').trim();
             if(origAmt > bal && !descVal.includes('ដើម $')) {
                 descVal += ' (ដើម $' + origAmt + ')';
             }
@@ -4404,12 +4412,21 @@ function applyServerState(state) {
         d.totalAbaPay = Math.round(d.per * 100) / 100;
         d.paidBeforeTotal = d.paidBeforeTotal || 0;
         d.inv.forEach(v => {
+            var discKey = d.name + '_' + (v.inv || v.id);
+            var discVal = (typeof DISCOUNT_MAP !== 'undefined' && DISCOUNT_MAP[discKey] != null) 
+                ? DISCOUNT_MAP[discKey] 
+                : ((typeof DISCOUNT_MAP !== 'undefined' && v.inv && DISCOUNT_MAP[v.inv] != null) 
+                    ? DISCOUNT_MAP[v.inv] 
+                    : (v.discount || 0));
+            v.discount = discVal;
+            v.bal = v.bal != null ? v.bal : (v.amt || 0);
+            var netAmt = Math.max(0, Math.round((v.bal - v.discount) * 100) / 100);
+            v.amt = netAmt;
             v.pp = v.paidNow != null ? v.paidNow : (v.pp != null ? v.pp : 0);
             v.paidNow = v.pp;
             v.pb = v.paidBefore != null ? v.paidBefore : (v.pb != null ? v.pb : 0);
-            v.rem = v.remaining != null ? v.remaining : (v.rem != null ? v.rem : 0);
+            v.rem = Math.max(0, Math.round((netAmt - v.pp) * 100) / 100);
             v.remaining = v.rem;
-            v.amt = v.amt != null ? v.amt : (v.bal != null ? v.bal : 0);
             if(v.pp > 0 || (v.paidNow != null && v.paidNow > 0) || (v.rem <= 0.005 && (v.amt || 0) > 0)) {
                 sel[v.id] = true;
             }
@@ -5290,7 +5307,10 @@ function run() {
             (a.name && (a.name === rawName || rawName.indexOf(a.name) > -1 || a.name.indexOf(rawName) > -1))
         );
 
-        var pName = getCanonicalDocName(cIdRaw || (accMatch && (accMatch.customerId || accMatch.entry)), (accMatch && accMatch.name) || rawName);
+        var profMatch = getCustomerProfile(rawName, cIdRaw);
+        var englishFromFile = rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
+        var docEnName = (profMatch && profMatch.nameEn) || englishFromFile || (accMatch && (accMatch.nameEn || accMatch.name)) || rawName;
+        var pName = getCanonicalDocName(cIdRaw || (profMatch && profMatch.code), docEnName);
         d.party = pName;
         if(cIdRaw) d.custId = cIdRaw;
 
@@ -7033,10 +7053,20 @@ function handleDiscountInput(inp) {
     val = Math.round(val * 100) / 100;
     v.discount = val;
 
-    var discKey = docName + '_' + (v.inv || v.id);
+        var discKey = docName + '_' + (v.inv || v.id);
     DISCOUNT_MAP[discKey] = val;
+    if (v.inv) DISCOUNT_MAP[v.inv] = val;
     try {
         localStorage.setItem('aba_inv_discounts', JSON.stringify(DISCOUNT_MAP));
+    } catch(e) {}
+
+    // Sync discount to server immediately for cross-device & multi-user sync
+    try {
+        fetch('/api/aba/shared-prefs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ discounts: DISCOUNT_MAP })
+        }).catch(function() {});
     } catch(e) {}
 
     // Recalculate doctor allocation
@@ -7051,6 +7081,14 @@ function handleDiscountInput(inp) {
 
     render();
 }
+
+
+document.addEventListener('input', function(e) {
+    var t = e.target;
+    if(t && t.classList && t.classList.contains('inv-discount-input')) {
+        handleDiscountInput(t);
+    }
+});
 
 document.addEventListener('change', e => {
 
@@ -9076,6 +9114,27 @@ document.addEventListener('visibilitychange', () => {
 setInterval(pollServerUpdates, 3000);
 
 restoreSavedData();
+
+// Multi-user management (sokly & meymey)
+function initActiveUserUI() {
+    var curUser = localStorage.getItem('khema_active_user') || 'sokly';
+    var badge = document.getElementById('activeUserBadge');
+    if (badge) badge.textContent = curUser;
+
+    var btnSwitch = document.getElementById('btnSwitchUser');
+    if (btnSwitch) {
+        btnSwitch.onclick = function() {
+            var nowUser = localStorage.getItem('khema_active_user') || 'sokly';
+            var nextUser = (nowUser === 'sokly') ? 'meymey' : 'sokly';
+            localStorage.setItem('khema_active_user', nextUser);
+            if (badge) badge.textContent = nextUser;
+            console.log('👤 Switched active user to:', nextUser);
+        };
+    }
+}
+window.addEventListener('DOMContentLoaded', initActiveUserUI);
+initActiveUserUI();
+
 
 </script>
 

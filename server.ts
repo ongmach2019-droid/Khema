@@ -87,9 +87,10 @@ app.get('/api/exchange-rate', (_req, res) => {
 // ============================================================================
 
 // Get current reconciliation state
-app.get('/api/aba/state', (_req, res) => {
+app.get('/api/aba/state', (req, res) => {
   try {
-    const state = getAbaState();
+    const force = req.query.force === '1' || req.query.force === 'true';
+    const state = getAbaState(force);
     res.json(state);
   } catch (err: any) {
     console.error('Error in /api/aba/state:', err);

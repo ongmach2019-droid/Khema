@@ -15,6 +15,7 @@ export interface DoctorInvoice {
   origAmt: number;
   bal: number;
   amt: number;
+  discount?: number;
   paidBefore: number;
   paidNow: number;
   remaining: number;
@@ -44,6 +45,7 @@ export interface DoctorStatement {
   paidTotal: number;
   paidBeforeTotal: number;
   paidCurrent: number;
+  discountTotal?: number;
   rem: number;
   extra: number;
   status: 'Fully Paid' | 'Partially Paid' | 'Unpaid' | 'Advance Payment' | 'No Debt';
@@ -544,7 +546,7 @@ export function parseAccountsMap(forceReload = false): any[] {
     if (!cleanParts.length && !rawParts.length) continue;
 
     const cCode = (prof.code || code).toUpperCase();
-    const cName = prof.nameKh || prof.nameEn || cCode;
+    const cName = prof.nameEn || prof.nameKh || cCode;
 
     const existing = list.find((x: any) => 
       (x.customerId && x.customerId.toUpperCase() === cCode) ||
@@ -701,6 +703,12 @@ export function computeAbaReconciliation(): AbaState {
   const debtSlotFiles: Record<string, string> = {};
 
   debtSlots.forEach(slot => {
+    // If user explicitly left slot empty, keep it empty!
+    if (shared.debtSlotsMeta && shared.debtSlotsMeta[slot] && shared.debtSlotsMeta[slot].exists === false) {
+      debtSlotsMeta[slot] = { exists: false, name: '', count: 0 };
+      return;
+    }
+
     const slotPrefix = slot === 'khema' ? 'Khema' : (slot === 'rms' ? 'RMS' : 'New Smile');
     // Check localUploadsDir FIRST for instant zero-latency reading
     const localCandidates = [
@@ -775,7 +783,8 @@ export function computeAbaReconciliation(): AbaState {
             (custId && a.entry && a.entry.toUpperCase() === custId)
           );
 
-          const baseName = prof.nameEn || prof.nameKh || (matchedAcc && matchedAcc.name) || rawName;
+          const englishFromFile = rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, '').trim();
+          const baseName = prof.nameEn || englishFromFile || (matchedAcc && (matchedAcc.nameEn || matchedAcc.name)) || rawName;
           const displayName = getCanonicalCustomerName(custId, baseName);
           const uniqueKey = `${slot}_${displayName}`;
 
@@ -784,8 +793,8 @@ export function computeAbaReconciliation(): AbaState {
             continue;
           }
 
-          let custKh = prof.nameKh || (matchedAcc?.name || rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, ''));
-          let custEn = prof.nameEn || (matchedAcc?.name || rawName.replace(/^[A-Z]\d+\s*[-–]\s*/i, ''));
+          let custEn = prof.nameEn || englishFromFile || (matchedAcc?.nameEn || matchedAcc?.name || englishFromFile);
+          let custKh = prof.nameKh || (matchedAcc?.nameKh || matchedAcc?.name || custEn);
           if (custId === 'C00168' || custKh.toLowerCase().includes('ong mach') || custEn.toLowerCase().includes('ong mach')) {
             custKh = 'ពេទ្យធ្មេញ ឈឿង អេងហុង';
             custEn = 'Chheung Eng Hong Dental Clinic';
@@ -835,6 +844,15 @@ export function computeAbaReconciliation(): AbaState {
             const invStatus: 'Fully Paid' | 'Partially Paid' | 'Unpaid' = bal <= 0.005 ? 'Fully Paid' : (isPartial ? 'Partially Paid' : 'Unpaid');
             const invStatusKh = bal <= 0.005 ? 'សងគ្រប់' : (isPartial ? 'សងមួយផ្នែក' : 'មិនទាន់សង');
 
+            // Col 7 is Remark (LF:..., Pt. ...), Col 6 is Employee ("Sale Office KDDS" or staff name)
+            const desc = String(r[7] || '').trim() || String(r[6] || '').trim();
+
+            // Discount from sharedPrefs
+            const discKey1 = `${currentDoc.name}_${invNo}`;
+            const discKey2 = `${currentDoc.id}_${invNo}`;
+            const discVal = Number(shared.discounts?.[discKey1] ?? shared.discounts?.[discKey2] ?? shared.discounts?.[invNo] ?? 0) || 0;
+            const netBal = Math.max(0, Math.round((bal - discVal) * 100) / 100);
+
             currentDoc.invoices.push({
               id: `${currentDoc.id}-${invNo}-${currentDoc.invoices.length + 1}`,
               no: currentDoc.invoices.length + 1,
@@ -842,19 +860,20 @@ export function computeAbaReconciliation(): AbaState {
               date: String(r[2] || ''),
               inv: invNo,
               ref: String(r[5] || ''),
-              desc: String(r[6] || '').trim(),
-              amt: origAmt,
+              desc: desc,
+              amt: netBal,
               origAmt,
               bal,
+              discount: discVal,
               paidBefore: Math.max(0, origAmt - bal),
               paidNow: 0,
-              remaining: bal,
+              remaining: netBal,
               pp: 0,
               pb: Math.max(0, origAmt - bal),
-              rem: bal,
-              status: invStatus,
-              statusKh: invStatusKh,
-              runBal: origAmt
+              rem: netBal,
+              status: netBal <= 0.005 ? 'Fully Paid' : invStatus,
+              statusKh: netBal <= 0.005 ? 'សងគ្រប់' : invStatusKh,
+              runBal: netBal
             });
             currentDoc.inv = currentDoc.invoices;
           }
@@ -877,17 +896,17 @@ export function computeAbaReconciliation(): AbaState {
   const bankSlotFiles: Record<string, string> = {};
 
   bankSlots.forEach(slot => {
+    // If user explicitly left slot empty, keep it empty!
+    if (shared.bankSlotsMeta && shared.bankSlotsMeta[slot] && shared.bankSlotsMeta[slot].exists === false) {
+      bankSlotsMeta[slot] = { exists: false, name: '' };
+      return;
+    }
+
     const localCandidates = [
       path.join(localUploadsDir, `${slot}.xlsx`),
       path.join(localUploadsDir, `${slot}.xls`),
       path.join(localUploadsDir, `${slot}.csv`)
     ];
-    if (slot === 'khema_aba') {
-      localCandidates.push(
-        path.join(localUploadsDir, 'aba_statement.xlsx'),
-        path.join(localUploadsDir, 'aba_statement.xls')
-      );
-    }
     let found = localCandidates.find(c => fs.existsSync(c));
     if (!found) {
       const netCandidates = [
@@ -895,12 +914,6 @@ export function computeAbaReconciliation(): AbaState {
         path.join(hUploadsDir, `${slot}.xls`),
         path.join(hUploadsDir, `${slot}.csv`)
       ];
-      if (slot === 'khema_aba') {
-        netCandidates.push(
-          path.join(hUploadsDir, 'aba_statement.xlsx'),
-          path.join(hUploadsDir, 'aba_statement.xls')
-        );
-      }
       const netFound = netCandidates.find(c => fs.existsSync(c));
       if (netFound) {
         try {
@@ -1086,16 +1099,19 @@ export function computeAbaReconciliation(): AbaState {
 
     let availablePay = D.payments.reduce((s, p) => s + p.amt, 0);
     D.owed = D.invoices.reduce((s, v) => s + v.amt, 0);
+    D.discountTotal = D.invoices.reduce((s, v) => s + (v.discount || 0), 0);
+    D.paidBeforeTotal = D.invoices.reduce((s, v) => s + (v.paidBefore || 0), 0);
 
     D.invoices.forEach(v => {
-      v.paidBefore = 0;
+      const initPb = Math.max(0, (v.origAmt || 0) - (v.bal || 0));
+      v.paidBefore = initPb;
+      v.pb = initPb;
       v.paidNow = 0;
-      v.remaining = v.amt;
       v.pp = 0;
-      v.pb = 0;
+      v.remaining = v.amt;
       v.rem = v.amt;
-      v.status = 'Unpaid';
-      v.statusKh = 'មិនទាន់សង';
+      v.status = v.amt <= 0.005 ? 'Fully Paid' : 'Unpaid';
+      v.statusKh = v.amt <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
     });
 
     const sortedInvsDesc = D.invoices.slice().sort((a, b) => {
@@ -1211,11 +1227,13 @@ export function computeAbaReconciliation(): AbaState {
   return finalState;
 }
 
-export function getAbaState(): AbaState {
+export function getAbaState(force = false): AbaState {
   const shared = readSharedPrefs();
-  const cached = readJsonFile<AbaState | null>('state.json', null);
-  if (cached) {
-    if (cached.doctors && cached.doctors.length > 0) {
+  const cached = force ? null : readJsonFile<AbaState | null>('state.json', null);
+  if (cached && !force) {
+    const slotsMatch = (!shared.debtSlotsMeta || Object.keys(shared.debtSlotsMeta).every(k => cached.debtSlots?.[k]?.exists === (shared.debtSlotsMeta as any)?.[k]?.exists)) &&
+                       (!shared.bankSlotsMeta || Object.keys(shared.bankSlotsMeta).every(k => cached.bankSlots?.[k]?.exists === (shared.bankSlotsMeta as any)?.[k]?.exists));
+    if (slotsMatch && cached.doctors && cached.doctors.length > 0) {
       const hasOngMach = cached.doctors.some(d =>
         (d.name && d.name.toLowerCase().includes('ong mach')) ||
         (d.customerId === 'C00168' && !d.name.includes('Eng Hong'))
@@ -1226,12 +1244,6 @@ export function getAbaState(): AbaState {
         cached.discounts = shared.discounts;
         return cached;
       }
-      console.log('Invalidating stale cache containing old test name Ong Mach');
-    } else {
-      cached.profiles = cached.profiles || parseCustomerProfiles();
-      cached.printPrefs = shared.printPrefs;
-      cached.discounts = shared.discounts;
-      return cached;
     }
   }
   const fresh = computeAbaReconciliation();
@@ -1253,12 +1265,7 @@ export function syncFromNetworkDriveIfNeeded(): void {
     'Customer_Bank_Account_Number_Latest.xlsx',
     'shared_prefs.json',
     'accounts_map.json',
-    'state.json',
     'statement_template.xlsx',
-    'aba_statement.xlsx',
-    'aba_statement.xls',
-    'debts.xls',
-    'debts.xlsx',
     'accounts.xlsx',
     'accounts.xls',
     'Account id aba.xlsx',
@@ -1339,12 +1346,19 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   if (cleanOriginalName && cleanOriginalName !== targetName) {
     try { fs.writeFileSync(path.join(uploadsDir, cleanOriginalName), buffer); } catch {}
   }
-  // Also maintain generic name for backwards compatibility
-  if (fileType === 'debt' && targetName !== `debts${ext}`) {
-    try { fs.writeFileSync(path.join(uploadsDir, `debts${ext}`), buffer); } catch {}
-  } else if (fileType === 'aba' && targetName !== `aba_statement${ext}`) {
-    try { fs.writeFileSync(path.join(uploadsDir, `aba_statement${ext}`), buffer); } catch {}
-  }
+
+  // Update sharedPrefs so this slot is known to exist across all devices
+  try {
+    if (fileType === 'aba' && slotKey) {
+      writeSharedPrefs({
+        bankSlotsMeta: { [slotKey]: { exists: true, name: cleanOriginalName || targetName } } as any
+      });
+    } else if (fileType === 'debt' && slotKey) {
+      writeSharedPrefs({
+        debtSlotsMeta: { [slotKey]: { exists: true, name: cleanOriginalName || targetName } } as any
+      });
+    }
+  } catch (e) {}
 
   // If slot file, remove older extensions for this slot
   if (slotKey) {
@@ -1444,6 +1458,9 @@ export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc', slotKey?: string
   if (fileType === 'aba') {
     if (slotKey) {
       targetFiles = [`${slotKey}.xlsx`, `${slotKey}.xls`, `${slotKey}.csv`];
+      if (slotKey === 'khema_aba') {
+        targetFiles.push('aba_statement.xlsx', 'aba_statement.xls');
+      }
     } else {
       targetFiles = [
         'aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv',
@@ -1454,16 +1471,52 @@ export function deleteAbaFile(fileType: 'aba' | 'debt' | 'acc', slotKey?: string
   } else if (fileType === 'debt') {
     if (slotKey) {
       targetFiles = [`${slotKey}_debt.xlsx`, `${slotKey}_debt.xls`];
+      if (slotKey === 'khema') {
+        targetFiles.push('Khema Aged Report 31.10.26.xls', 'Khema Aged Report 31.10.26.xlsx', 'Khema Aged Receivable.xls', 'Khema Aged Receivable.xlsx', 'debts.xls', 'debts.xlsx');
+      } else if (slotKey === 'rms') {
+        targetFiles.push('RMS Aged Report 31.10.26.xls', 'RMS Aged Report 31.10.26.xlsx', 'RMS Aged Receivable.xls', 'RMS Aged Receivable.xlsx');
+      }
     } else {
       targetFiles = [
         'debts.xls', 'debts.xlsx', 'Aged_Receivable.xls', 'Aged_Receivable.xlsx',
         'khema_debt.xlsx', 'khema_debt.xls', 'rms_debt.xlsx', 'rms_debt.xls',
-        'newsmile_debt.xlsx', 'newsmile_debt.xls'
+        'newsmile_debt.xlsx', 'newsmile_debt.xls',
+        'Khema Aged Report 31.10.26.xls', 'Khema Aged Report 31.10.26.xlsx',
+        'RMS Aged Report 31.10.26.xls', 'RMS Aged Report 31.10.26.xlsx'
       ];
     }
   } else if (fileType === 'acc') {
     targetFiles = ['accounts.xlsx', 'accounts.xls', 'Account id aba.xlsx', 'customers.xls', 'customers.xlsx'];
   }
+
+  // Update shared_prefs to mark slot as empty
+  try {
+    if (fileType === 'aba') {
+      if (slotKey) {
+        writeSharedPrefs({
+          bankSlotsMeta: { [slotKey]: { exists: false, name: '' } } as any
+        });
+      } else {
+        const resetMeta: any = {};
+        ['khema_aba', 'khema_acleda', 'rms_aba', 'rms_acleda'].forEach(k => {
+          resetMeta[k] = { exists: false, name: '' };
+        });
+        writeSharedPrefs({ bankSlotsMeta: resetMeta });
+      }
+    } else if (fileType === 'debt') {
+      if (slotKey) {
+        writeSharedPrefs({
+          debtSlotsMeta: { [slotKey]: { exists: false, name: '' } } as any
+        });
+      } else {
+        const resetMeta: any = {};
+        ['khema', 'rms', 'newsmile'].forEach(k => {
+          resetMeta[k] = { exists: false, name: '' };
+        });
+        writeSharedPrefs({ debtSlotsMeta: resetMeta });
+      }
+    }
+  } catch (e) {}
 
   const netDirs = getNetworkDriveAbaDirs();
   const localUploadsDir = path.join(dataDir, 'uploads');

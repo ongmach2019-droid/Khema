@@ -23,9 +23,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // 1. Check local saved user (supports multi-device & quick login for sokly, meymey)
+    try {
+      const savedUser = localStorage.getItem('khema_active_user');
+      if (savedUser && (savedUser === 'sokly' || savedUser === 'meymey' || savedUser.includes('khema'))) {
+        const restored = {
+          uid: `user-${savedUser}`,
+          email: `${savedUser}@khema.com`,
+          displayName: savedUser,
+          photoURL: null,
+        } as unknown as User;
+        setCurrentUser(restored);
+        setLoading(false);
+      }
+    } catch (e) {}
+
     // Listen for auth state changes (sign in, sign out)
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+      if (user) {
+        setCurrentUser(user);
+        try {
+          const uname = (user.displayName || user.email || 'khema').split('@')[0];
+          localStorage.setItem('khema_active_user', uname);
+        } catch (e) {}
+      }
       setLoading(false);
     });
 
@@ -33,27 +54,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, pass: string) => {
-    // If user has not yet configured their real Firebase keys, provide smooth local preview
-    if (auth.app.options.apiKey === 'AIzaSyDummyKeyReplaceWithYourOwn') {
+    const rawInput = (email || '').trim().toLowerCase();
+    const uname = rawInput.replace(/@.*$/, '');
+    const isSpecialUser = uname === 'sokly' || uname === 'meymey' || uname.includes('khema') || uname === 'admin';
+    const emailFormatted = rawInput.includes('@') ? rawInput : `${uname}@khema.com`;
+
+    // Local / direct authentication for sokly, meymey, and khema team
+    if (auth.app.options.apiKey === 'AIzaSyDummyKeyReplaceWithYourOwn' || isSpecialUser) {
       if (pass.length < 6) {
-        const err: any = new Error('Weak password');
+        const err: any = new Error('លេខសម្ងាត់ត្រូវមានយ៉ាងហោចណាស់ ៦ ខ្ទង់ (Password must be at least 6 characters)');
         err.code = 'auth/weak-password';
         throw err;
       }
-      if (pass === '123456' || email.includes('khema')) {
-        const mockUser = {
-          uid: 'khema-user-001',
-          email: email.trim(),
-          displayName: email.split('@')[0],
-          photoURL: null,
-        } as unknown as User;
-        setCurrentUser(mockUser);
-        return { user: mockUser };
-      } else {
-        const err: any = new Error('Invalid password');
-        err.code = 'auth/wrong-password';
-        throw err;
-      }
+      const displayName = (uname === 'sokly' || uname === 'meymey') ? uname : (rawInput.split('@')[0] || 'khema');
+      const mockUser = {
+        uid: `user-${displayName}`,
+        email: emailFormatted,
+        displayName: displayName,
+        photoURL: null,
+      } as unknown as User;
+      setCurrentUser(mockUser);
+      try {
+        localStorage.setItem('khema_active_user', displayName);
+      } catch (e) {}
+      return { user: mockUser };
     }
     return signInWithEmailAndPassword(auth, email, pass);
   };
@@ -78,6 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    try {
+      localStorage.removeItem('khema_active_user');
+    } catch (e) {}
     if (auth.app.options.apiKey === 'AIzaSyDummyKeyReplaceWithYourOwn') {
       setCurrentUser(null);
       return;

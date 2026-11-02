@@ -93,23 +93,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
 
         {/* Login / Register Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email Input */}
+          {/* Email / Username Input */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-700">
-              អ៊ីមែល (Email Address)
+              ឈ្មោះអ្នកប្រើ ឬ អ៊ីមែល (Username or Email)
             </label>
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-3.5 text-slate-400 text-[18px]">
-                mail
+                person
               </span>
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@khemadental.com"
+                placeholder="sokly ឬ meymey"
                 className="w-full h-11 pl-10 pr-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-600 focus:bg-white focus:ring-1 focus:ring-teal-600 transition-all font-medium"
               />
+            </div>
+
+            {/* Quick 1-Click Login for Team (sokly & meymey) */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[11px] text-slate-400 font-medium">គណនីរហ័ស៖</span>
+              <button
+                type="button"
+                onClick={() => { setEmail('sokly'); setPassword('123456'); }}
+                className="px-2.5 py-0.5 text-xs font-bold rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+              >
+                <span>👤 sokly</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('meymey'); setPassword('123456'); }}
+                className="px-2.5 py-0.5 text-xs font-bold rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+              >
+                <span>👤 meymey</span>
+              </button>
             </div>
           </div>
 
