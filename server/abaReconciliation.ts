@@ -33,10 +33,12 @@ export interface DoctorStatement {
   name: string;
   customerId: string;
   entry: string;
+  telegram?: string;
   meta: {
     custNo: string;
     custKh: string;
     custEn: string;
+    telegram?: string;
     phone: string;
     address: string;
     currency: string;
@@ -661,11 +663,11 @@ export function parseTgDirectory(): any[] {
   const profiles = parseCustomerProfiles();
   for (const code in profiles) {
     const prof = profiles[code];
+    const cCode = (prof.code || code).toUpperCase();
+    const existing = list.find((x: any) => x.id && x.id.toUpperCase() === cCode);
     if (prof.telegram) {
       const tgVal = String(prof.telegram).trim();
-      const cCode = (prof.code || code).toUpperCase();
       const cName = prof.nameKh || prof.nameEn || cCode;
-      const existing = list.find((x: any) => x.id && x.id.toUpperCase() === cCode);
       if (existing) {
         existing.tg = tgVal;
         if (prof.phone && !existing.phone) existing.phone = prof.phone;
@@ -677,6 +679,8 @@ export function parseTgDirectory(): any[] {
           phone: prof.phone || ''
         });
       }
+    } else if (existing && (prof.telegram === '' || prof.telegram === null)) {
+      existing.tg = '';
     }
   }
   return list;
@@ -1862,10 +1866,12 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
             d.meta = Object.assign({}, d.meta || {}, {
               custKh: prof.nameKh || (d.meta && d.meta.custKh),
               custEn: prof.nameEn || (d.meta && d.meta.custEn),
+              telegram: prof.telegram != null ? prof.telegram : '',
               phone: prof.phone || (d.meta && d.meta.phone),
               address: prof.address || (d.meta && d.meta.address),
               currency: prof.currency || (d.meta && d.meta.currency)
             });
+            d.telegram = prof.telegram != null ? prof.telegram : '';
             if (prof.nameEn) {
               d.name = getCanonicalCustomerName(d.id, prof.nameEn);
             }
@@ -1879,6 +1885,8 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
     console.warn('Could not update state.json with new customer profiles:', syncErr);
   }
 
+  cachedProfiles = profiles;
+  try { writeJsonFile('tg_directory.json', parseTgDirectory()); } catch {}
   return { success: true, count: list.length, fileLocked: anyFileLocked };
 }
 

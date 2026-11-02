@@ -1027,8 +1027,11 @@ summary:hover{background:var(--bg)}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <label style="font-size:0.78rem;font-weight:700;color:#0284c7;display:block;margin-bottom:3px">Telegram (@username ឬ ID):</label>
-          <input type="text" id="editCustTelegram" placeholder="@OngMach2026 ឬ Chat ID" style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#0369a1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <label style="font-size:0.78rem;font-weight:700;color:#0284c7;margin:0">Telegram (@username ឬ ID):</label>
+            <button type="button" onclick="document.getElementById('editCustTelegram').value='';document.getElementById('editCustTelegram').focus();" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:0.7rem;padding:1px 6px;border-radius:4px;cursor:pointer" title="ចុចដើម្បីលុប Telegram ចោល">🗑️ លុប Telegram</button>
+          </div>
+          <input type="text" id="editCustTelegram" placeholder="@username ឬ Chat ID (ទុកទំនេរដើម្បីលុប)" style="width:100%;height:34px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;color:#0369a1">
         </div>
         <div>
           <label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:3px">ទូរស័ព្ទ / Telephone:</label>
@@ -2797,20 +2800,42 @@ function saveCustomerProfile(code, data) {
         CUSTOMER_PROFILES[cUpper] = Object.assign(existing, data, { code: cUpper });
         saveCustomerProfiles();
         
-        // Auto-sync with TG_DIRECTORY if telegram or phone provided
-        var tgVal = data.telegram !== undefined ? String(data.telegram).trim() : (existing.telegram || '');
-        if(tgVal) {
-            if(!tgVal.startsWith('@') && !/^\+?\d+$/.test(tgVal)) tgVal = '@' + tgVal;
-            if(!Array.isArray(TG_DIRECTORY)) TG_DIRECTORY = [];
-            var tgItem = TG_DIRECTORY.find(x => x && x.id && String(x.id).trim().toUpperCase() === cUpper);
-            if(tgItem) {
-                tgItem.tg = tgVal;
-                if(data.phone) tgItem.phone = data.phone;
+        // Auto-sync with TG_DIRECTORY & TG_MAP if telegram provided or deleted
+        if(data.telegram !== undefined) {
+            var tgVal = String(data.telegram).trim();
+            if(tgVal) {
+                if(!tgVal.startsWith('@') && !/^\+?\d+$/.test(tgVal)) tgVal = '@' + tgVal;
+                if(!Array.isArray(TG_DIRECTORY)) TG_DIRECTORY = [];
+                var tgItem = TG_DIRECTORY.find(x => x && x.id && String(x.id).trim().toUpperCase() === cUpper);
+                if(tgItem) {
+                    tgItem.tg = tgVal;
+                    if(data.phone) tgItem.phone = data.phone;
+                } else {
+                    TG_DIRECTORY.push({ id: cUpper, name: existing.nameKh || existing.nameEn || cUpper, tg: tgVal, phone: data.phone || existing.phone || '' });
+                }
+                if(!TG_MAP) TG_MAP = {};
+                TG_MAP[cUpper] = tgVal;
+                CUSTOMER_PROFILES[cUpper].telegram = tgVal;
             } else {
-                TG_DIRECTORY.push({ id: cUpper, name: existing.nameKh || existing.nameEn || cUpper, tg: tgVal, phone: data.phone || existing.phone || '' });
+                // EXPLICIT DELETE: Clear telegram completely across all caches
+                CUSTOMER_PROFILES[cUpper].telegram = '';
+                if(Array.isArray(TG_DIRECTORY)) {
+                    var tgItem = TG_DIRECTORY.find(x => x && x.id && String(x.id).trim().toUpperCase() === cUpper);
+                    if(tgItem) tgItem.tg = '';
+                }
+                if(TG_MAP) {
+                    delete TG_MAP[cUpper];
+                    delete TG_MAP[String(code).trim()];
+                }
             }
-            if(!TG_MAP) TG_MAP = {};
-            TG_MAP[cUpper] = tgVal;
+            try {
+                localStorage.setItem('aba_tg_directory', JSON.stringify(TG_DIRECTORY));
+                localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
+                if(typeof dbSet === 'function') {
+                    dbSet('aba_tg_directory', TG_DIRECTORY);
+                    dbSet('aba_tg_map', TG_MAP);
+                }
+            } catch(e) {}
             if(typeof syncTgMapFromDirectory === 'function') syncTgMapFromDirectory();
         } else if(data.phone) {
             if(!Array.isArray(TG_DIRECTORY)) TG_DIRECTORY = [];
@@ -3031,9 +3056,9 @@ function renderCustManagerTable() {
     var html = '';
     displayList.forEach((item, idx) => {
         var rawBank = item.bankAccounts || item.abaAcc || '';
-        var rawTg = item.telegram || '';
+        var rawTg = (item.telegram !== undefined && item.telegram !== null) ? item.telegram : '';
         var cUp = String(item.code || '').trim().toUpperCase();
-        if(!rawTg && cUp) {
+        if(!rawTg && item.telegram === undefined && cUp) {
             var tgF = (Array.isArray(TG_DIRECTORY) ? TG_DIRECTORY : []).find(x => x && x.id && String(x.id).trim().toUpperCase() === cUp);
             if(tgF && tgF.tg) rawTg = tgF.tg;
             else if(TG_MAP && TG_MAP[cUp]) rawTg = TG_MAP[cUp];
@@ -3080,8 +3105,7 @@ function openEditCustModal(code) {
         var bankVal = p.bankAccounts || p.abaAcc || '';
         if($('editCustBankAcc')) $('editCustBankAcc').value = bankVal;
 
-        var tgVal = p.telegram || '';
-        if(!tgVal && TG_MAP && TG_MAP[cUpper]) tgVal = TG_MAP[cUpper];
+        var tgVal = (p.telegram !== undefined && p.telegram !== null) ? p.telegram : (TG_MAP ? (TG_MAP[cUpper] || '') : '');
         if($('editCustTelegram')) $('editCustTelegram').value = tgVal;
 
         if($('editCustPhone')) $('editCustPhone').value = p.phone || '';
@@ -3099,6 +3123,28 @@ function closeEditCustModal() {
     var modal = $('editCustModal');
     if(modal) modal.classList.remove('active');
 }
+
+function deleteCustomerProfile(code) {
+    if(!code) return;
+    var cUpper = String(code).trim().toUpperCase();
+    var p = CUSTOMER_PROFILES[cUpper] || { code: cUpper };
+    var name = p.nameKh || p.nameEn || cUpper;
+    if(!confirm('តើអ្នកពិតជាចង់លុបអតិថិជន ' + cUpper + ' (' + name + ') នេះមែនទេ?')) return;
+    delete CUSTOMER_PROFILES[cUpper];
+    delete CUSTOMER_PROFILES[String(code).trim()];
+    if(Array.isArray(TG_DIRECTORY)) {
+        var idx = TG_DIRECTORY.findIndex(x => x && x.id && String(x.id).trim().toUpperCase() === cUpper);
+        if(idx > -1) TG_DIRECTORY.splice(idx, 1);
+    }
+    if(TG_MAP) {
+        delete TG_MAP[cUpper];
+        delete TG_MAP[String(code).trim()];
+    }
+    saveCustomerProfiles();
+    if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+    showToast('✓ បានលុបអតិថិជន ' + cUpper + ' ដោយជោគជ័យ', 3000);
+}
+window.deleteCustomerProfile = deleteCustomerProfile;
 
 function saveEditCustModal() {
     try {
@@ -7311,6 +7357,15 @@ document.addEventListener('click', e => {
         e.stopPropagation();
         e.preventDefault();
         deleteDoctorTg(n);
+        return;
+    }
+
+    var btnDelCust = t.closest ? t.closest('.btn-del-cust') : null;
+    if(btnDelCust) {
+        e.stopPropagation();
+        e.preventDefault();
+        var c = btnDelCust.dataset.delCust || btnDelCust.getAttribute('data-del-cust');
+        if(c) deleteCustomerProfile(c);
         return;
     }
 
