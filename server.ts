@@ -18,7 +18,10 @@ import {
   syncCustomerProfilesToFile,
   readSharedPrefs,
   writeSharedPrefs,
-  getAbaStateStatus
+  getAbaStateStatus,
+  markTransactionsProcessed,
+  parseProcessedTransactions,
+  resetProcessedTransactions
 } from './server/abaReconciliation.ts';
 import {
   readStatementTemplate,
@@ -200,6 +203,39 @@ app.post('/api/aba/shared-prefs', (req, res) => {
   }
 });
 
+// Get processed transactions list
+app.get('/api/aba/processed-transactions', (_req, res) => {
+  try {
+    const list = parseProcessedTransactions();
+    res.json({ success: true, list });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Mark transactions as processed
+app.post('/api/aba/mark-processed', (req, res) => {
+  try {
+    const refs = Array.isArray(req.body.refs) ? req.body.refs : [];
+    const list = markTransactionsProcessed(refs);
+    const state = getAbaState(true);
+    res.json({ success: true, list, state });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reset all processed transactions
+app.post('/api/aba/reset-processed', (_req, res) => {
+  try {
+    const list = resetProcessedTransactions();
+    const state = getAbaState(true);
+    res.json({ success: true, list, state });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Lightweight status check for instant real-time sync across all devices (~100 bytes)
 app.get('/api/aba/state-status', (_req, res) => {
   try {
@@ -213,9 +249,16 @@ app.get('/api/aba/state-status', (_req, res) => {
 // Save exported Excel file for AME software reconciliation
 app.post('/api/aba/save-export', (req, res) => {
   try {
-    const { fileName, fileBase64, source } = req.body;
+    const { fileName, fileBase64, source, trxRefs } = req.body;
     if (!fileName || !fileBase64) {
       return res.status(400).json({ success: false, error: 'Missing fileName or fileBase64' });
+    }
+    if (Array.isArray(trxRefs) && trxRefs.length > 0) {
+      try {
+        markTransactionsProcessed(trxRefs);
+      } catch (procErr) {
+        console.warn('Could not mark transactions as processed:', procErr);
+      }
     }
     const dataDir = path.join(process.cwd(), 'data', 'aba');
     const ameDir = path.join(dataDir, 'ame_exports');

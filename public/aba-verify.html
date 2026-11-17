@@ -657,7 +657,12 @@ summary:hover{background:var(--bg)}
 
     <input type="date" id="dFrom" title="ពី"> <span>-</span> <input type="date" id="dTo" title="ដល់">
 
-    <input type="text" id="custSearch" placeholder="🔍 ស្វែងរកអតិថិជន (C00007, ឈ្មោះ...)" style="width:230px;height:28px" title="ស្វែងរកតាមលេខកូដ C00007 ឬ ឈ្មោះ">
+    <input type="text" id="custSearch" placeholder="🔍 ស្វែងរកអតិថិជន (C00007, ឈ្មោះ...)" style="width:210px;height:28px" title="ស្វែងរកតាមលេខកូដ C00007 ឬ ឈ្មោះ">
+
+    <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:var(--tx);font-weight:600;background:var(--card);border:1px solid var(--bd);padding:2px 7px;border-radius:5px" title="ពេលបើក (Check)៖ ប្រព័ន្ធនឹងមិនរាប់បញ្ចូល Transaction ណាដែលបាន Export ទៅជា OR/AME រួចហើយនោះទេ ដើម្បីការពារមិនឱ្យជាន់ទិន្នន័យពេល Upload File ច្រើនដង">
+      <input type="checkbox" id="chkExcludeProcessed" checked style="cursor:pointer;margin:0"> 🛡️ មិនរាប់ ABA ដែល Export រួច
+    </label>
+    <button type="button" id="btnResetProcessed" style="font-size:0.7rem;padding:2px 7px;color:#dc2626;border:1px solid #fecaca;border-radius:5px;background:#fef2f2;cursor:pointer" title="ចុចដើម្បីសម្អាតប្រវត្តិ Export រួចទាំងអស់ ដើម្បីឱ្យប្រព័ន្ធអាចកាត់កងឡើងវិញពីដើមខែ">↺ សម្អាតប្រវត្តិ</button>
 
     <button class="p" id="go" style="margin-left:auto">🔄 ផ្ទៀងផ្ទាត់</button>
 
@@ -2523,8 +2528,19 @@ if(!localStorage.getItem('aba_tg_bot_token') || !localStorage.getItem('aba_tg_bo
 var ACC = (typeof ACC !== 'undefined' && Array.isArray(ACC)) ? ACC : [];
 var TG_DIRECTORY = (typeof TG_DIRECTORY !== 'undefined' && Array.isArray(TG_DIRECTORY)) ? TG_DIRECTORY : [];
 var TG_MAP = {};
+var PROCESSED_REFS = new Set();
+try {
+    var savedProc = localStorage.getItem('aba_processed_refs');
+    if(savedProc) {
+        var parsedProc = JSON.parse(savedProc);
+        if(Array.isArray(parsedProc)) {
+            parsedProc.forEach(function(r) { if(r) PROCESSED_REFS.add(String(r).trim().toUpperCase()); });
+        }
+    }
+} catch(e) {}
+var lastServerState = null;
 var TG_CHAT_IDS = {
-    'C00007': '727477829',
+    // 'C00007': '727477829',
     '@OngMach2026': '727477829',
     'OngMach2026': '727477829',
     '8805554075': '8805554075',
@@ -2552,7 +2568,7 @@ var SEED_CUSTOMER_PROFILES = {
     'C00004': { code: 'C00004', nameEn: '3D Dental Laboratory', nameKh: 'ឡាបូ 3D', contact: '', phone: '017 98 09 55', address: 'ក្រោយផ្សារសំណង់12', currency: 'USD' },
     'C00005': { code: 'C00005', nameEn: '52-Teeth Dental Clinic', nameKh: 'ពេទ្យធ្មេញ ៥២', contact: '', phone: '010 876 088', address: 'N0.17 ,ST.143, S.Beng Trabek, K. Chamka Morn , Phnom Penh Cambodia 12305', currency: 'USD' },
     'C00006': { code: 'C00006', nameEn: '87 Design Dental Laboratory', nameKh: 'ឡេប 87', contact: '', phone: '095 387 587', address: 'សំណង់១២', currency: 'USD' },
-    'C00007': { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', contact: '', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD', bankAccounts: '000 566 234', telegram: '@OngMach2026', accountHolder: 'LEANG CHHENGKIM' },
+    'C00007': { code: 'C00007', nameEn: 'Aesthetic Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អេស្តេទិច', contact: '', phone: '077 731 777 , 093 631 777', address: 'ទល់មុខផ្សារម៉ាក្រូ', currency: 'USD', bankAccounts: '000 566 234', telegram: '', accountHolder: 'LEANG CHHENGKIM' },
     'C00008': { code: 'C00008', nameEn: 'ARECA Dental Clinic', nameKh: 'បន្ទប់ព្យាបាលធ្មេញ អារីកា', contact: 'ទន្តបណ្ឌិត លីម ម៉ីហ័ង', phone: '017 61 62 78 , 093 61 62 78', address: '#291, St 369, ភូមិ ចំពុះក្អែក សង្កាត់ព្រែកថ្មី ខណ្ឌច្បារអំពៅ ភ្នំពេញ', currency: 'USD' },
     'C00009': { code: 'C00009', nameEn: 'Alliance Dental Clinic', nameKh: 'ពេទ្យធ្មេញ អាលីយ៉ង់', contact: 'Dr. KONG BUNLY (DDS)', phone: '089 53 53 08', address: '089 53 53 08 #East of Capitol Bus Station (Boeung Chhuk Market) Battambong Province', currency: 'USD' },
     'C00010': { code: 'C00010', nameEn: 'Amatak Dental Clinic', nameKh: 'ពេទ្យធ្មេញ​ អមតះ', contact: 'Dr. Amatak', phone: '093 815 265', address: '', currency: 'USD' },
@@ -2747,7 +2763,7 @@ function loadDefaultCustomerProfiles() {
                             cur.bankAccounts = src.bankAccounts;
                         }
                         if(src.accountHolder && !cur.accountHolder) cur.accountHolder = src.accountHolder;
-                        if(src.telegram && !cur.telegram) cur.telegram = src.telegram;
+                        if(src.telegram && cur.telegram === undefined) cur.telegram = src.telegram;
                     }
                 }
                 saveCustomerProfiles();
@@ -3647,11 +3663,22 @@ function addDoctorTgFromForm() {
 function deleteDoctorTg(id) {
     if(!id) return;
     if(!confirm('តើអ្នកចង់លុបគណនី Telegram របស់ ' + id + ' មែនទេ?')) return;
-    TG_DIRECTORY = TG_DIRECTORY.filter(x => !x.id || x.id.toUpperCase() !== id.toUpperCase());
+    var idUpper = String(id).trim().toUpperCase();
+    TG_DIRECTORY = TG_DIRECTORY.filter(x => !x.id || x.id.toUpperCase() !== idUpper);
     delete TG_MAP[id];
-    delete TG_MAP[id.toUpperCase()];
+    delete TG_MAP[idUpper];
+    if(typeof CUSTOMER_PROFILES === 'object' && CUSTOMER_PROFILES) {
+        if(CUSTOMER_PROFILES[idUpper]) {
+            CUSTOMER_PROFILES[idUpper].telegram = '';
+        }
+        if(CUSTOMER_PROFILES[id]) {
+            CUSTOMER_PROFILES[id].telegram = '';
+        }
+        saveCustomerProfiles();
+    }
     syncTgMapFromDirectory();
     renderTgDirectoryTable();
+    if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
     if(typeof render === 'function') render();
 }
 
@@ -4400,7 +4427,12 @@ var lastServerUpdatedAt = '';
 
 function applyServerState(state) {
     if(!state) return false;
+    lastServerState = state;
     if(state.updatedAt) lastServerUpdatedAt = state.updatedAt;
+    if(state.processedTransactions && Array.isArray(state.processedTransactions)) {
+        state.processedTransactions.forEach(function(r) { if(r) PROCESSED_REFS.add(String(r).trim().toUpperCase()); });
+        try { localStorage.setItem('aba_processed_refs', JSON.stringify(Array.from(PROCESSED_REFS))); } catch(e) {}
+    }
 
     // Cross-device sync: Ingest shared Customer Profiles from server
     if(state.profiles && typeof state.profiles === 'object' && Object.keys(state.profiles).length > 0) {
@@ -4522,7 +4554,14 @@ function applyServerState(state) {
             }
         }
         d.inv = d.invoices || d.inv || [];
-        d.pay = d.payments || d.pay || [];
+        var allPay = d.payments || d.pay || [];
+        d.allPay = allPay;
+        var isExcl = ($('chkExcludeProcessed') && $('chkExcludeProcessed').checked !== undefined) ? $('chkExcludeProcessed').checked : true;
+        d.pay = allPay.filter(function(p) {
+            if(!isExcl) return true;
+            var r = p.ref ? String(p.ref).trim().toUpperCase() : '';
+            return !(r && PROCESSED_REFS.has(r));
+        });
         var maxPayDate = null;
         d.pay.forEach(p => {
             var dt = p.date instanceof Date ? p.date : pd(p.date);
@@ -5202,6 +5241,7 @@ function build() {
 
         m = M.aba || {};
 
+        var seenAbaKeys = new Set();
         aba = a.rows.map((x, i) => {
             var d = pd(x[m.date] || x['Date']);
             if(!d && Array.isArray(x['Raw'])) {
@@ -5217,6 +5257,9 @@ function build() {
                 if(mTrx) ref = mTrx[1];
             }
             var amt = num(x[m.cr]) || num(x[m.am]) || num(x['Credit']) || 0;
+            var kRef = ref ? ('REF_' + ref.toUpperCase()) : (iso(d) + '_' + amt + '_' + text.replace(/\s+/g, '').slice(0, 30));
+            if(seenAbaKeys.has(kRef)) return null;
+            seenAbaKeys.add(kRef);
             return {
                 id: i,
                 date: d,
@@ -5225,7 +5268,7 @@ function build() {
                 ref: ref,
                 amt: amt
             };
-        }).filter(t => t.amt > 0 && t.date);
+        }).filter(t => t && t.amt > 0 && t.date);
 
     }
 
@@ -5631,8 +5674,11 @@ function run() {
     var unmatched = [];
 
     // 5. Match ABA Transactions
+    var isExclRun = ($('chkExcludeProcessed') && $('chkExcludeProcessed').checked !== undefined) ? $('chkExcludeProcessed').checked : true;
     aba.forEach(t => {
-        if(t.date > to) return;
+        if(to && t.date > to) return;
+        if(from && t.date < from) return;
+        if(isExclRun && t.ref && PROCESSED_REFS.has(String(t.ref).trim().toUpperCase())) return;
         var low = t.text.toLowerCase().replace(/\s+/g, ''), hit = assign[t.id] && docs[assign[t.id]] ? docs[assign[t.id]] : null;
 
         // Priority 2: Account Number Matching from ABA Description / Cells
@@ -7276,6 +7322,9 @@ document.addEventListener('change', e => {
             var upd = {};
             upd[fld] = t.value.trim();
             saveCustomerProfile(code, upd);
+            if(fld === 'telegram' || fld === 'bankAccounts' || fld === 'phone') {
+                if(typeof renderCustManagerTable === 'function') renderCustManagerTable();
+            }
         }
         return;
     }
@@ -7778,7 +7827,7 @@ function openTelegramModal(custName, autoSend) {
     var targetTg = getTelegramForCustomer(custName, custNo);
 
     $('tgCustomerName').textContent = custName + (custNo ? ' (' + custNo + ')' : '');
-    $('tgUsernameInput').value = targetTg || (custNo === 'C00007' ? '@OngMach2026' : '');
+    $('tgUsernameInput').value = targetTg || '';
     if($('tgBotTokenInput')) $('tgBotTokenInput').value = localStorage.getItem('aba_tg_bot_token') || ($('cfgTgBotToken') ? $('cfgTgBotToken').value.trim() : '');
 
     var totalAmt = D.inv.reduce((s, v) => s + ((v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0)), 0);
@@ -7921,7 +7970,12 @@ async function openTelegramDirectChat() {
     var meta = D.meta || {};
     var custNo = meta.custNo || D.customerId || (custName.match(/^([A-Z]\d+)/i) ? custName.match(/^([A-Z]\d+)/i)[1] : '');
     
-    var target = ($('tgUsernameInput').value || '').trim() || getTelegramForCustomer(custName, custNo) || '@OngMach2026';
+    var target = ($('tgUsernameInput').value || '').trim() || getTelegramForCustomer(custName, custNo) || '';
+    if(!target) {
+        alert('សូមបញ្ចូលគណនី Telegram របស់គ្រូពេទ្យ (ឧ. @username ឬ លេខទូរសព្ទ)');
+        if($('tgUsernameInput')) $('tgUsernameInput').focus();
+        return;
+    }
     if(custNo) TG_MAP[custNo] = target;
     TG_MAP[custName] = target;
     localStorage.setItem('aba_tg_map', JSON.stringify(TG_MAP));
@@ -8047,6 +8101,37 @@ $('go').onclick = () => {
             });
     }
 };
+if($('chkExcludeProcessed')) {
+    $('chkExcludeProcessed').onchange = function() {
+        if(lastServerState) {
+            applyServerState(lastServerState);
+        } else if(typeof run === 'function') {
+            run();
+        }
+    };
+}
+
+if($('btnResetProcessed')) {
+    $('btnResetProcessed').onclick = function() {
+        if(!confirm('តើអ្នកពិតជាចង់សម្អាតប្រវត្តិ Transaction ដែលបាន Export រួចមែនទេ? (ប្រព័ន្ធនឹងអនុញ្ញាតឱ្យកាត់កងឡើងវិញតាំងពីដើមខែ)')) return;
+        PROCESSED_REFS.clear();
+        try { localStorage.removeItem('aba_processed_refs'); } catch(e) {}
+        fetch('/api/aba/reset-processed', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if(res && res.state) {
+                    applyServerState(res.state);
+                } else if(typeof run === 'function') {
+                    run();
+                }
+                showToast('✓ បានសម្អាតប្រវត្តិ Transaction Export រួចដោយជោគជ័យ!', 3000);
+            })
+            .catch(function(err) {
+                if(typeof run === 'function') run();
+                showToast('✓ បានសម្អាតប្រវត្តិក្នុង browser!', 3000);
+            });
+    };
+}
 
 
 
@@ -8471,7 +8556,12 @@ if ($('btnBrowseZDrive')) $('btnBrowseZDrive').onclick = () => connectZDrive();
 
 var currentAmeTab = 'exports'; // 'exports' | 'uploads'
 
-function saveWB(wb, fn, allowDownload) {
+function saveWB(wb, fn, allowDownload, trxRefs) {
+    if(Array.isArray(trxRefs) && trxRefs.length) {
+        trxRefs.forEach(function(r) { if(r) PROCESSED_REFS.add(String(r).trim().toUpperCase()); });
+        try { localStorage.setItem('aba_processed_refs', JSON.stringify(Array.from(PROCESSED_REFS))); } catch(e) {}
+    }
+
     // Automatically trigger browser download unless explicitly disallowed
     if(allowDownload !== false) {
         try {
@@ -8492,7 +8582,7 @@ function saveWB(wb, fn, allowDownload) {
         fetch('/api/aba/save-export', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: fn, fileBase64: b64, source: 'AME' })
+            body: JSON.stringify({ fileName: fn, fileBase64: b64, source: 'AME', trxRefs: trxRefs || [] })
         })
         .then(function(r) { return r.json(); })
         .then(function(res) {
@@ -9059,32 +9149,38 @@ function exportX(n) {
     if(!list.length) { alert('គ្មានវិក័យបត្រដែលបានសងទេក្នុងគណនីនេះ'); return; }
 
     var f = $('fmt').value, items = list.map(v => ({n: n, D: D, v: v})), wb = f === 'or' ? buildOR(items) : buildJV(items);
-
-    saveWB(wb, f.toUpperCase() + '_' + n.replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx');
+    var refs = (D.pay || []).map(function(p) { return p.ref; }).filter(Boolean);
+    saveWB(wb, f.toUpperCase() + '_' + n.replace(/[^\w]+/g, '_').slice(0, 30) + '_' + iso(new Date()) + '.xlsx', true, refs);
 
 }
 
 $('exAll').onclick = () => {
 
     var it = [];
+    var refs = [];
 
     // Export ALL paid invoices across all doctors strictly by paid amount (សងពេលនេះ)
     if(res) {
         res.names.forEach(n => {
             var D = res.docs[n];
+            var docHasPaid = false;
             D.inv.forEach(v => {
                 var paid = (v.pp != null && v.pp > 0) ? v.pp : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : 0);
                 if(paid > 0) {
                     it.push({n: n, D: D, v: v});
+                    docHasPaid = true;
                 }
             });
+            if(docHasPaid && D.pay) {
+                D.pay.forEach(function(p) { if(p.ref) refs.push(p.ref); });
+            }
         });
     }
 
     if(!it.length) { alert('មិនមានវិក័យបត្រដែលបានសងទេ (សូមផ្ទុកឯកសារជាមុន)'); return; }
 
     var f = $('fmt').value;
-    saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx');
+    saveWB(f === 'or' ? buildOR(it) : buildJV(it), 'ALL_' + f.toUpperCase() + '_' + iso(new Date()) + '.xlsx', true, refs);
 
 };
 

@@ -66,6 +66,7 @@ export interface DoctorStatement {
     particular?: string;
     ref?: string;
     source?: string;
+    isProcessed?: boolean;
   }>;
   pay: Array<{
     id?: string;
@@ -75,6 +76,7 @@ export interface DoctorStatement {
     particular?: string;
     ref?: string;
     source?: string;
+    isProcessed?: boolean;
   }>;
 }
 
@@ -110,6 +112,7 @@ export interface AbaState {
   profiles?: Record<string, any>;
   printPrefs?: any;
   discounts?: Record<string, any>;
+  processedTransactions?: string[];
   updatedAt: string;
 }
 
@@ -687,6 +690,51 @@ export function parseTgSent(): Record<string, any> {
   return readJsonFile<Record<string, any>>('tg_sent.json', {});
 }
 
+// Parse Processed / Exported Transactions (Trx ID / Ref #)
+export function parseProcessedTransactions(): string[] {
+  return readJsonFile<string[]>('processed_transactions.json', []);
+}
+
+export function markTransactionsProcessed(refs: string[]): string[] {
+  const current = new Set(parseProcessedTransactions().map(s => String(s).trim().toUpperCase()));
+  refs.forEach(r => {
+    const clean = String(r || '').trim().toUpperCase();
+    if (clean) current.add(clean);
+  });
+  const list = Array.from(current);
+  writeJsonFile('processed_transactions.json', list);
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      fs.writeFileSync(path.join(dir, 'processed_transactions.json'), JSON.stringify(list, null, 2), 'utf8');
+    } catch {}
+  });
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    cached.processedTransactions = list;
+    cached.updatedAt = new Date().toISOString();
+    writeJsonFile('state.json', cached);
+  }
+  return list;
+}
+
+export function resetProcessedTransactions(): string[] {
+  writeJsonFile('processed_transactions.json', []);
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      fs.writeFileSync(path.join(dir, 'processed_transactions.json'), '[]', 'utf8');
+    } catch {}
+  });
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    cached.processedTransactions = [];
+    cached.updatedAt = new Date().toISOString();
+    writeJsonFile('state.json', cached);
+  }
+  return [];
+}
+
 // Main server-side reconciliation engine
 export function computeAbaReconciliation(): AbaState {
   ensureDataDir();
@@ -694,6 +742,7 @@ export function computeAbaReconciliation(): AbaState {
   const accMap = parseAccountsMap();
   const tgDir = parseTgDirectory();
   const tgSent = parseTgSent();
+  const processedRefs = new Set(parseProcessedTransactions().map(s => String(s).trim().toUpperCase()));
   const shared = readSharedPrefs();
   const activeDebtKey = (shared && shared.activeDebtKey && shared.activeDebtKey !== 'all') ? shared.activeDebtKey : 'khema';
   const activeBankKey = (shared && shared.activeBankKey) ? shared.activeBankKey : 'khema_aba';
@@ -983,6 +1032,7 @@ export function computeAbaReconciliation(): AbaState {
         }
       }
 
+      const seenTrx = new Set<string>();
       const startRow = hdrIdx !== -1 ? hdrIdx + 1 : 0;
       for (let i = startRow; i < aoa.length; i++) {
         const r = aoa[i] || [];
@@ -1025,6 +1075,16 @@ export function computeAbaReconciliation(): AbaState {
           const mTrx = text.match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
           if (mTrx) refVal = mTrx[1];
         }
+
+        const trxKey = refVal
+          ? `REF_${refVal.toUpperCase()}`
+          : `${dateRes.dmyStr}_${crVal}_${text.replace(/\s+/g, '').slice(0, 40)}`;
+        if (seenTrx.has(trxKey)) {
+          continue; // Auto-deduplicate duplicate transaction row
+        }
+        seenTrx.add(trxKey);
+
+        const isAlreadyProcessed = refVal ? processedRefs.has(refVal.toUpperCase()) : false;
 
         const txAcc = extractAbaAccount(text);
         const cleanTextDigits = text.replace(/\D/g, '');
@@ -1085,7 +1145,8 @@ export function computeAbaReconciliation(): AbaState {
             amt: crVal,
             particular: text,
             ref: refVal,
-            source: slot.includes('acleda') ? 'Acleda' : 'ABA'
+            source: slot.includes('acleda') ? 'Acleda' : 'ABA',
+            isProcessed: isAlreadyProcessed
           });
           hitDoc.pay = hitDoc.payments;
         } else {
@@ -1093,7 +1154,8 @@ export function computeAbaReconciliation(): AbaState {
             date: dateRes.dmyStr || dateRes.dateStr,
             amt: crVal,
             text,
-            ref: refVal
+            ref: refVal,
+            isProcessed: isAlreadyProcessed
           });
         }
       }
@@ -1243,6 +1305,7 @@ export function computeAbaReconciliation(): AbaState {
     doctors: resultDoctors,
     unmatched,
     tgSent: parseTgSent(),
+    processedTransactions: Array.from(processedRefs),
     updatedAt: new Date().toISOString()
   };
 
@@ -1266,6 +1329,7 @@ export function getAbaState(force = false): AbaState {
         cached.printPrefs = shared.printPrefs;
         cached.discounts = shared.discounts;
         cached.tgSent = parseTgSent();
+        cached.processedTransactions = parseProcessedTransactions();
         let sentCnt = 0;
         if (cached.doctors) {
           cached.doctors.forEach(d => {
