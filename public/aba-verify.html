@@ -2538,6 +2538,44 @@ try {
         }
     }
 } catch(e) {}
+
+var PROCESSED_INVS = new Set();
+try {
+    var savedInvs = localStorage.getItem('aba_processed_invs');
+    if(savedInvs) {
+        var parsedInvs = JSON.parse(savedInvs);
+        if(Array.isArray(parsedInvs)) {
+            parsedInvs.forEach(function(inv) { if(inv) PROCESSED_INVS.add(String(inv).trim().toUpperCase()); });
+        }
+    }
+} catch(e) {}
+
+function extractCanonicalRef(text, rawRef) {
+    var ignoreList = new Set([
+        'ENTRY NO', 'TYPE', 'DATE', 'PREFIX', 'CUSTOMER ID', 'CASH/BANK ACCOUNT ID',
+        'RECEIVED BY', 'CLASS ID', 'REFERENCE', 'REMARK', 'PAYMENT METHOD',
+        'PAYMENT REFERENCE', 'CURRENCY ID', 'EXCHANGE RATE', 'DEFAULT', 'KHEMA88888',
+        'USD', 'KHR', 'APPLY TO SALE INVOICE'
+    ]);
+    if(rawRef) {
+        var cRef = String(rawRef).trim().toUpperCase();
+        if(!ignoreList.has(cRef)) {
+            var mFt = cRef.match(/\b([0-9]{3}FT[A-Za-z0-9]+)\b/i) || cRef.match(/\b([0-9]{3}FTRA[A-Za-z0-9]+)\b/i);
+            if(mFt) return mFt[1].toUpperCase();
+            if(/^[0-9A-Z]{8,}$/i.test(cRef) && !/^[A-Z]+$/.test(cRef)) return cRef;
+        }
+    }
+    if(text) {
+        var mFt2 = String(text).match(/\b([0-9]{3}FT[A-Za-z0-9]+)\b/i) || String(text).match(/\b([0-9]{3}FTRA[A-Za-z0-9]+)\b/i);
+        if(mFt2) return mFt2[1].toUpperCase();
+        var mTrx = String(text).match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
+        if(mTrx) {
+            var cand = mTrx[1].trim().toUpperCase();
+            if(!ignoreList.has(cand)) return cand;
+        }
+    }
+    return '';
+}
 var lastServerState = null;
 var TG_CHAT_IDS = {
     // 'C00007': '727477829',
@@ -4433,6 +4471,10 @@ function applyServerState(state) {
         state.processedTransactions.forEach(function(r) { if(r) PROCESSED_REFS.add(String(r).trim().toUpperCase()); });
         try { localStorage.setItem('aba_processed_refs', JSON.stringify(Array.from(PROCESSED_REFS))); } catch(e) {}
     }
+    if(state.processedInvoices && Array.isArray(state.processedInvoices)) {
+        state.processedInvoices.forEach(function(inv) { if(inv) PROCESSED_INVS.add(String(inv).trim().toUpperCase()); });
+        try { localStorage.setItem('aba_processed_invs', JSON.stringify(Array.from(PROCESSED_INVS))); } catch(e) {}
+    }
 
     // Cross-device sync: Ingest shared Customer Profiles from server
     if(state.profiles && typeof state.profiles === 'object' && Object.keys(state.profiles).length > 0) {
@@ -4559,8 +4601,11 @@ function applyServerState(state) {
         var isExcl = ($('chkExcludeProcessed') && $('chkExcludeProcessed').checked !== undefined) ? $('chkExcludeProcessed').checked : true;
         d.pay = allPay.filter(function(p) {
             if(!isExcl) return true;
+            var canon = extractCanonicalRef(p.particular || p.text, p.ref);
+            if(canon && PROCESSED_REFS.has(canon)) return false;
             var r = p.ref ? String(p.ref).trim().toUpperCase() : '';
-            return !(r && PROCESSED_REFS.has(r));
+            if(r && PROCESSED_REFS.has(r)) return false;
+            return !p.isProcessed;
         });
         var maxPayDate = null;
         d.pay.forEach(p => {
@@ -4576,6 +4621,9 @@ function applyServerState(state) {
         d.totalAbaPay = Math.round(d.per * 100) / 100;
         d.paidBeforeTotal = d.paidBeforeTotal || 0;
         d.inv.forEach(v => {
+            var invUpper = String(v.inv || '').trim().toUpperCase();
+            var isExp = v.isAlreadyExported || Boolean(invUpper && PROCESSED_INVS.has(invUpper));
+            v.isAlreadyExported = isExp;
             var discKey = d.name + '_' + (v.inv || v.id);
             var discVal = (typeof DISCOUNT_MAP !== 'undefined' && DISCOUNT_MAP[discKey] != null) 
                 ? DISCOUNT_MAP[discKey] 
@@ -4585,15 +4633,28 @@ function applyServerState(state) {
             v.discount = discVal;
             v.bal = v.bal != null ? v.bal : (v.amt || 0);
             v.amt = Math.round(v.bal * 100) / 100; // ALWAYS RAW BALANCE FROM XLS!
-            v.pp = v.paidNow != null ? v.paidNow : (v.pp != null ? v.pp : 0);
-            v.paidNow = v.pp;
-            v.pb = v.paidBefore != null ? v.paidBefore : (v.pb != null ? v.pb : 0);
-            v.rem = Math.max(0, Math.round((v.amt - (v.discount || 0) - v.pp) * 100) / 100);
-            v.remaining = v.rem;
-            if(v.pp > 0 || (v.paidNow != null && v.paidNow > 0) || (v.rem <= 0.005 && (v.amt || 0) > 0)) {
-                sel[v.id] = true;
+            if(isExp) {
+                v.pp = 0;
+                v.paidNow = 0;
+                v.rem = 0;
+                v.remaining = 0;
+                v.status = 'Exported';
+                v.statusKh = 'បាន Export រួច';
+                sel[v.id] = false;
+            } else {
+                v.pp = v.paidNow != null ? v.paidNow : (v.pp != null ? v.pp : 0);
+                v.paidNow = v.pp;
+                v.pb = v.paidBefore != null ? v.paidBefore : (v.pb != null ? v.pb : 0);
+                v.rem = Math.max(0, Math.round((v.amt - (v.discount || 0) - v.pp) * 100) / 100);
+                v.remaining = v.rem;
+                if(v.pp > 0 || (v.paidNow != null && v.paidNow > 0) || (v.rem <= 0.005 && (v.amt || 0) > 0)) {
+                    sel[v.id] = true;
+                }
             }
         });
+        if(isExcl && !d.hasManualAlloc) {
+            allocateDoctorPayments(d, true);
+        }
         d.paidTotal = d.inv.reduce((s, v) => s + (sel[v.id] ? (v.pp || 0) : 0), 0);
         d.remToAlloc = Math.max(0, Math.round((d.totalAbaPay - d.paidTotal) * 100) / 100);
         d.extra = d.remToAlloc;
@@ -5319,21 +5380,42 @@ function allocateDoctorPayments(D, forceAuto) {
     if(forceAuto || !D.hasManualAlloc) {
         // Reset all invoices for auto matching
         D.inv.forEach(v => {
+            var invUpper = String(v.inv || '').trim().toUpperCase();
+            var isExp = v.isAlreadyExported || Boolean(invUpper && PROCESSED_INVS.has(invUpper));
+            v.isAlreadyExported = isExp;
             var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
             v.amt = Math.round(bAmt * 100) / 100; // ALWAYS RAW BALANCE FROM XLS
-            var netAmt = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
             var initPaid = (v.paidBefore != null && !isNaN(v.paidBefore)) ? v.paidBefore : 0;
             v.pb = initPaid;
             v.pp = 0;
             v.paidNow = 0;
-            v.rem = netAmt; // Remaining = Amount - discount
-            v.remaining = netAmt;
-            v.status = netAmt <= 0.005 ? 'Fully Paid' : 'Unpaid';
-            v.statusKh = netAmt <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
-            sel[v.id] = (netAmt <= 0.005);
+            if(isExp) {
+                v.rem = 0;
+                v.remaining = 0;
+                v.status = 'Exported';
+                v.statusKh = 'បាន Export រួច';
+                sel[v.id] = false;
+            } else {
+                var netAmt = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
+                v.rem = netAmt; // Remaining = Amount - discount
+                v.remaining = netAmt;
+                v.status = netAmt <= 0.005 ? 'Fully Paid' : 'Unpaid';
+                v.statusKh = netAmt <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
+                sel[v.id] = (netAmt <= 0.005);
+            }
         });
 
-        var availablePay = totalAbaPay;
+        // Filter active payments only
+        var activePayList = (D.pay || []).filter(function(p) {
+            var canon = extractCanonicalRef(p.particular || p.text, p.ref);
+            if(canon && PROCESSED_REFS.has(canon)) return false;
+            var r = p.ref ? String(p.ref).trim().toUpperCase() : '';
+            if(r && PROCESSED_REFS.has(r)) return false;
+            return !p.isProcessed;
+        });
+
+        var availablePay = activePayList.reduce(function(s, p) { return s + (p.amt || 0); }, 0);
+        availablePay = Math.round(availablePay * 100) / 100;
 
         if(availablePay > 0.005) {
             // Sort newest invoices first: date desc, then invoice number desc
@@ -5344,11 +5426,11 @@ function allocateDoctorPayments(D, forceAuto) {
                 return (b.no || 0) - (a.no || 0);
             });
 
-            // Step 1: Exact amount matching against newest invoices first (វិក័យបត្រថ្មីៗ)
-            var payList = (D.pay || []).map(p => p.amt).filter(a => a > 0);
+            // Step 1: Exact amount matching against newest non-exported invoices first (វិក័យបត្រថ្មីៗ)
+            var payList = activePayList.map(p => p.amt).filter(a => a > 0);
             payList.forEach(pAmt => {
                 if(pAmt <= 0 || availablePay <= 0.005) return;
-                var match = sortedInvsDesc.find(v => (v.pp === 0 || !v.pp) && Math.abs(v.rem - pAmt) < 0.005);
+                var match = sortedInvsDesc.find(v => !v.isAlreadyExported && (v.pp === 0 || !v.pp) && Math.abs(v.rem - pAmt) < 0.005);
                 if(match && availablePay >= pAmt) {
                     match.pp = pAmt;
                     match.paidNow = pAmt;
@@ -5365,12 +5447,12 @@ function allocateDoctorPayments(D, forceAuto) {
             if(availablePay > 0.005) {
                 sortedInvsDesc.forEach(v => {
                     if(availablePay <= 0.005) return;
-                    if(v.rem > 0.005) {
+                    if(!v.isAlreadyExported && v.rem > 0.005) {
                         var alloc = Math.min(v.rem, availablePay);
                         v.pp = Math.round((v.pp + alloc) * 100) / 100;
                         v.paidNow = v.pp;
                         var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
-                        v.amt = Math.round(bAmt * 100) / 100; // ALWAYS RAW BALANCE FROM XLS
+                        v.amt = Math.round(bAmt * 100) / 100;
                         v.rem = Math.max(0, Math.round((bAmt - (v.discount || 0) - v.pp) * 100) / 100);
                         v.remaining = v.rem;
                         var isFull = v.rem <= 0.005;
@@ -5665,6 +5747,9 @@ function run() {
         var running = 0;
         D.inv.forEach((v, idx) => {
             v.no = idx + 1;
+            var invUpper = String(v.inv || '').trim().toUpperCase();
+            var isExp = Boolean(invUpper && PROCESSED_INVS.has(invUpper));
+            v.isAlreadyExported = isExp;
             var bAmt = (v.bal != null && !isNaN(v.bal)) ? v.bal : (v.amt || 0);
             running += bAmt;
             v.runBal = Math.round(running * 100) / 100;
@@ -5678,6 +5763,8 @@ function run() {
     aba.forEach(t => {
         if(to && t.date > to) return;
         if(from && t.date < from) return;
+        var tCanonRef = extractCanonicalRef(t.text, t.ref);
+        if(isExclRun && tCanonRef && PROCESSED_REFS.has(tCanonRef)) return;
         if(isExclRun && t.ref && PROCESSED_REFS.has(String(t.ref).trim().toUpperCase())) return;
         var low = t.text.toLowerCase().replace(/\s+/g, ''), hit = assign[t.id] && docs[assign[t.id]] ? docs[assign[t.id]] : null;
 
@@ -6068,7 +6155,9 @@ function render() {
                 running += remAmt;
                 v.runBal = Math.round(running * 100) / 100;
                 var s = '';
-                if(v.rem <= 0.005) {
+                if(v.isAlreadyExported) {
+                    s = '<span class="ok" style="background:#e0e7ff;color:#3730a3;border-color:#c7d2fe;font-weight:700">បាន Export រួច</span>';
+                } else if(v.rem <= 0.005) {
                     s = '<span class="ok">សងគ្រប់</span>';
                 } else if(v.pp > 0 || v.pb > 0 || (v.payStatus && /partial/i.test(v.payStatus))) {
                     s = '<span class="wa">សងមួយផ្នែក</span>';
@@ -6080,7 +6169,11 @@ function render() {
                 var isDis = false;
                 var chkTitle = '';
 
-                if(isChecked) {
+                if(v.isAlreadyExported) {
+                    isChecked = false;
+                    isDis = true;
+                    chkTitle = 'វិក័យបត្រនេះបាន Export ទៅ AME រួចហើយ មិនអាចកាត់កងស្ទួនបានទេ';
+                } else if(isChecked) {
                     chkTitle = 'ចុចដើម្បីដោះការកាត់កងវិក័យបត្រនេះវិញ (នឹងសល់ប្រាក់ $' + fmt(v.pp || v.amt) + ')';
                 } else {
                     if(remToAlloc <= 0.005) {
@@ -6091,7 +6184,7 @@ function render() {
                     }
                 }
 
-                var rowStyle = isChecked ? 'background:#f0fdf4;' : '';
+                var rowStyle = v.isAlreadyExported ? 'background:#f8fafc;opacity:0.75;' : (isChecked ? 'background:#f0fdf4;' : '');
 
                 h += '<tr style="' + rowStyle + '">' +
                      '<td><input type="checkbox" class="chk-inv" data-id="' + v.id + '" data-doc="' + esc(n) + '"' + (isChecked ? ' checked' : '') + (isDis ? ' disabled' : '') + ' title="' + esc(chkTitle) + '"></td>' +
@@ -8113,9 +8206,11 @@ if($('chkExcludeProcessed')) {
 
 if($('btnResetProcessed')) {
     $('btnResetProcessed').onclick = function() {
-        if(!confirm('តើអ្នកពិតជាចង់សម្អាតប្រវត្តិ Transaction ដែលបាន Export រួចមែនទេ? (ប្រព័ន្ធនឹងអនុញ្ញាតឱ្យកាត់កងឡើងវិញតាំងពីដើមខែ)')) return;
+        if(!confirm('តើអ្នកពិតជាចង់សម្អាតប្រវត្តិ Transaction និង Invoice ដែលបាន Export រួចមែនទេ? (ប្រព័ន្ធនឹងអនុញ្ញាតឱ្យកាត់កងឡើងវិញតាំងពីដើមខែ)')) return;
         PROCESSED_REFS.clear();
+        PROCESSED_INVS.clear();
         try { localStorage.removeItem('aba_processed_refs'); } catch(e) {}
+        try { localStorage.removeItem('aba_processed_invs'); } catch(e) {}
         fetch('/api/aba/reset-processed', { method: 'POST' })
             .then(function(r) { return r.json(); })
             .then(function(res) {
@@ -8124,7 +8219,7 @@ if($('btnResetProcessed')) {
                 } else if(typeof run === 'function') {
                     run();
                 }
-                showToast('✓ បានសម្អាតប្រវត្តិ Transaction Export រួចដោយជោគជ័យ!', 3000);
+                showToast('✓ បានសម្អាតប្រវត្តិ Export រួចដោយជោគជ័យ!', 3000);
             })
             .catch(function(err) {
                 if(typeof run === 'function') run();
@@ -8557,10 +8652,56 @@ if ($('btnBrowseZDrive')) $('btnBrowseZDrive').onclick = () => connectZDrive();
 var currentAmeTab = 'exports'; // 'exports' | 'uploads'
 
 function saveWB(wb, fn, allowDownload, trxRefs) {
-    if(Array.isArray(trxRefs) && trxRefs.length) {
-        trxRefs.forEach(function(r) { if(r) PROCESSED_REFS.add(String(r).trim().toUpperCase()); });
-        try { localStorage.setItem('aba_processed_refs', JSON.stringify(Array.from(PROCESSED_REFS))); } catch(e) {}
+    var allRefs = new Set();
+    var allInvs = new Set();
+
+    if(Array.isArray(trxRefs)) {
+        trxRefs.forEach(function(r) {
+            var c = extractCanonicalRef(r, r) || String(r || '').trim().toUpperCase();
+            if(c) allRefs.add(c);
+        });
     }
+
+    // Auto-inspect wb Sheet 1 (References) and Sheet 2 (Invoices)
+    try {
+        if(wb && wb.SheetNames && wb.SheetNames.length) {
+            var s1 = wb.Sheets[wb.SheetNames[0]];
+            if(s1) {
+                var rows1 = XLSX.utils.sheet_to_json(s1, { header: 1 });
+                rows1.forEach(function(r) {
+                    if(Array.isArray(r)) {
+                        r.forEach(function(cell) {
+                            var s = String(cell || '').trim();
+                            var canon = extractCanonicalRef(s, s);
+                            if(canon) allRefs.add(canon);
+                        });
+                    }
+                });
+            }
+            if(wb.SheetNames.length > 1) {
+                var s2 = wb.Sheets[wb.SheetNames[1]];
+                if(s2) {
+                    var rows2 = XLSX.utils.sheet_to_json(s2, { header: 1 });
+                    rows2.forEach(function(r) {
+                        if(Array.isArray(r)) {
+                            r.forEach(function(cell) {
+                                var s = String(cell || '').trim().toUpperCase();
+                                var mInv = s.match(/\b(INV\d+)\b/i);
+                                if(mInv) allInvs.add(mInv[1].toUpperCase());
+                            });
+                        }
+                    });
+                }
+            }
+        }
+    } catch(e) {
+        console.warn('Auto inspection error in saveWB:', e);
+    }
+
+    allRefs.forEach(function(r) { PROCESSED_REFS.add(r); });
+    allInvs.forEach(function(inv) { PROCESSED_INVS.add(inv); });
+    try { localStorage.setItem('aba_processed_refs', JSON.stringify(Array.from(PROCESSED_REFS))); } catch(e) {}
+    try { localStorage.setItem('aba_processed_invs', JSON.stringify(Array.from(PROCESSED_INVS))); } catch(e) {}
 
     // Automatically trigger browser download unless explicitly disallowed
     if(allowDownload !== false) {
@@ -8582,7 +8723,13 @@ function saveWB(wb, fn, allowDownload, trxRefs) {
         fetch('/api/aba/save-export', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: fn, fileBase64: b64, source: 'AME', trxRefs: trxRefs || [] })
+            body: JSON.stringify({
+                fileName: fn,
+                fileBase64: b64,
+                source: 'AME',
+                trxRefs: Array.from(allRefs),
+                invNumbers: Array.from(allInvs)
+            })
         })
         .then(function(r) { return r.json(); })
         .then(function(res) {
@@ -9143,8 +9290,8 @@ function buildJV(items) {
 function exportX(n) {
 
     var D = res.docs[n];
-    var list = D.inv.filter(v => (sel[v.id] ? true : ((v.pp != null && v.pp > 0) || (v.paidInOR != null && v.paidInOR > 0))));
-    if(!list.length) list = D.inv.filter(v => (v.pp != null && v.pp > 0) || (v.paidInOR != null && v.paidInOR > 0));
+    var list = D.inv.filter(v => !v.isAlreadyExported && (sel[v.id] ? true : ((v.pp != null && v.pp > 0) || (v.paidInOR != null && v.paidInOR > 0))));
+    if(!list.length) list = D.inv.filter(v => !v.isAlreadyExported && ((v.pp != null && v.pp > 0) || (v.paidInOR != null && v.paidInOR > 0)));
 
     if(!list.length) { alert('គ្មានវិក័យបត្រដែលបានសងទេក្នុងគណនីនេះ'); return; }
 
@@ -9165,6 +9312,7 @@ $('exAll').onclick = () => {
             var D = res.docs[n];
             var docHasPaid = false;
             D.inv.forEach(v => {
+                if(v.isAlreadyExported) return; // Strict exclusion of already exported invoices
                 var paid = (v.pp != null && v.pp > 0) ? v.pp : (v.paidInOR != null && v.paidInOR > 0 ? v.paidInOR : 0);
                 if(paid > 0) {
                     it.push({n: n, D: D, v: v});
@@ -9191,7 +9339,7 @@ if($('exSel')) {
             res.names.forEach(n => {
                 var D = res.docs[n];
                 D.inv.forEach(v => {
-                    if(sel[v.id]) {
+                    if(!v.isAlreadyExported && sel[v.id]) {
                         it.push({n: n, D: D, v: v});
                     }
                 });

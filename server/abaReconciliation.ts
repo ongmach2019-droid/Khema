@@ -20,11 +20,12 @@ export interface DoctorInvoice {
   paidNow: number;
   remaining: number;
   runBal: number;
-  status: 'Fully Paid' | 'Partially Paid' | 'Unpaid';
-  statusKh: 'សងគ្រប់' | 'សងមួយផ្នែក' | 'មិនទាន់សង';
+  status: 'Fully Paid' | 'Partially Paid' | 'Unpaid' | 'Exported';
+  statusKh: 'សងគ្រប់' | 'សងមួយផ្នែក' | 'មិនទាន់សង' | 'បាន Export រួច';
   pp?: number;
   pb?: number;
   rem?: number;
+  isAlreadyExported?: boolean;
 }
 
 export interface DoctorStatement {
@@ -113,6 +114,7 @@ export interface AbaState {
   printPrefs?: any;
   discounts?: Record<string, any>;
   processedTransactions?: string[];
+  processedInvoices?: string[];
   updatedAt: string;
 }
 
@@ -691,6 +693,63 @@ export function parseTgSent(): Record<string, any> {
 }
 
 // Parse Processed / Exported Transactions (Trx ID / Ref #)
+
+// Helper to extract canonical bank reference (prioritizing 100FT or FT reference numbers)
+export function extractCanonicalRef(text?: string, rawRef?: string): string {
+  const ignoreList = new Set([
+    'ENTRY NO', 'TYPE', 'DATE', 'PREFIX', 'CUSTOMER ID', 'CASH/BANK ACCOUNT ID',
+    'RECEIVED BY', 'CLASS ID', 'REFERENCE', 'REMARK', 'PAYMENT METHOD',
+    'PAYMENT REFERENCE', 'CURRENCY ID', 'EXCHANGE RATE', 'DEFAULT', 'KHEMA88888',
+    'USD', 'KHR', 'APPLY TO SALE INVOICE'
+  ]);
+  if (rawRef) {
+    const cRef = String(rawRef).trim().toUpperCase();
+    if (!ignoreList.has(cRef)) {
+      const mFt = cRef.match(/\b([0-9]{3}FT[A-Za-z0-9]+)\b/i) || cRef.match(/\b([0-9]{3}FTRA[A-Za-z0-9]+)\b/i);
+      if (mFt) return mFt[1].toUpperCase();
+      if (/^[0-9A-Z]{8,}$/i.test(cRef) && !/^[A-Z]+$/.test(cRef)) return cRef;
+    }
+  }
+  if (text) {
+    const mFt = String(text).match(/\b([0-9]{3}FT[A-Za-z0-9]+)\b/i) || String(text).match(/\b([0-9]{3}FTRA[A-Za-z0-9]+)\b/i);
+    if (mFt) return mFt[1].toUpperCase();
+    const mTrx = String(text).match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
+    if (mTrx) {
+      const cand = mTrx[1].trim().toUpperCase();
+      if (!ignoreList.has(cand)) return cand;
+    }
+  }
+  return '';
+}
+
+// Parse Processed / Exported Invoices
+export function parseProcessedInvoices(): string[] {
+  return readJsonFile<string[]>('processed_invoices.json', []);
+}
+
+export function markInvoicesProcessed(invs: string[]): string[] {
+  const current = new Set(parseProcessedInvoices().map(s => String(s).trim().toUpperCase()));
+  invs.forEach(inv => {
+    const clean = String(inv || '').trim().toUpperCase();
+    if (clean) current.add(clean);
+  });
+  const list = Array.from(current);
+  writeJsonFile('processed_invoices.json', list);
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      fs.writeFileSync(path.join(dir, 'processed_invoices.json'), JSON.stringify(list, null, 2), 'utf8');
+    } catch {}
+  });
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    cached.processedInvoices = list;
+    cached.updatedAt = new Date().toISOString();
+    writeJsonFile('state.json', cached);
+  }
+  return list;
+}
+
 export function parseProcessedTransactions(): string[] {
   return readJsonFile<string[]>('processed_transactions.json', []);
 }
@@ -718,7 +777,25 @@ export function markTransactionsProcessed(refs: string[]): string[] {
   return list;
 }
 
+export function resetProcessedInvoices(): string[] {
+  writeJsonFile('processed_invoices.json', []);
+  const netDirs = getNetworkDriveAbaDirs();
+  netDirs.forEach(dir => {
+    try {
+      fs.writeFileSync(path.join(dir, 'processed_invoices.json'), '[]', 'utf8');
+    } catch {}
+  });
+  const cached = readJsonFile<AbaState | null>('state.json', null);
+  if (cached) {
+    cached.processedInvoices = [];
+    cached.updatedAt = new Date().toISOString();
+    writeJsonFile('state.json', cached);
+  }
+  return [];
+}
+
 export function resetProcessedTransactions(): string[] {
+  resetProcessedInvoices();
   writeJsonFile('processed_transactions.json', []);
   const netDirs = getNetworkDriveAbaDirs();
   netDirs.forEach(dir => {
@@ -743,6 +820,7 @@ export function computeAbaReconciliation(): AbaState {
   const tgDir = parseTgDirectory();
   const tgSent = parseTgSent();
   const processedRefs = new Set(parseProcessedTransactions().map(s => String(s).trim().toUpperCase()));
+  const processedInvs = new Set(parseProcessedInvoices().map(s => String(s).trim().toUpperCase()));
   const shared = readSharedPrefs();
   const activeDebtKey = (shared && shared.activeDebtKey && shared.activeDebtKey !== 'all') ? shared.activeDebtKey : 'khema';
   const activeBankKey = (shared && shared.activeBankKey) ? shared.activeBankKey : 'khema_aba';
@@ -1070,21 +1148,19 @@ export function computeAbaReconciliation(): AbaState {
         }
         if (crVal <= 0 && !text) continue;
 
-        let refVal = refCol !== -1 ? String(r[refCol] || '').trim() : '';
-        if (!refVal) {
-          const mTrx = text.match(/(?:trx\.?\s*id|ref#?|ft#?)\s*[:#\s]*([a-z0-9_-]+)/i);
-          if (mTrx) refVal = mTrx[1];
-        }
+                let refVal = refCol !== -1 ? String(r[refCol] || '').trim() : '';
+        const canonicalRef = extractCanonicalRef(text, refVal) || (refVal ? refVal.trim().toUpperCase() : '');
+        if (canonicalRef) refVal = canonicalRef;
 
-        const trxKey = refVal
-          ? `REF_${refVal.toUpperCase()}`
+        const trxKey = canonicalRef
+          ? `REF_${canonicalRef}`
           : `${dateRes.dmyStr}_${crVal}_${text.replace(/\s+/g, '').slice(0, 40)}`;
         if (seenTrx.has(trxKey)) {
           continue; // Auto-deduplicate duplicate transaction row
         }
         seenTrx.add(trxKey);
 
-        const isAlreadyProcessed = refVal ? processedRefs.has(refVal.toUpperCase()) : false;
+        const isAlreadyProcessed = Boolean(canonicalRef && processedRefs.has(canonicalRef));
 
         const txAcc = extractAbaAccount(text);
         const cleanTextDigits = text.replace(/\D/g, '');
@@ -1177,13 +1253,20 @@ export function computeAbaReconciliation(): AbaState {
       v.runBal = Math.round(running * 100) / 100;
     });
 
-    let availablePay = D.payments.reduce((s, p) => s + p.amt, 0);
+        // Filter ONLY active (unprocessed) payments for current allocation
+    const activePayments = D.payments.filter(p => !p.isProcessed);
+    let availablePay = activePayments.reduce((s, p) => s + p.amt, 0);
+    availablePay = Math.round(availablePay * 100) / 100;
+
     // Total Debt captures strictly Balance from file (matches Excel row 3479 Total Balance: 117,713.15)
     D.owed = Math.round(D.invoices.reduce((s, v) => s + (v.bal != null ? v.bal : v.amt), 0) * 100) / 100;
     D.discountTotal = Math.round(D.invoices.reduce((s, v) => s + (v.discount || 0), 0) * 100) / 100;
     D.paidBeforeTotal = Math.round(D.invoices.reduce((s, v) => s + (v.paidBefore || 0), 0) * 100) / 100;
 
     D.invoices.forEach(v => {
+      const invUpper = String(v.inv || '').trim().toUpperCase();
+      const isExp = Boolean(invUpper && processedInvs.has(invUpper));
+      v.isAlreadyExported = isExp;
       const initPb = Math.max(0, (v.origAmt || 0) - (v.bal || 0));
       v.paidBefore = initPb;
       v.pb = initPb;
@@ -1191,11 +1274,18 @@ export function computeAbaReconciliation(): AbaState {
       v.pp = 0;
       const bAmt = v.bal != null ? v.bal : (v.amt || 0);
       v.amt = bAmt;
-      const netRem = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
-      v.remaining = netRem;
-      v.rem = netRem;
-      v.status = netRem <= 0.005 ? 'Fully Paid' : 'Unpaid';
-      v.statusKh = netRem <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
+      if (isExp) {
+        v.remaining = 0;
+        v.rem = 0;
+        v.status = 'Exported';
+        v.statusKh = 'បាន Export រួច';
+      } else {
+        const netRem = Math.max(0, Math.round((bAmt - (v.discount || 0)) * 100) / 100);
+        v.remaining = netRem;
+        v.rem = netRem;
+        v.status = netRem <= 0.005 ? 'Fully Paid' : 'Unpaid';
+        v.statusKh = netRem <= 0.005 ? 'សងគ្រប់' : 'មិនទាន់សង';
+      }
     });
 
     const sortedInvsDesc = D.invoices.slice().sort((a, b) => {
@@ -1204,11 +1294,11 @@ export function computeAbaReconciliation(): AbaState {
       if (!isNaN(da) && !isNaN(db) && db !== da) return db - da;
       return (b.no || 0) - (a.no || 0);
     });
-    const payList = D.payments.map(p => p.amt).filter(a => a > 0);
+    const payList = activePayments.map(p => p.amt).filter(a => a > 0);
 
     payList.forEach(pAmt => {
-      if (pAmt <= 0) return;
-      const match = sortedInvsDesc.find(v => v.paidNow === 0 && Math.abs(v.remaining - pAmt) < 0.005);
+      if (pAmt <= 0 || availablePay <= 0.005) return;
+      const match = sortedInvsDesc.find(v => !v.isAlreadyExported && v.paidNow === 0 && Math.abs(v.remaining - pAmt) < 0.005);
       if (match && availablePay >= pAmt) {
         match.paidNow = pAmt;
         match.pp = pAmt;
@@ -1223,7 +1313,7 @@ export function computeAbaReconciliation(): AbaState {
     if (availablePay > 0.005) {
       sortedInvsDesc.forEach(v => {
         if (availablePay <= 0.005) return;
-        if (v.remaining > 0.005) {
+        if (!v.isAlreadyExported && v.remaining > 0.005) {
           const alloc = Math.min(v.remaining, availablePay);
           v.paidNow = Math.round((v.paidNow + alloc) * 100) / 100;
           v.pp = v.paidNow;
@@ -1236,7 +1326,7 @@ export function computeAbaReconciliation(): AbaState {
       });
     }
 
-    D.paidTotal = D.invoices.reduce((s, v) => s + (v.paidNow || 0), 0);
+    D.paidTotal = D.invoices.reduce((s, v) => s + (v.isAlreadyExported ? 0 : (v.paidNow || 0)), 0);
     D.paidCurrent = D.paidTotal;
     D.rem = Math.max(0, Math.round((D.owed - (D.discountTotal || 0) - D.paidTotal) * 100) / 100);
     D.extra = Math.round(availablePay * 100) / 100;
@@ -1306,6 +1396,7 @@ export function computeAbaReconciliation(): AbaState {
     unmatched,
     tgSent: parseTgSent(),
     processedTransactions: Array.from(processedRefs),
+    processedInvoices: Array.from(processedInvs),
     updatedAt: new Date().toISOString()
   };
 

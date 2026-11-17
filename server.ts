@@ -21,7 +21,11 @@ import {
   getAbaStateStatus,
   markTransactionsProcessed,
   parseProcessedTransactions,
-  resetProcessedTransactions
+  resetProcessedTransactions,
+  parseProcessedInvoices,
+  markInvoicesProcessed,
+  resetProcessedInvoices,
+  extractCanonicalRef
 } from './server/abaReconciliation.ts';
 import {
   readStatementTemplate,
@@ -225,10 +229,33 @@ app.post('/api/aba/mark-processed', (req, res) => {
   }
 });
 
-// Reset all processed transactions
+// Get processed invoices list
+app.get('/api/aba/processed-invoices', (_req, res) => {
+  try {
+    const list = parseProcessedInvoices();
+    res.json({ success: true, list });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Mark invoices as processed
+app.post('/api/aba/mark-invoices-processed', (req, res) => {
+  try {
+    const invs = Array.isArray(req.body.invs) ? req.body.invs : [];
+    const list = markInvoicesProcessed(invs);
+    const state = getAbaState(true);
+    res.json({ success: true, list, state });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reset all processed transactions & invoices
 app.post('/api/aba/reset-processed', (_req, res) => {
   try {
     const list = resetProcessedTransactions();
+    resetProcessedInvoices();
     const state = getAbaState(true);
     res.json({ success: true, list, state });
   } catch (err: any) {
@@ -249,17 +276,11 @@ app.get('/api/aba/state-status', (_req, res) => {
 // Save exported Excel file for AME software reconciliation
 app.post('/api/aba/save-export', (req, res) => {
   try {
-    const { fileName, fileBase64, source, trxRefs } = req.body;
+    const { fileName, fileBase64, source, trxRefs, invNumbers } = req.body;
     if (!fileName || !fileBase64) {
       return res.status(400).json({ success: false, error: 'Missing fileName or fileBase64' });
     }
-    if (Array.isArray(trxRefs) && trxRefs.length > 0) {
-      try {
-        markTransactionsProcessed(trxRefs);
-      } catch (procErr) {
-        console.warn('Could not mark transactions as processed:', procErr);
-      }
-    }
+
     const dataDir = path.join(process.cwd(), 'data', 'aba');
     const ameDir = path.join(dataDir, 'ame_exports');
     if (!fs.existsSync(ameDir)) fs.mkdirSync(ameDir, { recursive: true });
@@ -268,6 +289,78 @@ app.post('/api/aba/save-export', (req, res) => {
     const buffer = Buffer.from(cleanB64, 'base64');
     const safeName = path.basename(fileName);
     fs.writeFileSync(path.join(ameDir, safeName), buffer);
+
+    // Auto-parse Sheet 1 (References) and Sheet 2 (Invoices) from the workbook directly!
+    const allRefsToMark = new Set<string>();
+    const allInvsToMark = new Set<string>();
+
+    if (Array.isArray(trxRefs)) {
+      trxRefs.forEach((r: any) => {
+        const c = extractCanonicalRef(r, r) || String(r || '').trim().toUpperCase();
+        if (c) allRefsToMark.add(c);
+      });
+    }
+    if (Array.isArray(invNumbers)) {
+      invNumbers.forEach((inv: any) => {
+        const clean = String(inv || '').trim().toUpperCase();
+        if (clean) allInvsToMark.add(clean);
+      });
+    }
+
+    try {
+      const expWb = XLSX.read(buffer, { type: 'buffer' });
+      if (expWb.SheetNames && expWb.SheetNames.length) {
+        // Sheet 1 has References in column 8 ('Reference') and column 11 ('Payment Reference')
+        const s1 = expWb.Sheets[expWb.SheetNames[0]];
+        if (s1) {
+          const rows1: any[][] = XLSX.utils.sheet_to_json(s1, { header: 1 });
+          rows1.forEach(row => {
+            if (Array.isArray(row)) {
+              row.forEach(cell => {
+                const s = String(cell || '').trim();
+                const canon = extractCanonicalRef(s, s);
+                if (canon) allRefsToMark.add(canon);
+              });
+            }
+          });
+        }
+        // Sheet 2 has Invoices in column 1 ('Invoice No/Account ID')
+        if (expWb.SheetNames.length > 1) {
+          const s2 = expWb.Sheets[expWb.SheetNames[1]];
+          if (s2) {
+            const rows2: any[][] = XLSX.utils.sheet_to_json(s2, { header: 1 });
+            rows2.forEach(row => {
+              if (Array.isArray(row)) {
+                row.forEach(cell => {
+                  const s = String(cell || '').trim().toUpperCase();
+                  const mInv = s.match(/\b(INV\d+)\b/i);
+                  if (mInv) allInvsToMark.add(mInv[1].toUpperCase());
+                });
+              }
+            });
+          }
+        }
+      }
+    } catch (parseWbErr) {
+      console.warn('Could not auto-parse exported workbook buffer:', parseWbErr);
+    }
+
+    if (allRefsToMark.size > 0) {
+      try {
+        markTransactionsProcessed(Array.from(allRefsToMark));
+        console.log(`✓ Marked ${allRefsToMark.size} transactions as processed from ${safeName}`);
+      } catch (procErr) {
+        console.warn('Could not mark transactions as processed:', procErr);
+      }
+    }
+    if (allInvsToMark.size > 0) {
+      try {
+        markInvoicesProcessed(Array.from(allInvsToMark));
+        console.log(`✓ Marked ${allInvsToMark.size} invoices as processed from ${safeName}`);
+      } catch (invErr) {
+        console.warn('Could not mark invoices as processed:', invErr);
+      }
+    }
 
     const histPath = path.join(dataDir, 'exports_history.json');
     let history: any[] = [];
