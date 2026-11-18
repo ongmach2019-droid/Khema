@@ -4578,22 +4578,45 @@ function applyServerState(state) {
         if(state.fileNames.acc) localStorage.setItem('acc_file_name', state.fileNames.acc);
     }
 
-    if(!state.doctors || !state.doctors.length) {
-        var hasLocalActiveData = (res && res.names && res.names.length > 0) || (FILES && FILES.length > 0) || (debts && debts.length > 0);
-        if (hasLocalActiveData) {
-            console.log('✓ រក្សាទុកទិន្នន័យគណនាលើ Browser (' + (res?.names?.length || 0) + ' គ្លីនិក) ដោយមិនអោយបាត់ឡើយ (Server state 0)');
-            updateBoxUI();
-            return true;
-        }
-        res = { docs: {}, names: [], unmatched: state.unmatched || [], tot: state.summary || { owed:0, paid:0, rem:0 }, from: null };
-        sel = {};
-        TG_SENT = {};
+    if(state.isReset || !state.doctors || !state.doctors.length) {
+        // FULL PURGE across ALL devices: Clear memory, IndexedDB, and localStorage
+        BANK_SLOTS = {
+            khema_aba: { name: '', raw: null, m: {}, count: 0 },
+            khema_acleda: { name: '', raw: null, m: {}, count: 0 },
+            rms_aba: { name: '', raw: null, m: {}, count: 0 },
+            rms_acleda: { name: '', raw: null, m: {}, count: 0 }
+        };
+        DEBT_SLOTS = {
+            khema: { name: '', count: 0, files: [], hdr: {} },
+            rms: { name: '', count: 0, files: [], hdr: {} },
+            newsmile: { name: '', count: 0, files: [], hdr: {} }
+        };
+        localStorage.removeItem('aba_bank_slots_meta');
+        localStorage.removeItem('aba_debt_slots_meta');
+        localStorage.removeItem('aba_file_name');
+        localStorage.removeItem('debt_file_name');
         localStorage.removeItem('aba_tg_sent');
-        if(typeof dbDel === 'function') dbDel('aba_tg_sent');
+        FILE_NAMES = { aba: '', debt: '', acc: (FILE_NAMES && FILE_NAMES.acc) || 'customers.xls' };
+        TG_SENT = {};
         tgFilter = 'all';
         doctorPayFilter = 'all';
+        if(typeof dbDel === 'function') {
+            try {
+                dbDel('bank_slots_state');
+                dbDel('debt_slots_state');
+                dbDel('aba_state');
+                dbDel('debt_state');
+                dbDel('aba_tg_sent');
+            } catch(e) {}
+        }
+        RAW.aba = null; M.aba = {}; aba = []; assign = {};
+        FILES = []; debts = []; HDR = {}; sel = {};
+        if($('fAba')) $('fAba').value = '';
+        if($('fDebt')) $('fDebt').value = '';
+        res = { docs: {}, names: [], unmatched: [], tot: { owed:0, paid:0, rem:0 }, from: null };
         updateBoxUI();
         render();
+        console.log('🧹 Purged all local data in sync with Server Reset');
         return true;
     }
 

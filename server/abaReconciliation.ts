@@ -82,6 +82,7 @@ export interface DoctorStatement {
 }
 
 export interface AbaState {
+  isReset?: boolean;
   activeDebtKey?: string;
   activeBankKey?: string;
   success: boolean;
@@ -1867,7 +1868,26 @@ export function resetAbaTelegramSent(): AbaState {
 // Reset state completely on server while strictly preserving all files in Drive H:\
 export function resetAbaState(): AbaState {
   ensureDataDir();
-  const filesToDelete = [
+
+  // 1. Delete all uploaded calculation files in dataDir/uploads/ (preserve master customer files)
+  const localUploadsDir = path.join(dataDir, 'uploads');
+  if (fs.existsSync(localUploadsDir)) {
+    try {
+      const allUploadFiles = fs.readdirSync(localUploadsDir);
+      allUploadFiles.forEach(f => {
+        const low = f.toLowerCase();
+        // Keep customer master files safe
+        if (low.includes('customer') || low.includes('អតិថិជន') || low.includes('bank_account_number')) return;
+        const p = path.join(localUploadsDir, f);
+        try { fs.unlinkSync(p); } catch {}
+      });
+    } catch (e) {
+      console.warn('resetAbaState clean uploads error:', e);
+    }
+  }
+
+  // 2. Delete root temporary calculation files in dataDir
+  const rootFilesToDelete = [
     'aba_statement.xlsx', 'aba_statement.xls', 'aba.xlsx', 'aba.xls', 'aba.csv',
     'khema_aba.xlsx', 'khema_aba.xls', 'khema_acleda.xlsx', 'khema_acleda.xls',
     'rms_aba.xlsx', 'rms_aba.xls', 'rms_acleda.xlsx', 'rms_acleda.xls',
@@ -1877,27 +1897,37 @@ export function resetAbaState(): AbaState {
     'state.json',
     'tg_sent.json'
   ];
-
-  // 1. Delete local working calculation files in dataDir
-  filesToDelete.forEach(f => {
+  rootFilesToDelete.forEach(f => {
     const p = path.join(dataDir, f);
     if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
   });
 
-  // Also ensure empty tg_sent.json
+  // 3. Reset shared_prefs so all slots are marked empty across all devices
+  writeSharedPrefs({
+    activeDebtKey: 'khema',
+    activeBankKey: 'khema_aba',
+    bankSlotsMeta: {
+      khema_aba: { exists: false, name: '' },
+      khema_acleda: { exists: false, name: '' },
+      rms_aba: { exists: false, name: '' },
+      rms_acleda: { exists: false, name: '' }
+    },
+    debtSlotsMeta: {
+      khema: { exists: false, name: '' },
+      rms: { exists: false, name: '' },
+      newsmile: { exists: false, name: '' }
+    },
+    discounts: {},
+    assignments: {},
+    updatedAt: new Date().toISOString()
+  });
+
+  // 4. Reset processed transactions, processed invoices, and tg sent
+  try { resetProcessedTransactions(); } catch {}
+  try { resetProcessedInvoices(); } catch {}
   writeJsonFile('tg_sent.json', {});
 
-  // 2. Also clear slot files from local uploads/
-  const localUploadsDir = path.join(dataDir, 'uploads');
-  if (fs.existsSync(localUploadsDir)) {
-    filesToDelete.forEach(f => {
-      const p = path.join(localUploadsDir, f);
-      if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch {} }
-    });
-  }
-
-  // 3. Drive H:\ safety: STRICTLY KEEP all customer and account files in Drive H:\!
-  // Only remove temporary cache state.json and tg_sent.json from H:\InvoiceAI if present.
+  // 5. Clean up temporary state from network drives
   const netDirs = getNetworkDriveAbaDirs();
   netDirs.forEach(dir => {
     try {
@@ -1908,13 +1938,14 @@ export function resetAbaState(): AbaState {
     } catch {}
   });
 
-  // 4. Return clean empty state
+  // 6. Return clean empty state with isReset: true to instruct all connected browsers to clear
   const emptyState: AbaState = {
     success: true,
+    isReset: true,
     summary: { owed: 0, paid: 0, rem: 0, doctorCount: 0, tgSentCount: 0, tgNotSentCount: 0 },
     doctors: [],
     unmatched: [],
-    fileNames: { aba: '', debt: '', acc: '' },
+    fileNames: { aba: '', debt: '', acc: 'customers.xls' },
     bankSlots: {
       khema_aba: { exists: false, name: '' },
       khema_acleda: { exists: false, name: '' },
@@ -1926,6 +1957,7 @@ export function resetAbaState(): AbaState {
       rms: { exists: false, name: '' },
       newsmile: { exists: false, name: '' }
     },
+    assignments: {},
     updatedAt: new Date().toISOString()
   };
 
