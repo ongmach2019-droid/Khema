@@ -2044,3 +2044,114 @@ export function syncCustomerProfilesToFile(customProfiles?: Record<string, any>)
   return { success: true, count: list.length, fileLocked: anyFileLocked };
 }
 
+// ============================================================
+// Link ABA Account Number to a Customer Profile
+// ============================================================
+export function linkAbaAccountToCustomer(custCode: string, custName: string, accNo: string): { success: boolean; error?: string; profile?: any } {
+  try {
+    ensureDataDir();
+
+    // 1. Load profiles
+    const profiles = parseCustomerProfiles(true);
+    const cUpper = custCode.trim().toUpperCase();
+
+    // 2. Find or create customer entry
+    let prof = profiles[cUpper];
+    if (!prof) {
+      // Try fuzzy match by name
+      const lName = custName.toLowerCase();
+      const matchKey = Object.keys(profiles).find(k => {
+        const p = profiles[k];
+        return (p.nameEn || '').toLowerCase().includes(lName) || lName.includes((p.nameEn || '').toLowerCase()) ||
+               (p.nameKh || '').toLowerCase().includes(lName) || lName.includes((p.nameKh || '').toLowerCase());
+      });
+      if (matchKey) {
+        prof = profiles[matchKey];
+      } else {
+        // Create minimal new entry
+        prof = { code: cUpper, nameEn: custName, nameKh: '', bankAccounts: '', telegram: '', phone: '', address: '', currency: 'USD' };
+        profiles[cUpper] = prof;
+      }
+    }
+
+    // 3. Add account number to bankAccounts field
+    const cleanAcc = accNo.replace(/\D/g, '');
+    const existingRaw = String(prof.bankAccounts || prof.bankAcc || '').trim();
+    const parts = existingRaw ? existingRaw.split('/').map((s: string) => s.trim()).filter(Boolean) : [];
+
+    // Check if already present
+    const alreadyHas = parts.some((p: string) => p.replace(/\D/g, '') === cleanAcc);
+    if (!alreadyHas && cleanAcc) {
+      // Format nicely: 000428736 -> 000 428 736
+      const formatted = cleanAcc.length >= 9
+        ? cleanAcc.replace(/(\d{3})(\d{3})(\d+)/, '$1 $2 $3')
+        : accNo;
+      parts.push(formatted);
+      prof.bankAccounts = parts.join(' / ');
+      prof.bankAcc = prof.bankAccounts; // keep both fields in sync
+    }
+
+    // 4. Update cachedProfiles
+    cachedProfiles = profiles;
+
+    // 5. Also update accounts_map.json
+    const accList = readJsonFile<any[]>('accounts_map.json', []);
+    const profCode = (prof.code || cUpper).toUpperCase();
+    const existEntry = accList.find((x: any) =>
+      (x.customerId && x.customerId.toUpperCase() === profCode) ||
+      (x.entry && x.entry.toUpperCase() === profCode) ||
+      (x.code && x.code.toUpperCase() === profCode)
+    );
+    if (existEntry) {
+      if (!Array.isArray(existEntry.accounts)) existEntry.accounts = [];
+      if (cleanAcc && !existEntry.accounts.includes(cleanAcc)) {
+        existEntry.accounts.push(cleanAcc);
+        existEntry.acct = existEntry.accounts[0];
+        existEntry.rawAccounts = existEntry.accounts;
+        existEntry.rawAcct = existEntry.accounts.join(' / ');
+      }
+    } else {
+      accList.push({
+        customerId: profCode,
+        entry: profCode,
+        code: profCode,
+        name: prof.nameEn || prof.nameKh || custName,
+        acct: cleanAcc,
+        accounts: cleanAcc ? [cleanAcc] : [],
+        rawAccounts: cleanAcc ? [cleanAcc] : [],
+        rawAcct: accNo
+      });
+    }
+    writeJsonFile('accounts_map.json', accList);
+    cachedAccountsMap = accList;
+
+    // 6. Sync to network drives
+    const networkDirs = getNetworkDriveAbaDirs();
+    for (const dir of networkDirs) {
+      try {
+        fs.writeFileSync(path.join(dir, 'accounts_map.json'), JSON.stringify(accList, null, 2), 'utf8');
+      } catch {}
+    }
+
+    // 7. Save profiles JSON  
+    try {
+      const profJsonPath = path.join(dataDir, 'khema_customers.json');
+      const existing = fs.existsSync(profJsonPath) ? JSON.parse(fs.readFileSync(profJsonPath, 'utf8')) : {};
+      existing.map = profiles;
+      fs.writeFileSync(profJsonPath, JSON.stringify(existing, null, 2), 'utf8');
+      // Sync to network
+      for (const dir of networkDirs) {
+        try { fs.writeFileSync(path.join(dir, 'khema_customers.json'), JSON.stringify(existing, null, 2), 'utf8'); } catch {}
+      }
+    } catch (e) {
+      console.warn('Could not save khema_customers.json:', e);
+    }
+
+    console.log(`✓ Linked ABA account ${accNo} to customer ${profCode} (${custName})`);
+    return { success: true, profile: prof };
+  } catch (err: any) {
+    console.error('linkAbaAccountToCustomer error:', err);
+    return { success: false, error: err.message };
+  }
+}
+

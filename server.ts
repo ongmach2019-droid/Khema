@@ -16,6 +16,7 @@ import {
   syncFromNetworkDriveIfNeeded,
   getNetworkDriveAbaDirs,
   syncCustomerProfilesToFile,
+  linkAbaAccountToCustomer,
   readSharedPrefs,
   writeSharedPrefs,
   getAbaStateStatus,
@@ -183,6 +184,24 @@ app.post('/api/aba/sync-customer-file', (req, res) => {
     res.json(result);
   } catch (err: any) {
     console.error('Error in /api/aba/sync-customer-file:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Link ABA account number to a customer profile (from Unmatched section)
+app.post('/api/aba/link-account', (req, res) => {
+  try {
+    const { custCode, custName, accNo, source } = req.body;
+    if (!accNo) return res.status(400).json({ success: false, error: 'Missing accNo' });
+    if (!custCode && !custName) return res.status(400).json({ success: false, error: 'Missing custCode or custName' });
+    const result = linkAbaAccountToCustomer(
+      custCode || (custName || '').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10),
+      custName || custCode || '',
+      accNo
+    );
+    res.json(result);
+  } catch (err: any) {
+    console.error('Error in /api/aba/link-account:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -6220,10 +6220,31 @@ function render() {
 
     if(R.unmatched && R.unmatched.length) {
 
-        var doctorSelectOptions = '<option value="">— ជ្រើសរើស —</option>' + R.names.map(n => '<option>' + esc(n) + '</option>').join('');
-        h += '<div class="card"><h2>ABA រកមិនឃើញគ្រូពេទ្យ (' + R.unmatched.length + ')</h2><div class="tw"><table><tr><th>កាលបរិច្ឆេទ</th><th>ពិពណ៌នា</th><th class="n">ចំនួន</th><th>គ្រូពេទ្យ</th></tr>';
+        // Build datalist options once (shared for performance, but each input has unique list id)
+        var dlOpts = R.names.map(n => '<option value="' + esc(n) + '">').join('');
 
-        R.unmatched.slice(0, 100).forEach(t => { h += '<tr><td>' + dmy(t.date) + '</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">' + esc(t.text) + '</td><td class="n">' + fmt(t.amt) + '</td><td><select data-as="' + t.id + '">' + doctorSelectOptions + '</select></td></tr>'; });
+        h += '<div class="card"><h2>⚠️ ABA រកមិនឃើញគ្រូពេទ្យ (' + R.unmatched.length + ')</h2>';
+        h += '<p style="font-size:0.8rem;color:#64748b;margin:0 0 8px">វាយឈ្មោះពេទ្យ ឬជ្រើស ហើយចុច 💾 ដើម្បីរក្សា ABA account ទៅបញ្ជី</p>';
+        h += '<div class="tw"><table><tr><th>កាលបរិច្ឆេទ</th><th>ពិពណ៌នា</th><th class="n">ចំនួន</th><th style="min-width:260px">ស្វែងរក / ជ្រើស គ្រូពេទ្យ</th><th>ABA Acc</th></tr>';
+
+        R.unmatched.slice(0, 100).forEach(function(t) {
+            var dlId = 'dl_' + t.id;
+            var txAcc = extractAbaAccount(t.text);
+            var curVal = assign[t.id] ? esc(assign[t.id]) : '';
+            h += '<tr>';
+            h += '<td>' + dmy(t.date) + '</td>';
+            h += '<td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;font-size:0.78rem">' + esc(t.text) + '</td>';
+            h += '<td class="n">' + fmt(t.amt) + '</td>';
+            h += '<td>';
+            // Searchable input using datalist
+            h += '<input type="text" list="' + dlId + '" class="unmatched-doc-inp" data-as="' + t.id + '" value="' + curVal + '" placeholder="🔍 វាយស្វែងរក ឬជ្រើសរើស..." style="width:200px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:5px;font-size:0.82rem">';
+            h += '<datalist id="' + dlId + '">' + dlOpts + '</datalist>';
+            // Save account button
+            h += ' <button class="btn-save-acc-link" data-as="' + t.id + '" data-acc="' + esc(txAcc) + '" data-text="' + esc(t.text.substring(0,80)) + '" title="រក្សាទុក ABA Account ទៅបញ្ជីអតិថិជន" style="padding:3px 7px;font-size:0.78rem;background:#0369a1;color:#fff;border:none;border-radius:4px;cursor:pointer">💾</button>';
+            h += '</td>';
+            h += '<td style="font-size:0.75rem;color:#0369a1;white-space:nowrap">' + (txAcc ? txAcc : '<span style="color:#94a3b8">—</span>') + '</td>';
+            h += '</tr>';
+        });
 
         h += '</table></div></div>';
 
@@ -7394,6 +7415,19 @@ document.addEventListener('input', function(e) {
     }
 });
 
+// Live input handler for searchable unmatched doctor assignment
+document.addEventListener('input', function(e) {
+    var t = e.target;
+    if(t && t.classList && t.classList.contains('unmatched-doc-inp')) {
+        var val = t.value.trim();
+        if(val && res && res.names && res.names.includes(val)) {
+            assign[t.dataset.as] = val;
+        } else if(!val) {
+            delete assign[t.dataset.as];
+        }
+    }
+});
+
 document.addEventListener('change', e => {
 
     var t = e.target;
@@ -7431,9 +7465,114 @@ document.addEventListener('change', e => {
         updateSelBtn();
     }
 
+    // Unmatched doctor assignment input (searchable input)
+    if(t.dataset.as != null && t.classList && t.classList.contains('unmatched-doc-inp') && t.value) {
+        assign[t.dataset.as] = t.value;
+        run();
+        return;
+    }
     if(t.dataset.as != null && t.value) { assign[t.dataset.as] = t.value; run(); }
 
     if(t.dataset.mk2) { var m = t.dataset.mk2 === 'aba' ? M.aba : FILES[+t.dataset.fi].m; m[t.dataset.mf] = t.value; run(); }
+
+    // 💾 Save ABA account to customer profile from unmatched section
+    if(t.classList && t.classList.contains('btn-save-acc-link')) {
+        var rowId = t.dataset.as;
+        // Find the corresponding input
+        var inp = document.querySelector('.unmatched-doc-inp[data-as="' + rowId + '"]');
+        var docName = inp ? inp.value.trim() : (assign[rowId] || '');
+        var accNo = t.dataset.acc || '';
+        var txText = t.dataset.text || '';
+        if(!docName) { alert('សូមជ្រើសរើស ឬវាយឈ្មោះគ្រូពេទ្យជាមុន'); return; }
+        if(!accNo) { alert('រកមិនឃើញ ABA Account Number ក្នុង transaction នេះ'); return; }
+
+        // Find customer code from ACC or CUSTOMER_PROFILES
+        var custCode = '';
+        var custName = docName;
+        // Try to match by name in ACC array
+        if(Array.isArray(ACC)) {
+            var accMatch = ACC.find(function(a) {
+                return a && (
+                    (a.name && (a.name.toLowerCase().includes(docName.toLowerCase()) || docName.toLowerCase().includes(a.name.toLowerCase()))) ||
+                    (a.code && docName.toUpperCase().startsWith(a.code))
+                );
+            });
+            if(accMatch) { custCode = accMatch.code || accMatch.id || ''; custName = accMatch.name || docName; }
+        }
+        // Try CUSTOMER_PROFILES
+        if(!custCode && typeof CUSTOMER_PROFILES === 'object') {
+            var profMatch = Object.entries(CUSTOMER_PROFILES).find(function(e) {
+                var p = e[1];
+                return p && (
+                    (p.nameKh && p.nameKh.toLowerCase().includes(docName.toLowerCase())) ||
+                    (p.nameEn && p.nameEn.toLowerCase().includes(docName.toLowerCase())) ||
+                    docName.toLowerCase().includes((p.nameKh || p.nameEn || '').toLowerCase())
+                );
+            });
+            if(profMatch) { custCode = profMatch[0]; custName = profMatch[1].nameKh || profMatch[1].nameEn || custName; }
+        }
+
+        if(!custCode) {
+            // Create a new entry if not found
+            var yn = confirm('រកមិនឃើញ "' + docName + '" ក្នុងបញ្ជីអតិថិជន។\nចង់បង្កើតថ្មីដែរទេ?\n\nABA Account: ' + accNo);
+            if(!yn) return;
+            custCode = docName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+        }
+
+        // Update ACC array
+        if(Array.isArray(ACC)) {
+            var existEntry = ACC.find(function(a) { return a && (a.code === custCode || a.name === custName); });
+            if(existEntry) {
+                if(!Array.isArray(existEntry.accounts)) existEntry.accounts = [];
+                var cleanAcc = accNo.replace(/\D/g, '');
+                if(cleanAcc && !existEntry.accounts.includes(cleanAcc)) {
+                    existEntry.accounts.push(cleanAcc);
+                    existEntry.acct = existEntry.accounts[0];
+                }
+            }
+        }
+
+        // Update CUSTOMER_PROFILES bankAcc field
+        if(typeof CUSTOMER_PROFILES === 'object' && custCode) {
+            var prof = CUSTOMER_PROFILES[custCode] || { code: custCode };
+            var existingBankAcc = prof.bankAcc || '';
+            var parts = existingBankAcc ? existingBankAcc.split('/').map(function(s){ return s.trim(); }) : [];
+            var cleanAccNo = accNo.replace(/\D/g, '');
+            // Format nicely with spaces (e.g. 000428736 => 000 428 736)
+            var formattedAcc = cleanAccNo.length >= 9 ? cleanAccNo.replace(/(\d{3})(\d{3})(\d+)/, '$1 $2 $3') : accNo;
+            if(!parts.some(function(p) { return p.replace(/\D/g,'') === cleanAccNo; })) {
+                parts.push(formattedAcc);
+            }
+            prof.bankAcc = parts.join(' / ');
+            CUSTOMER_PROFILES[custCode] = prof;
+            saveCustomerProfiles();
+        }
+
+        // Send to server: link account to doctor
+        fetch('/api/aba/link-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ custCode: custCode, custName: custName, accNo: accNo, source: txText })
+        }).then(function(r) { return r.json(); }).then(function(res) {
+            if(res.success) {
+                t.textContent = '✅';
+                t.style.background = '#16a34a';
+                setTimeout(function() { t.textContent = '💾'; t.style.background = '#0369a1'; }, 2500);
+                // Also assign doctor if not already assigned
+                if(inp && inp.value) assign[rowId] = inp.value;
+                console.log('Linked ABA account', accNo, 'to', custCode, ':', custName);
+            } else {
+                alert('មានបញ្ហាក្នុងការរក្សាទុក: ' + (res.error || 'Unknown error'));
+            }
+        }).catch(function(err) {
+            // Even if server fails, local save already done
+            t.textContent = '✅';
+            t.style.background = '#16a34a';
+            setTimeout(function() { t.textContent = '💾'; t.style.background = '#0369a1'; }, 2000);
+            console.warn('link-account server error (local saved):', err);
+        });
+        return;
+    }
 
 });
 
