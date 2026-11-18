@@ -101,6 +101,7 @@ export interface AbaState {
   bankSlots?: Record<string, { exists: boolean; name: string }>;
   debtSlots?: Record<string, { exists: boolean; name: string }>;
   doctors: DoctorStatement[];
+  assignments?: Record<string, string>;
   unmatched: Array<{
     id: number;
     date: string;
@@ -125,6 +126,7 @@ export interface SharedPrefs {
   activeBankKey?: string;
   bankSlotsMeta?: Record<string, { exists: boolean; name: string }>;
   debtSlotsMeta?: Record<string, { exists: boolean; name: string }>;
+  assignments?: Record<string, string>;
   updatedAt: string;
 }
 
@@ -158,6 +160,7 @@ export function readSharedPrefs(): SharedPrefs {
       rms: { exists: false, name: '' },
       newsmile: { exists: false, name: '' }
     },
+    assignments: {},
     updatedAt: new Date().toISOString()
   };
   const saved = readJsonFile<SharedPrefs | null>('shared_prefs.json', null);
@@ -169,6 +172,7 @@ export function readSharedPrefs(): SharedPrefs {
       activeBankKey: saved.activeBankKey || defaultPrefs.activeBankKey,
       bankSlotsMeta: Object.assign({}, defaultPrefs.bankSlotsMeta, saved.bankSlotsMeta || {}),
       debtSlotsMeta: Object.assign({}, defaultPrefs.debtSlotsMeta, saved.debtSlotsMeta || {}),
+      assignments: saved.assignments || {},
       updatedAt: saved.updatedAt || defaultPrefs.updatedAt
     };
   }
@@ -185,6 +189,7 @@ export function writeSharedPrefs(newPrefs: Partial<SharedPrefs>): SharedPrefs {
     activeBankKey: newPrefs.activeBankKey || current.activeBankKey || 'khema_aba',
     bankSlotsMeta: Object.assign({}, current.bankSlotsMeta, newPrefs.bankSlotsMeta || {}),
     debtSlotsMeta: Object.assign({}, current.debtSlotsMeta, newPrefs.debtSlotsMeta || {}),
+    assignments: Object.assign({}, current.assignments || {}, newPrefs.assignments || {}),
     updatedAt: new Date().toISOString()
   };
   writeJsonFile('shared_prefs.json', merged);
@@ -198,6 +203,7 @@ export function writeSharedPrefs(newPrefs: Partial<SharedPrefs>): SharedPrefs {
     cachedState.activeBankKey = merged.activeBankKey;
     if (merged.bankSlotsMeta) cachedState.bankSlots = merged.bankSlotsMeta;
     if (merged.debtSlotsMeta) cachedState.debtSlots = merged.debtSlotsMeta;
+    if (merged.assignments) cachedState.assignments = merged.assignments;
     writeJsonFile('state.json', cachedState);
   }
 
@@ -1166,7 +1172,33 @@ export function computeAbaReconciliation(): AbaState {
         const cleanTextDigits = text.replace(/\D/g, '');
         let hitDoc: DoctorStatement | null = null;
 
-        for (const a of accMap) {
+        // Priority 1: Check manual assignment from sharedPrefs across all devices!
+        const assignedDocName = (shared.assignments && (
+          shared.assignments[String(i)] ||
+          (canonicalRef && shared.assignments[canonicalRef]) ||
+          shared.assignments[trxKey]
+        )) || '';
+        if (assignedDocName) {
+          const tryKeys = [
+            `${targetEntitySlot}_${assignedDocName}`,
+            `${targetEntitySlot}_${getCanonicalCustomerName('', assignedDocName)}`,
+            assignedDocName
+          ];
+          for (const tk of tryKeys) {
+            if (doctorsMap[tk]) { hitDoc = doctorsMap[tk]; break; }
+          }
+          if (!hitDoc) {
+            for (const k of doctorOrder) {
+              const d = doctorsMap[k];
+              if (d && (d.name.toLowerCase() === assignedDocName.toLowerCase() || d.id === assignedDocName)) {
+                hitDoc = d;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!hitDoc) for (const a of accMap) {
           const accList: string[] = (a.accounts && a.accounts.length)
             ? a.accounts
             : [String(a.acct || a.bankAcc || a.rawAcct || '').replace(/\D/g, '')];
@@ -1394,6 +1426,7 @@ export function computeAbaReconciliation(): AbaState {
     activeBankKey,
     doctors: resultDoctors,
     unmatched,
+    assignments: shared.assignments || {},
     tgSent: parseTgSent(),
     processedTransactions: Array.from(processedRefs),
     processedInvoices: Array.from(processedInvs),
@@ -1419,6 +1452,7 @@ export function getAbaState(force = false): AbaState {
         cached.profiles = cached.profiles || parseCustomerProfiles();
         cached.printPrefs = shared.printPrefs;
         cached.discounts = shared.discounts;
+        cached.assignments = shared.assignments || {};
         cached.tgSent = parseTgSent();
         cached.processedTransactions = parseProcessedTransactions();
         let sentCnt = 0;
@@ -1535,11 +1569,31 @@ export function uploadAbaFile(fileType: 'aba' | 'debt' | 'acc', fileName: string
   // 1. Save active file strictly in uploads subfolder (data/aba/uploads/)
   const uploadsDir = path.join(dataDir, 'uploads');
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  fs.writeFileSync(path.join(uploadsDir, targetName), buffer);
+
+  let binaryBuffer: Buffer;
+  if (Buffer.isBuffer(buffer)) {
+    binaryBuffer = buffer;
+  } else if (typeof buffer === 'string') {
+    const clean = (buffer as string).replace(/^data:[^;]+;base64,/, '');
+    binaryBuffer = Buffer.from(clean, 'base64');
+  } else {
+    binaryBuffer = Buffer.from(buffer as any);
+  }
+
+  // Auto-decode if the buffer is base64 text
+  const strHead = binaryBuffer.slice(0, 30).toString('utf8');
+  if (strHead.startsWith('UEsDB') || strHead.startsWith('0M8R4k')) {
+    try {
+      const decoded = Buffer.from(binaryBuffer.toString('utf8').trim(), 'base64');
+      if (decoded && decoded.length > 0) binaryBuffer = decoded;
+    } catch {}
+  }
+
+  fs.writeFileSync(path.join(uploadsDir, targetName), binaryBuffer);
 
   // Also save the clean original file name (e.g. "Khema Aged Receivable.xls", "RMS Aged Receivable.xls")
   if (cleanOriginalName && cleanOriginalName !== targetName) {
-    try { fs.writeFileSync(path.join(uploadsDir, cleanOriginalName), buffer); } catch {}
+    try { fs.writeFileSync(path.join(uploadsDir, cleanOriginalName), binaryBuffer); } catch {}
   }
 
   // Update sharedPrefs so this slot is known to exist across all devices

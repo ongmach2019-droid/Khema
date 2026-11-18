@@ -1305,8 +1305,15 @@ function setActiveBankSlot(slotKey, syncDebt) {
     rebuildDebtFiles();
     if (FILES && FILES.length > 0) {
         if (typeof run === 'function') run();
+    } else {
+        if (typeof silentlySyncServerState === 'function') silentlySyncServerState(true);
     }
     if (typeof updateBoxUI === 'function') updateBoxUI();
+    fetch('/api/aba/shared-prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeBankKey: slotKey })
+    }).catch(function(){});
 }
 
 function setActiveDebtFilter(filterKey, syncBank) {
@@ -1879,7 +1886,7 @@ function updateBoxUI() {
         var rad = document.querySelector('input[name="radBankSlot"][value="' + k + '"]');
         var delBtn = document.querySelector('.bank-slot-row .btn-slot-del[data-slot="' + k + '"]');
         var slotData = BANK_SLOTS[k];
-        var isLoaded = !!(slotData && slotData.name && (slotData.raw || slotData.count > 0));
+        var isLoaded = !!(slotData && slotData.name);
         if (isLoaded) loadedBankCount++;
 
         if (card) {
@@ -1890,7 +1897,7 @@ function updateBoxUI() {
 
         if (statusEl) {
             if (isLoaded) {
-                var cntStr = slotData.count ? (slotData.count + ' ជួរ') : 'បានផ្ទុក';
+                var cntStr = slotData.count ? (slotData.count + ' ជួរ') : (slotData.raw ? 'បានផ្ទុក' : 'Server Ready');
                 statusEl.innerHTML = '<span style="color:#059669;font-weight:600">🟢 ' + esc(slotData.name) + ' (' + cntStr + ')</span>';
             } else {
                 statusEl.innerHTML = '<span style="color:var(--mu)">⚪ មិនទាន់មាន File</span>';
@@ -1923,7 +1930,7 @@ function updateBoxUI() {
         var rad = document.querySelector('input[name="radDebtSlot"][value="' + k + '"]');
         var delBtn = document.querySelector('.debt-slot-row .btn-slot-del[data-slot="' + k + '"]');
         var slotData = DEBT_SLOTS[k];
-        var isLoaded = !!(slotData && slotData.name && ((slotData.files && slotData.files.length) || slotData.count > 0));
+        var isLoaded = !!(slotData && slotData.name);
         if (isLoaded) loadedDebtCount++;
 
         if (card) {
@@ -1934,7 +1941,7 @@ function updateBoxUI() {
 
         if (statusEl) {
             if (isLoaded) {
-                var cntStr = slotData.count ? (slotData.count + ' វិក័យបត្រ') : 'បានផ្ទុក';
+                var cntStr = slotData.count ? (slotData.count + ' វិក័យបត្រ') : ((slotData.files && slotData.files.length) ? 'បានផ្ទុក' : 'Server Ready');
                 statusEl.innerHTML = '<span style="color:#059669;font-weight:600">🟢 ' + esc(slotData.name) + ' (' + cntStr + ')</span>';
             } else {
                 statusEl.innerHTML = '<span style="color:var(--mu)">⚪ មិនទាន់មាន File</span>';
@@ -4497,6 +4504,20 @@ function applyServerState(state) {
         try { localStorage.setItem('aba_inv_discounts', JSON.stringify(DISCOUNT_MAP)); } catch(e) {}
     }
     
+    // Ingest assignments from server across all devices
+    if(state.assignments && typeof state.assignments === 'object') {
+        assign = Object.assign({}, assign, state.assignments);
+    }
+    if(state.activeBankKey && state.activeBankKey !== activeBankKey) {
+        activeBankKey = state.activeBankKey;
+        localStorage.setItem('aba_bank_source_key', activeBankKey);
+        applyBankProfile(activeBankKey);
+    }
+    if(state.activeDebtKey && state.activeDebtKey !== activeDebtKey) {
+        activeDebtKey = state.activeDebtKey;
+        localStorage.setItem('aba_debt_filter_key', activeDebtKey);
+    }
+
     // Ingest slot info unconditionally from server
     if(state.bankSlots && typeof state.bankSlots === 'object') {
         Object.keys(state.bankSlots).forEach(k => {
@@ -7467,8 +7488,15 @@ document.addEventListener('change', e => {
 
     // Unmatched doctor assignment input (searchable input)
     if(t.dataset.as != null && t.classList && t.classList.contains('unmatched-doc-inp') && t.value) {
-        assign[t.dataset.as] = t.value;
+        var docVal = t.value.trim();
+        assign[t.dataset.as] = docVal;
         run();
+        // Cross-device sync: save assignment to server immediately so all devices see it!
+        fetch('/api/aba/assign-transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ txId: t.dataset.as, docName: docVal })
+        }).catch(function(e) { console.warn('assign sync error:', e); });
         return;
     }
     if(t.dataset.as != null && t.value) { assign[t.dataset.as] = t.value; run(); }

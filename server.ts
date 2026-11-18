@@ -26,6 +26,7 @@ import {
   parseProcessedInvoices,
   markInvoicesProcessed,
   resetProcessedInvoices,
+  computeAbaReconciliation,
   extractCanonicalRef
 } from './server/abaReconciliation.ts';
 import {
@@ -184,6 +185,28 @@ app.post('/api/aba/sync-customer-file', (req, res) => {
     res.json(result);
   } catch (err: any) {
     console.error('Error in /api/aba/sync-customer-file:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Assign Unmatched ABA transaction to doctor (synchronized across all devices)
+app.post('/api/aba/assign-transaction', (req, res) => {
+  try {
+    const { txId, docName, assignments } = req.body;
+    const current = readSharedPrefs();
+    const updatedAssignments = Object.assign({}, current.assignments || {});
+    if (assignments && typeof assignments === 'object') {
+      Object.assign(updatedAssignments, assignments);
+    } else if (txId != null && docName) {
+      updatedAssignments[String(txId)] = String(docName).trim();
+    } else if (txId != null && !docName) {
+      delete updatedAssignments[String(txId)];
+    }
+    writeSharedPrefs({ assignments: updatedAssignments });
+    const state = computeAbaReconciliation();
+    res.json({ success: true, state });
+  } catch (err: any) {
+    console.error('Error in /api/aba/assign-transaction:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
